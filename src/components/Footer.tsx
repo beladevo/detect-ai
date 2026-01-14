@@ -1,19 +1,19 @@
-"use client";
+﻿"use client";
 
 import React from "react";
 import { ShieldCheck } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer id="privacy" className="border-t border-white/10 bg-white/5">
+    <footer className="border-t border-white/10 bg-white/5">
       <div className="mx-auto grid w-full max-w-6xl gap-8 px-6 py-10 md:grid-cols-3">
         <div>
           <div className="flex items-center gap-2 text-lg font-semibold">
             <ShieldCheck className="h-5 w-5 text-purple-300" />
-            EliteB.gg
+            DetectAI
           </div>
           <p className="mt-3 text-sm text-gray-400">
-            Advanced detection delivering full transparency for visual content.
+            Forensic AI detection with privacy-first, on-device processing.
           </p>
         </div>
         <div className="text-sm text-gray-400">
@@ -36,12 +36,14 @@ export default function Footer() {
           <p className="mb-3 text-xs uppercase tracking-[0.3em] text-gray-500">
             Privacy
           </p>
-          <p>Files are deleted after analysis. No reuse without permission.</p>
+          <p>Local scans only. You control what gets stored or cleared.</p>
           <p className="mt-4 text-xs text-gray-500">
-            © 2026 EliteB.gg. All rights reserved.
+            (c) 2026 DetectAI. All rights reserved.
           </p>
         </div>
       </div>
     </footer>
   );
 }
+
+

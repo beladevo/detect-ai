@@ -13,9 +13,9 @@ const bodyFont = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "EliteB.gg | AI Image Detector",
+  title: "DetectAI | AI Image Detection",
   description:
-    "Elite-grade AI image detection with advanced forensics, confidence scoring, and visual analysis.",
+    "Local AI image detection with forensic scoring, heatmap overlays, and zero-retention privacy.",
 };
 
 export default function RootLayout({

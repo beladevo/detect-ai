@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useRef } from "react";
 import { gsap } from "gsap";
@@ -183,13 +183,13 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
               className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-gray-300"
             >
               <ShieldCheck className="h-4 w-4 text-purple-300" />
-              Elite Detection Grid
+              DetectAI Local Grid
             </p>
             <h1
               ref={titleRef}
               className="font-display text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl"
             >
-              {"Advanced AI Image Detection with forensic-grade confidence."
+              {"DetectAI spots synthetic images with forensic-grade confidence."
                 .split(" ")
                 .map((word, index) => (
                   <span key={`${word}-${index}`} className="hero-word inline-block pr-2">
@@ -215,7 +215,7 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
                 <ArrowDownRight className="h-4 w-4" />
               </button>
               <div className="text-sm text-gray-400">
-                Average time to result: 2 seconds • no file retention
+                Average time to result: 1.6 seconds | <strong className="font-semibold text-white">local model on your device</strong> | free to use (currently)
               </div>
             </div>
           </div>
@@ -244,3 +244,7 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
     </section>
   );
 }
+
+
+
+

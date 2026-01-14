@@ -15,7 +15,7 @@ export default function Navbar({ onActionClick }: NavbarProps) {
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/20">
             <ShieldCheck className="h-5 w-5 text-purple-200" />
           </span>
-          <span className="font-display text-xl">EliteB.gg</span>
+          <span className="font-display text-xl">DetectAI</span>
         </div>
         <div className="hidden items-center gap-6 text-sm text-gray-300 md:flex">
           <a href="#upload" className="transition hover:text-white">

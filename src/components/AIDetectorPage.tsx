@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { gsap } from "gsap";
@@ -6,9 +6,11 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { AlertCircle, ShieldCheck, Sparkles } from "lucide-react";
 import Navbar from "@/src/components/Navbar";
 import HeroSection from "@/src/components/HeroSection";
+import FeaturesSection from "@/src/components/FeaturesSection";
 import UploadZone from "@/src/components/UploadZone";
 import ResultsDisplay from "@/src/components/ResultsDisplay";
 import HistoryList, { type HistoryItem } from "@/src/components/HistoryList";
+import PrivacySection from "@/src/components/PrivacySection";
 import Footer from "@/src/components/Footer";
 import ComparisonTool from "@/src/components/ComparisonTool";
 import { analyzeImageWithWasm } from "@/src/lib/wasmDetector";
@@ -20,7 +22,7 @@ type DetectionResult = {
   verdict?: "ai" | "real" | "uncertain";
 };
 
-const HISTORY_KEY = "eliteb_history";
+const HISTORY_KEY = "detectai_history";
 
 export default function AIDetectorPage() {
   const [isUploading, setIsUploading] = useState(false);
@@ -144,6 +146,7 @@ export default function AIDetectorPage() {
         <div className="absolute bottom-[-10%] left-[25%] h-[26rem] w-[26rem] rounded-full bg-pink-600/20 blur-[140px]" />
 
         <HeroSection onCTA={handleCTAClick} />
+        <FeaturesSection />
 
         <section
           id="upload"
@@ -186,20 +189,20 @@ export default function AIDetectorPage() {
                 </div>
                 <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
                   <ShieldCheck className="h-4 w-4 text-emerald-300" />
-                  <span>Full privacy mode - files are deleted after analysis.</span>
+                  <span>Full privacy mode with local-only processing.</span>
                 </div>
               </div>
             )}
           </div>
 
-          <div id="features" className="space-y-8">
+          <div className="space-y-8">
             <div
               ref={statusCardRef}
               className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 via-white/5 to-purple-500/10 p-6 shadow-glow-purple"
             >
               <h3 className="text-lg font-semibold text-white">Detection engine status</h3>
               <p className="mt-2 text-sm text-gray-300">
-                Model version: EliteVision v2.4 • Average response: 1.6s • Accuracy: 96.2%
+                Model version: LocalTrace v3.1 | Average response: 1.6s | Accuracy: 96.2%
               </p>
               <div className="mt-5 grid grid-cols-2 gap-4 text-sm text-gray-200">
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
@@ -228,9 +231,12 @@ export default function AIDetectorPage() {
         {result.score !== null && previewUrl ? (
           <ComparisonTool previewUrl={previewUrl} verdict={verdict} />
         ) : null}
+        <PrivacySection />
       </main>
 
       <Footer />
     </div>
   );
 }
+
+
