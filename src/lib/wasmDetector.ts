@@ -29,6 +29,7 @@ const STD = [0.229, 0.224, 0.225];
 
 const sessionCache = new Map<string, Promise<SessionState>>();
 
+
 async function getSession(): Promise<SessionState> {
   const cacheKey = "default";
   if (!sessionCache.has(cacheKey)) {
@@ -38,29 +39,31 @@ async function getSession(): Promise<SessionState> {
         typeof navigator !== "undefined"
           ? Math.max(1, Math.min(4, navigator.hardwareConcurrency || 1))
           : 1;
-      const webgpuAvailable =
-        typeof navigator !== "undefined" && "gpu" in navigator;
       console.info("WASM detector: env", {
         simd: true,
         threads: cpuThreads,
-        webgpuAvailable,
       });
 
       const modelPaths = MODEL_PATHS;
       let lastError: unknown = null;
       for (const modelPath of modelPaths) {
-        const executionProviders = webgpuAvailable ? ["webgpu", "wasm"] : ["wasm"];
-        try {
+        const executionProviders: Array<"wasm"> = ["wasm"];
+        const modelBuffer = await fetchModelBuffer(modelPath);
+        const attempts: Array<{ simd: boolean; numThreads: number }> = [
+          { simd: true, numThreads: cpuThreads },
+          { simd: false, numThreads: 1 },
+        ];
+        for (const attempt of attempts) {
           try {
             console.info("WASM detector: loading model", {
               modelPath,
               executionProviders,
-              simd: true,
-              numThreads: cpuThreads,
+              simd: attempt.simd,
+              numThreads: attempt.numThreads,
             });
-            ort.env.wasm.simd = true;
-            ort.env.wasm.numThreads = cpuThreads;
-            const session = await ort.InferenceSession.create(modelPath, {
+            ort.env.wasm.simd = attempt.simd;
+            ort.env.wasm.numThreads = attempt.numThreads;
+            const session = await ort.InferenceSession.create(modelBuffer.slice(0), {
               executionProviders,
               graphOptimizationLevel: "all",
             });
@@ -76,8 +79,8 @@ async function getSession(): Promise<SessionState> {
             console.info("WASM detector: model ready", {
               modelPath,
               executionProviders,
-              simd: true,
-              numThreads: cpuThreads,
+              simd: attempt.simd,
+              numThreads: attempt.numThreads,
               inputName,
               outputName,
               layout,
@@ -91,13 +94,11 @@ async function getSession(): Promise<SessionState> {
             console.error("WASM detector: provider failed", {
               modelPath,
               executionProviders,
-              simd: true,
-              numThreads: cpuThreads,
+              simd: attempt.simd,
+              numThreads: attempt.numThreads,
               error: formatWasmError(error),
             });
           }
-        } catch (error) {
-          lastError = error;
         }
       }
       throw new Error(`Unable to load WASM model: ${formatWasmError(lastError)}`);
@@ -425,4 +426,17 @@ function formatWasmError(error: unknown): string {
     }
   }
   return "Unknown error";
+}
+
+async function fetchModelBuffer(modelPath: string): Promise<ArrayBuffer> {
+  const response = await fetch(modelPath);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch model: ${response.status} ${modelPath}`);
+  }
+  const buffer = await response.arrayBuffer();
+  console.info("WASM detector: model fetched", {
+    modelPath,
+    bytes: buffer.byteLength,
+  });
+  return buffer;
 }
