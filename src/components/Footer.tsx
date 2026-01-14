@@ -41,7 +41,7 @@ export default function Footer() {
             (c) 2026 DetectAI. All rights reserved.
           </p>
         </div>
-      </div>
+      </div> 
     </footer>
   );
 }
