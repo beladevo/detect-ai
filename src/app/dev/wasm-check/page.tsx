@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import { analyzeImageWithWasm } from "@/src/lib/wasmDetector";
 
-export default function WAsmCheckPage() {
+function WasmCheckContent() {
   const [score, setScore] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -18,8 +18,12 @@ export default function WAsmCheckPage() {
     try {
       const nextScore = await analyzeImageWithWasm(file);
       setScore(nextScore);
-    } catch {
-      setError("WASM detection failed.");
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.stack || err.message || "WASM detection failed."
+          : String(err);
+      setError(message || "WASM detection failed.");
     } finally {
       setIsRunning(false);
     }
@@ -37,6 +41,9 @@ export default function WAsmCheckPage() {
             Upload a file to run the browser-based WASM model. Use this for local
             comparisons only.
           </p>
+          <p className="mt-2 text-xs uppercase tracking-[0.3em] text-gray-400">
+            Model: model.onnx
+          </p>
         </div>
         <div className="space-y-3">
           <input
@@ -48,7 +55,11 @@ export default function WAsmCheckPage() {
           {isRunning ? (
             <p className="text-sm text-gray-400">Running detection...</p>
           ) : null}
-          {error ? <p className="text-sm text-red-300">{error}</p> : null}
+          {error ? (
+            <p data-testid="error" className="text-sm text-red-300">
+              {error}
+            </p>
+          ) : null}
           {score !== null ? (
             <p className="text-sm text-gray-200">
               Score:{" "}
@@ -64,5 +75,13 @@ export default function WAsmCheckPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function WAsmCheckPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black" />}>
+      <WasmCheckContent />
+    </Suspense>
   );
 }

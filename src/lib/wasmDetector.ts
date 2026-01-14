@@ -1,4 +1,6 @@
 import * as ort from "onnxruntime-web";
+import { resolveModelConfig } from "@/src/lib/modelConfigs";
+import { scoreFromConfidence } from "@/src/lib/scoreUtils";
 
 type DetectionResult = {
   isAI: boolean;
@@ -18,46 +20,94 @@ type InputMetadata = {
   dimensions?: Array<number | string | null>;
 };
 
-const MODEL_PATH = "/models/onnx/model.onnx";
+const MODEL_PATHS = ["/models/onnx/model.onnx"];
 const ORT_WASM_PATH = "/onnxruntime/";
 const MAX_PIXELS = 4096 * 4096;
 const DEFAULT_SIZE = 224;
 const MEAN = [0.485, 0.456, 0.406];
 const STD = [0.229, 0.224, 0.225];
 
-let sessionPromise: Promise<SessionState> | null = null;
+const sessionCache = new Map<string, Promise<SessionState>>();
 
 async function getSession(): Promise<SessionState> {
-  if (!sessionPromise) {
-    sessionPromise = (async () => {
+  const cacheKey = "default";
+  if (!sessionCache.has(cacheKey)) {
+    const sessionPromise = (async () => {
       ort.env.wasm.wasmPaths = ORT_WASM_PATH;
-      ort.env.wasm.simd = true;
-      if (typeof navigator !== "undefined") {
-        const threads = Math.min(4, navigator.hardwareConcurrency || 1);
-        ort.env.wasm.numThreads = Math.max(1, threads);
-      } else {
-        ort.env.wasm.numThreads = 1;
-      }
-
-      const session = await ort.InferenceSession.create(MODEL_PATH, {
-        executionProviders: ["wasm"],
-        graphOptimizationLevel: "all",
+      const cpuThreads =
+        typeof navigator !== "undefined"
+          ? Math.max(1, Math.min(4, navigator.hardwareConcurrency || 1))
+          : 1;
+      const webgpuAvailable =
+        typeof navigator !== "undefined" && "gpu" in navigator;
+      console.info("WASM detector: env", {
+        simd: true,
+        threads: cpuThreads,
+        webgpuAvailable,
       });
 
-      const inputName = session.inputNames[0];
-      const outputName = session.outputNames[0];
-      const rawMetadata = session.inputMetadata as unknown;
-      const metadata = Array.isArray(rawMetadata)
-        ? (rawMetadata[0] as InputMetadata)
-        : (rawMetadata as Record<string, InputMetadata>)[inputName];
-      const { layout, width, height } = resolveInputShape(metadata);
+      const modelPaths = MODEL_PATHS;
+      let lastError: unknown = null;
+      for (const modelPath of modelPaths) {
+        const executionProviders = webgpuAvailable ? ["webgpu", "wasm"] : ["wasm"];
+        try {
+          try {
+            console.info("WASM detector: loading model", {
+              modelPath,
+              executionProviders,
+              simd: true,
+              numThreads: cpuThreads,
+            });
+            ort.env.wasm.simd = true;
+            ort.env.wasm.numThreads = cpuThreads;
+            const session = await ort.InferenceSession.create(modelPath, {
+              executionProviders,
+              graphOptimizationLevel: "all",
+            });
 
-      return { session, inputName, outputName, layout, width, height };
+            const inputName = session.inputNames[0];
+            const outputName = session.outputNames[0];
+            const rawMetadata = session.inputMetadata as unknown;
+            const metadata = Array.isArray(rawMetadata)
+              ? (rawMetadata[0] as InputMetadata)
+              : (rawMetadata as Record<string, InputMetadata>)[inputName];
+            const { layout, width, height } = resolveInputShape(metadata);
+
+            console.info("WASM detector: model ready", {
+              modelPath,
+              executionProviders,
+              simd: true,
+              numThreads: cpuThreads,
+              inputName,
+              outputName,
+              layout,
+              width,
+              height,
+            });
+
+            return { session, inputName, outputName, layout, width, height };
+          } catch (error) {
+            lastError = error;
+            console.error("WASM detector: provider failed", {
+              modelPath,
+              executionProviders,
+              simd: true,
+              numThreads: cpuThreads,
+              error: formatWasmError(error),
+            });
+          }
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      throw new Error(`Unable to load WASM model: ${formatWasmError(lastError)}`);
     })();
+    sessionCache.set(cacheKey, sessionPromise);
   }
 
-  return sessionPromise;
+  return sessionCache.get(cacheKey)!;
 }
+
 
 function resolveInputShape(meta?: InputMetadata): {
   layout: "NCHW" | "NHWC";
@@ -162,7 +212,7 @@ function softmax(values: Float32Array | number[]): Float32Array {
   return out;
 }
 
-function probabilityFromOutput(output: ort.Tensor): number {
+function probabilityFromOutput(output: ort.Tensor, aiIndex = 1): number {
   const data = output.data as Float32Array | number[];
   if (!data || data.length === 0) {
     throw new Error("Model returned no data");
@@ -181,7 +231,7 @@ function probabilityFromOutput(output: ort.Tensor): number {
     if (v < 0 || v > 1) inRange = false;
   }
   const probs = inRange && Math.abs(sum - 1) < 0.01 ? new Float32Array(data) : softmax(data);
-  const index = probs.length > 1 ? 1 : 0;
+  const index = probs.length > 1 ? aiIndex : 0;
   return probs[index];
 }
 
@@ -189,8 +239,10 @@ export async function detectAI(
   image: Uint8Array,
   width: number,
   height: number,
-  channels = 4
+  channels = 4,
+  modelName?: string
 ): Promise<DetectionResult> {
+  console.debug("WASM detector: input", { width, height, channels });
   if (!Number.isFinite(width) || !Number.isFinite(height)) {
     throw new Error("Invalid image dimensions");
   }
@@ -201,6 +253,7 @@ export async function detectAI(
     throw new Error("Channels must be 3 (RGB) or 4 (RGBA)");
   }
 
+  const { config } = resolveModelConfig();
   const session = await getSession();
   const tensor = buildInputTensor(
     image,
@@ -216,15 +269,49 @@ export async function detectAI(
   if (!output) {
     throw new Error("Model output missing");
   }
-  const confidence = probabilityFromOutput(output);
+  const confidence = probabilityFromOutput(output, config.aiIndex);
   const clamped = Math.min(1, Math.max(0, confidence));
+  console.debug("WASM detector: output", { confidence: clamped });
   return { isAI: clamped >= 0.5, confidence: clamped };
 }
 
-export async function analyzeImageWithWasm(file: File): Promise<number> {
-  const decoded = await decodeImageToRgba(file);
-  const result = await detectAI(decoded.pixels, decoded.width, decoded.height, 4);
-  return Math.round(result.confidence * 100);
+export async function analyzeImageWithWasm(
+  file: File,
+  modelName?: string
+): Promise<number> {
+  try {
+    if (shouldUseApiOnly()) {
+      const apiScore = await analyzeImageWithApi(file);
+      console.info("WASM detector: API-only mode score", { score: apiScore });
+      return apiScore;
+    }
+    console.info("WASM detector: analyzing file", {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      model: "model.onnx",
+    });
+    const decoded = await decodeImageToRgba(file);
+    const result = await detectAI(decoded.pixels, decoded.width, decoded.height, 4);
+    const score = scoreFromConfidence(result.confidence);
+    console.info("WASM detector: score", { score });
+    return score;
+  } catch (error) {
+    const details = formatWasmError(error);
+    console.error("WASM detector: error", details);
+    try {
+      console.warn("WASM detector: falling back to API", {
+        model: "model.onnx",
+      });
+      const apiScore = await analyzeImageWithApi(file);
+      console.info("WASM detector: API fallback score", { score: apiScore });
+      return apiScore;
+    } catch (fallbackError) {
+      const fallbackDetails = formatWasmError(fallbackError);
+      console.error("WASM detector: API fallback failed", fallbackDetails);
+      throw new Error(`WASM detection failed: ${details}`);
+    }
+  }
 }
 
 export async function detectAIFromEncoded(
@@ -236,6 +323,36 @@ export async function detectAIFromEncoded(
   return detectAI(decoded.pixels, decoded.width, decoded.height, 4);
 }
 
+function shouldUseApiOnly(): boolean {
+  if (typeof window === "undefined") return true;
+  const globalFlag = (window as Window & { __USE_API_ONLY__?: boolean }).__USE_API_ONLY__;
+  if (typeof globalFlag === "boolean") return globalFlag;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("useApi")) {
+      return params.get("useApi") !== "0";
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+async function analyzeImageWithApi(file: File): Promise<number> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await fetch("/api/detect", {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`API error ${response.status}: ${text}`);
+  }
+  const data = await response.json();
+  return data.score;
+}
+
 export async function decodeImageToRgba(
   file: Blob
 ): Promise<{ pixels: Uint8Array; width: number; height: number }> {
@@ -243,6 +360,7 @@ export async function decodeImageToRgba(
     throw new Error("Image decoding is not available in this browser");
   }
 
+  console.debug("WASM detector: decoding image");
   const bitmap = await createImageBitmap(file);
   const width = bitmap.width;
   const height = bitmap.height;
@@ -285,4 +403,26 @@ export async function decodeImageToRgba(
     width,
     height,
   };
+}
+
+function formatWasmError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message || error.name;
+  }
+  if (typeof error === "string" || typeof error === "number" || typeof error === "boolean") {
+    return String(error);
+  }
+  if (error && typeof error === "object") {
+    const record = error as Record<string, unknown>;
+    const data: Record<string, unknown> = {};
+    for (const key of Object.getOwnPropertyNames(record)) {
+      data[key] = record[key];
+    }
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return "[object]";
+    }
+  }
+  return "Unknown error";
 }

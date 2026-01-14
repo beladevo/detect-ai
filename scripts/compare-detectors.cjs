@@ -5,6 +5,7 @@ const { chromium } = require("playwright");
 
 const API_BASE = process.env.API_BASE || "http://localhost:3000";
 const WASM_URL = process.env.WASM_URL || `${API_BASE}/dev/wasm-check`;
+const models = ["model.onnx"];
 
 const samples = [
   {
@@ -29,10 +30,13 @@ const ensureFileExists = (filePath) => {
   }
 };
 
-const scoreFromApi = async (filePath) => {
+const scoreFromApi = async (filePath, modelName) => {
   const buffer = fs.readFileSync(filePath);
   const formData = new FormData();
   formData.append("file", new Blob([buffer]), path.basename(filePath));
+  if (modelName) {
+    formData.append("model", modelName);
+  }
 
   const response = await fetch(`${API_BASE}/api/detect`, {
     method: "POST",
@@ -48,17 +52,24 @@ const scoreFromApi = async (filePath) => {
   return data.score;
 };
 
-const scoreFromWasm = async (page, filePath) => {
-  await page.goto(WASM_URL, { waitUntil: "networkidle" });
+const scoreFromWasm = async (page, filePath, modelName) => {
+  const url = modelName ? `${WASM_URL}?model=${encodeURIComponent(modelName)}` : WASM_URL;
+  await page.goto(url, { waitUntil: "networkidle" });
   const input = page.locator("input[type='file']");
   await input.setInputFiles(filePath);
   await page.waitForSelector("[data-testid='score']", { state: "visible" });
   await page.waitForFunction(() => {
-    const el = document.querySelector("[data-testid='score']");
-    if (!el) return false;
-    const text = (el.textContent || "").trim();
-    return /^\d+(\.\d+)?$/.test(text);
-  });
+    const scoreEl = document.querySelector("[data-testid='score']");
+    const errorEl = document.querySelector("[data-testid='error']");
+    const scoreText = (scoreEl?.textContent || "").trim();
+    const errorText = (errorEl?.textContent || "").trim();
+    return Boolean(errorText) || /^\d+(\.\d+)?$/.test(scoreText);
+  }, { timeout: 60000 });
+
+  const errorText = await page.textContent("[data-testid='error']");
+  if (errorText && errorText.trim()) {
+    throw new Error(`WASM error: ${errorText.trim()}`);
+  }
 
   const text = await page.textContent("[data-testid='score']");
   const score = Number(text);
@@ -75,17 +86,63 @@ const run = async () => {
   const page = await browser.newPage();
 
   try {
-    for (const sample of samples) {
-      const apiScore = await scoreFromApi(sample.filePath);
-      const wasmScore = await scoreFromWasm(page, sample.filePath);
+    for (const modelName of models) {
+      console.log(`\nModel: ${modelName}`);
+      let apiCorrect = 0;
+      let wasmCorrect = 0;
+      let apiSamples = 0;
+      let wasmSamples = 0;
 
-      console.log(`File: ${sample.filePath}`);
-      console.log(
-        `  /api/detect: ${apiScore} (${verdictForScore(apiScore)})`
-      );
-      console.log(
-        `  wasm-check: ${wasmScore} (${verdictForScore(wasmScore)})`
-      );
+      for (const sample of samples) {
+        console.log(`File: ${sample.filePath}`);
+
+        try {
+          const apiStart = Date.now();
+          const apiScore = await scoreFromApi(sample.filePath, modelName);
+          const apiMs = Date.now() - apiStart;
+          const apiVerdict = verdictForScore(apiScore);
+          if (apiVerdict === sample.label) apiCorrect += 1;
+          apiSamples += 1;
+          console.log(
+            `  /api/detect: ${apiScore} (${apiVerdict}) ${apiMs}ms`
+          );
+        } catch (error) {
+          console.log(`  /api/detect: error ${error.message}`);
+        }
+
+        try {
+          const wasmStart = Date.now();
+          const wasmScore = await scoreFromWasm(page, sample.filePath, modelName);
+          const wasmMs = Date.now() - wasmStart;
+          const wasmVerdict = verdictForScore(wasmScore);
+          if (wasmVerdict === sample.label) wasmCorrect += 1;
+          wasmSamples += 1;
+          console.log(
+            `  wasm-check: ${wasmScore} (${wasmVerdict}) ${wasmMs}ms`
+          );
+        } catch (error) {
+          console.log(`  wasm-check: error ${error.message}`);
+        }
+      }
+
+      if (apiSamples > 0) {
+        console.log(
+          `  API accuracy: ${apiCorrect}/${apiSamples} (${Math.round(
+            (apiCorrect / apiSamples) * 100
+          )}%)`
+        );
+      } else {
+        console.log("  API accuracy: no successful samples");
+      }
+      if (wasmSamples > 0) {
+        console.log(
+          `  WASM accuracy: ${wasmCorrect}/${wasmSamples} (${Math.round(
+            (wasmCorrect / wasmSamples) * 100
+          )}%)`
+        );
+      } else {
+        console.log("  WASM accuracy: no successful samples");
+      }
     }
   } finally {
     await browser.close();

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import * as ort from "onnxruntime-node";
 import sharp from "sharp";
+import { resolveModelConfig } from "@/src/lib/modelConfigs";
 
 type DetectionResult = {
   isAI: boolean;
@@ -29,16 +30,18 @@ const DEFAULT_SIZE = 224;
 const MEAN = [0.485, 0.456, 0.406];
 const STD = [0.229, 0.224, 0.225];
 
-let sessionPromise: Promise<SessionState> | null = null;
+const sessionCache = new Map<string, Promise<SessionState>>();
 
 async function getSession(): Promise<SessionState> {
-  if (!sessionPromise) {
-    sessionPromise = (async () => {
-      const modelPath = path.join(process.cwd(), MODEL_RELATIVE_PATH);
+  const cacheKey = "default";
+  if (!sessionCache.has(cacheKey)) {
+    const sessionPromise = (async () => {
+      const modelPath = resolveModelPath();
       if (!fs.existsSync(modelPath)) {
         throw new Error(`Model not found: ${modelPath}`);
       }
 
+      console.info("Node detector: loading model", modelPath);
       const session = await ort.InferenceSession.create(modelPath, {
         executionProviders: ["cpu"],
         graphOptimizationLevel: "all",
@@ -52,6 +55,13 @@ async function getSession(): Promise<SessionState> {
         : (rawMetadata as Record<string, InputMetadata>)[inputName];
       const { layout, width, height } = resolveInputShape(metadata);
 
+      console.info("Node detector: model ready", {
+        inputName,
+        outputName,
+        layout,
+        width,
+        height,
+      });
       return {
         session,
         inputName,
@@ -62,9 +72,14 @@ async function getSession(): Promise<SessionState> {
         model: path.basename(modelPath),
       };
     })();
+    sessionCache.set(cacheKey, sessionPromise);
   }
 
-  return sessionPromise;
+  return sessionCache.get(cacheKey)!;
+}
+
+function resolveModelPath(): string {
+  return path.join(process.cwd(), MODEL_RELATIVE_PATH);
 }
 
 function resolveInputShape(meta?: InputMetadata): {
@@ -170,8 +185,8 @@ function softmax(values: Float32Array | number[]): Float32Array {
   return out;
 }
 
-function probabilityFromOutput(output: ort.Tensor): number {
-  console.log("output",output);
+function probabilityFromOutput(output: ort.Tensor, aiIndex = 1): number {
+  console.debug("Node detector: output tensor", output);
   
   const data = output.data as Float32Array | number[];
   if (!data || data.length === 0) {
@@ -191,7 +206,7 @@ function probabilityFromOutput(output: ort.Tensor): number {
     if (v < 0 || v > 1) inRange = false;
   }
   const probs = inRange && Math.abs(sum - 1) < 0.01 ? new Float32Array(data) : softmax(data);
-  const index = probs.length > 1 ? 1 : 0;
+  const index = probs.length > 1 ? aiIndex : 0;
   return probs[index];
 }
 
@@ -199,6 +214,11 @@ export async function detectAIFromBuffer(buffer: Buffer): Promise<DetectionResul
   const image = sharp(buffer, { failOn: "none" }).ensureAlpha();
   const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
 
+  console.debug("Node detector: decoded image", {
+    width: info.width,
+    height: info.height,
+    channels: info.channels,
+  });
   if (!Number.isFinite(info.width) || !Number.isFinite(info.height)) {
     throw new Error("Invalid image dimensions");
   }
@@ -206,6 +226,7 @@ export async function detectAIFromBuffer(buffer: Buffer): Promise<DetectionResul
     throw new Error("Image dimensions out of range");
   }
 
+  const { config } = resolveModelConfig();
   const session = await getSession();
   const tensor = buildInputTensor(
     new Uint8Array(data.buffer, data.byteOffset, data.byteLength),
@@ -221,7 +242,8 @@ export async function detectAIFromBuffer(buffer: Buffer): Promise<DetectionResul
   if (!output) {
     throw new Error("Model output missing");
   }
-  const confidence = probabilityFromOutput(output);
+  const confidence = probabilityFromOutput(output, config.aiIndex);
   const clamped = Math.min(1, Math.max(0, confidence));
+  console.debug("Node detector: output", { confidence: clamped });
   return { isAI: clamped >= 0.5, confidence: clamped, model: session.model };
 }

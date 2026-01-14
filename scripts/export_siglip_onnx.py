@@ -3,9 +3,9 @@ from pathlib import Path
 
 import torch
 from PIL import Image
-from transformers import AutoImageProcessor, SiglipForImageClassification
+from transformers import AutoImageProcessor, AutoModelForImageClassification
 
-MODEL_ID = "Ateeqq/ai-vs-human-image-detector"
+MODEL_ID = "NYUAD-ComNets/NYUAD_AI-generated_images_detector"
 
 
 def main() -> None:
@@ -15,10 +15,10 @@ def main() -> None:
 
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / "model.onnx"
+    output_path = output_dir / "nyuad.onnx"
 
     processor = AutoImageProcessor.from_pretrained(MODEL_ID)
-    model = SiglipForImageClassification.from_pretrained(MODEL_ID)
+    model = AutoModelForImageClassification.from_pretrained(MODEL_ID)
     model.eval()
 
     size = processor.size

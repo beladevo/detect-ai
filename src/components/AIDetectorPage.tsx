@@ -120,8 +120,11 @@ export default function AIDetectorPage() {
         score,
         createdAt: new Date().toISOString(),
       });
-    } catch {
-      setError("Upload failed. Please try again shortly.");
+    } catch (err) {
+      console.error("Detection failed", err);
+      const message =
+        err instanceof Error ? err.message : "Upload failed. Please try again shortly.";
+      setError(message);
     } finally {
       setIsUploading(false);
     }
