@@ -11,6 +11,7 @@ import ResultsDisplay from "@/src/components/ResultsDisplay";
 import HistoryList, { type HistoryItem } from "@/src/components/HistoryList";
 import Footer from "@/src/components/Footer";
 import ComparisonTool from "@/src/components/ComparisonTool";
+import { analyzeImageWithWasm } from "@/src/lib/wasmDetector";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -109,17 +110,7 @@ export default function AIDetectorPage() {
     setPreviewUrl(URL.createObjectURL(file));
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const response = await fetch("/api/detect", {
-        method: "POST",
-        body: formData,
-      });
-      if (!response.ok) {
-        throw new Error("Detection failed");
-      }
-      const data = (await response.json()) as { score?: number };
-      const score = typeof data.score === "number" ? data.score : 0;
+      const score = await analyzeImageWithWasm(file);
       setResult({ score });
       pushHistory({
         id: crypto.randomUUID(),
