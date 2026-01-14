@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { AlertCircle, ShieldCheck, Sparkles } from "lucide-react";
 import Navbar from "@/src/components/Navbar";
 import HeroSection from "@/src/components/HeroSection";
@@ -10,6 +11,8 @@ import ResultsDisplay from "@/src/components/ResultsDisplay";
 import HistoryList, { type HistoryItem } from "@/src/components/HistoryList";
 import Footer from "@/src/components/Footer";
 import ComparisonTool from "@/src/components/ComparisonTool";
+
+gsap.registerPlugin(ScrollTrigger);
 
 type DetectionResult = {
   score: number | null;
@@ -25,6 +28,9 @@ export default function AIDetectorPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const uploadRef = useRef<HTMLDivElement>(null);
+  const uploadCardRef = useRef<HTMLDivElement>(null);
+  const statusCardRef = useRef<HTMLDivElement>(null);
+  const historyCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem(HISTORY_KEY);
@@ -36,6 +42,32 @@ export default function AIDetectorPage() {
         setHistory([]);
       }
     }
+  }, []);
+
+  useEffect(() => {
+    const targets = [
+      { ref: uploadCardRef, delay: 0 },
+      { ref: statusCardRef, delay: 0.1 },
+      { ref: historyCardRef, delay: 0.2 },
+    ];
+
+    targets.forEach(({ ref, delay }) => {
+      if (!ref.current) return;
+      gsap.from(ref.current, {
+        opacity: 0,
+        y: 24,
+        duration: 0.7,
+        ease: "power2.out",
+        delay,
+        scrollTrigger: {
+          trigger: ref.current,
+          start: "top 85%",
+          once: true,
+        },
+      });
+    });
+
+    return () => ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
   }, []);
 
   useEffect(() => {
@@ -54,9 +86,9 @@ export default function AIDetectorPage() {
 
   const confidenceLabel = useMemo(() => {
     if (result.score === null) return "";
-    if (result.score >= 85 || result.score <= 10) return "גבוהה";
-    if (result.score >= 60 || result.score <= 30) return "בינונית";
-    return "נמוכה";
+    if (result.score >= 85 || result.score <= 10) return "High";
+    if (result.score >= 60 || result.score <= 30) return "Medium";
+    return "Low";
   }, [result.score]);
 
   const pushHistory = useCallback(
@@ -96,7 +128,7 @@ export default function AIDetectorPage() {
         createdAt: new Date().toISOString(),
       });
     } catch {
-      setError("העלאה נכשלה. נסה שנית בעוד רגע.");
+      setError("Upload failed. Please try again shortly.");
     } finally {
       setIsUploading(false);
     }
@@ -127,11 +159,8 @@ export default function AIDetectorPage() {
           ref={uploadRef}
           className="relative z-10 mx-auto grid w-full max-w-6xl grid-cols-1 gap-10 px-6 pb-16 pt-6 lg:grid-cols-[1.1fr_0.9fr]"
         >
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
+          <div
+            ref={uploadCardRef}
             className="rounded-3xl border border-white/10 bg-[var(--panel)] p-8 shadow-2xl backdrop-blur-xl"
           >
             <UploadZone isUploading={isUploading} onFileSelected={handleFileSelected} />
@@ -162,27 +191,24 @@ export default function AIDetectorPage() {
               <div className="mt-10 grid gap-4 text-sm text-gray-400">
                 <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
                   <Sparkles className="h-4 w-4 text-purple-300" />
-                  <span>ניתוח פיקסלים עמוק עם חתימות מודל מתקדמות.</span>
+                  <span>Deep pixel analysis with advanced model signatures.</span>
                 </div>
                 <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
                   <ShieldCheck className="h-4 w-4 text-emerald-300" />
-                  <span>שמירת פרטיות מלאה - קבצים נמחקים לאחר הבדיקה.</span>
+                  <span>Full privacy mode - files are deleted after analysis.</span>
                 </div>
               </div>
             )}
-          </motion.div>
+          </div>
 
           <div id="features" className="space-y-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              viewport={{ once: true }}
+            <div
+              ref={statusCardRef}
               className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 via-white/5 to-purple-500/10 p-6 shadow-glow-purple"
             >
-              <h3 className="text-lg font-semibold text-white">סטטוס מנוע זיהוי</h3>
+              <h3 className="text-lg font-semibold text-white">Detection engine status</h3>
               <p className="mt-2 text-sm text-gray-300">
-                גרסת מודל: EliteVision v2.4 • זמן תגובה ממוצע: 1.6s • דיוק: 96.2%
+                Model version: EliteVision v2.4 • Average response: 1.6s • Accuracy: 96.2%
               </p>
               <div className="mt-5 grid grid-cols-2 gap-4 text-sm text-gray-200">
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
@@ -194,15 +220,17 @@ export default function AIDetectorPage() {
                   <p className="mt-1 text-lg font-semibold text-purple-200">Low</p>
                 </div>
               </div>
-            </motion.div>
+            </div>
 
-            <HistoryList
-              items={history}
-              onClear={() => {
-                localStorage.removeItem(HISTORY_KEY);
-                setHistory([]);
-              }}
-            />
+            <div ref={historyCardRef}>
+              <HistoryList
+                items={history}
+                onClear={() => {
+                  localStorage.removeItem(HISTORY_KEY);
+                  setHistory([]);
+                }}
+              />
+            </div>
           </div>
         </section>
 

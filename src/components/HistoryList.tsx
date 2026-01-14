@@ -20,8 +20,8 @@ export default function HistoryList({ items, onClear }: HistoryListProps) {
     <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-white">בדיקות אחרונות</h3>
-          <p className="text-sm text-gray-400">נשמר מקומית בדפדפן שלך.</p>
+          <h3 className="text-lg font-semibold text-white">Recent scans</h3>
+          <p className="text-sm text-gray-400">Stored locally in your browser.</p>
         </div>
         {items.length > 0 ? (
           <button
@@ -35,7 +35,7 @@ export default function HistoryList({ items, onClear }: HistoryListProps) {
 
       {items.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-gray-400">
-          אין בדיקות עדיין. העלה תמונה כדי להתחיל.
+          No scans yet. Upload an image to get started.
         </div>
       ) : (
         <div className="mt-6 space-y-3 text-sm text-gray-300">

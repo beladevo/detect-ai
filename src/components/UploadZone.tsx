@@ -48,7 +48,7 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
         <div className="flex flex-col items-center">
           <div className="h-12 w-12 animate-spin rounded-full border-4 border-purple-500 border-t-transparent" />
           <p className="mt-4 text-sm font-medium text-purple-200">
-            מנתח נתונים דיגיטליים...
+            Analyzing digital artifacts...
           </p>
           <div className="mt-6 grid w-full gap-3">
             <div className="h-3 w-full animate-pulse rounded-full bg-white/10" />
@@ -58,8 +58,8 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
       ) : (
         <div className="flex flex-col items-center">
           <Upload className="mb-4 h-12 w-12 text-purple-400 transition-transform group-hover:scale-110" />
-          <p className="text-xl font-semibold">גרור תמונה לכאן</p>
-          <p className="mt-2 text-sm text-gray-400">PNG, JPG עד 10MB</p>
+          <p className="text-xl font-semibold">Drag an image here</p>
+          <p className="mt-2 text-sm text-gray-400">PNG, JPG up to 10MB</p>
           <p className="mt-4 text-xs uppercase tracking-[0.4em] text-gray-500">
             Secure Upload
           </p>

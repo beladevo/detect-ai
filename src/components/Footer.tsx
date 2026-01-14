@@ -13,7 +13,7 @@ export default function Footer() {
             EliteB.gg
           </div>
           <p className="mt-3 text-sm text-gray-400">
-            מערכת זיהוי מתקדמת שמספקת שקיפות מלאה בתוכן ויזואלי.
+            Advanced detection delivering full transparency for visual content.
           </p>
         </div>
         <div className="text-sm text-gray-400">
@@ -36,7 +36,7 @@ export default function Footer() {
           <p className="mb-3 text-xs uppercase tracking-[0.3em] text-gray-500">
             Privacy
           </p>
-          <p>קבצים נמחקים לאחר בדיקה. אין שימוש חוזר בתוכן ללא הרשאה.</p>
+          <p>Files are deleted after analysis. No reuse without permission.</p>
           <p className="mt-4 text-xs text-gray-500">
             © 2026 EliteB.gg. All rights reserved.
           </p>
