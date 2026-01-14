@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { detectAIFromBuffer } from "@/src/lib/nodeDetector";
+
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -8,12 +11,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing file" }, { status: 400 });
   }
 
-  const buffer = await file.arrayBuffer();
-  const sizeSeed = buffer.byteLength % 100;
-  const score = Math.min(98, Math.max(4, 60 + (sizeSeed % 35)));
-
-  return NextResponse.json({
-    score,
-    model: "elite-vision-stub",
-  });
+  try {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const result = await detectAIFromBuffer(buffer);
+    return NextResponse.json({
+      score: Math.round(result.confidence * 100),
+      model: result.model,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Detection failed";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

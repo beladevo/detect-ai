@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "compare:local": "node scripts/compare-detectors.cjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -14,8 +15,10 @@
     "lucide-react": "^0.562.0",
     "next": "16.1.1",
     "onnxruntime-web": "^1.23.2",
+    "onnxruntime-node": "^1.23.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "sharp": "^0.34.3",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
@@ -25,6 +28,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
+    "playwright": "^1.55.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
