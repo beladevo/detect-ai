@@ -3,7 +3,7 @@ User-agent: *
 Allow: /
 
 # Sitemaps
-Sitemap: https://detectai.app/sitemap.xml
+Sitemap: https://ai-human-detector.com/sitemap.xml
 
 # Disallow API routes
 Disallow: /api/

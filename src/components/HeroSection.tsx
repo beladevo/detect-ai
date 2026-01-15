@@ -20,6 +20,7 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
   const ctaRef = useRef<HTMLDivElement>(null);
   const ctaButtonRef = useRef<HTMLButtonElement>(null);
   const metricsRef = useRef<HTMLDivElement>(null);
+  const logoRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
@@ -151,6 +152,28 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
           repeat: -1,
         });
       }
+
+      if (logoRef.current) {
+        gsap.from(logoRef.current, {
+          opacity: 0,
+          scale: 0.94,
+          duration: 0.6,
+          ease: "power2.out",
+          delay: 0.2,
+        });
+
+        gsap.to(logoRef.current, {
+          rotate: 180,
+          ease: "none",
+          transformOrigin: "50% 50%",
+          scrollTrigger: {
+            trigger: heroRef.current,
+            start: "top bottom",
+            end: "bottom top",
+            scrub: true,
+          },
+        });
+      }
     }, heroRef);
 
     return () => ctx.revert();
@@ -219,24 +242,37 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
               </div>
             </div>
           </div>
-          <div ref={metricsRef} className="grid gap-4 text-sm text-gray-300">
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
-              <p className="text-xs uppercase tracking-[0.3em] text-gray-400">
-                Threat Score
-              </p>
-              <p className="mt-2 text-3xl font-semibold text-white">87%</p>
-              <p className="mt-1 text-gray-400">AI likelihood detected</p>
+          <div className="flex flex-col items-center gap-6 lg:items-end">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full bg-purple-400/20 blur-2xl" />
+              <img
+                ref={logoRef}
+                src="/logo-350.png"
+                alt="AI Detector logo"
+                width={350}
+                height={350}
+                className="relative w-32 max-w-full drop-shadow-[0_18px_45px_rgba(99,102,241,0.35)] sm:w-40"
+              />
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
-              <p className="text-xs uppercase tracking-[0.3em] text-gray-400">
-                Trust Layer
-              </p>
-              <p className="mt-2 text-lg font-semibold text-emerald-200">
-                Zero Retention
-              </p>
-              <p className="mt-1 text-gray-400">
-                Scans are stored locally only.
-              </p>
+            <div ref={metricsRef} className="grid gap-4 text-sm text-gray-300">
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p className="text-xs uppercase tracking-[0.3em] text-gray-400">
+                  Threat Score
+                </p>
+                <p className="mt-2 text-3xl font-semibold text-white">87%</p>
+                <p className="mt-1 text-gray-400">AI likelihood detected</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+                <p className="text-xs uppercase tracking-[0.3em] text-gray-400">
+                  Trust Layer
+                </p>
+                <p className="mt-2 text-lg font-semibold text-emerald-200">
+                  Zero Retention
+                </p>
+                <p className="mt-1 text-gray-400">
+                  Scans are stored locally only.
+                </p>
+              </div>
             </div>
           </div>
         </div>

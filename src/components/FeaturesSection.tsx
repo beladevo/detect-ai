@@ -85,8 +85,8 @@ export default function FeaturesSection() {
             <div className="absolute -inset-3 rounded-3xl bg-cyan-500/10 blur-2xl" />
             <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/40">
               <img
-                src="https://images.unsplash.com/photo-1487058792275-0ad4aaf24ca7?auto=format&fit=crop&w=900&q=80"
-                alt="Creative studio with AI visualization"
+                src="/AI-human.png"
+                alt="AI and human signal nexus illustration"
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
