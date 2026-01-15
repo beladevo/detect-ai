@@ -10,6 +10,7 @@
     "compare:local": "node scripts/compare-detectors.cjs"
   },
   "dependencies": {
+    "@hotjar/browser": "^1.0.9",
     "@vercel/blob": "^2.0.0",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",

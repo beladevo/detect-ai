@@ -91,7 +91,7 @@ export default function FeaturesSection() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
               <div className="absolute bottom-4 left-4 right-4 text-xs uppercase tracking-[0.3em] text-gray-200">
-                Unsplash collection
+                Let's detect the FAKE.
               </div>
             </div>
           </div>
