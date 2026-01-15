@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { detectAIFromBuffer } from "@/src/lib/nodeDetector";
 import { scoreFromConfidence } from "@/src/lib/scoreUtils";
+import { MODEL_NAME } from "@/src/lib/modelConfigs";
 
 export const runtime = "nodejs";
 
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
       name: file.name,
       size: file.size,
       type: file.type,
-      model: "model.onnx",
+      model: MODEL_NAME,
     });
     const result = await detectAIFromBuffer(buffer);
     const score = scoreFromConfidence(result.confidence);

@@ -1,5 +1,5 @@
 import * as ort from "onnxruntime-web";
-import { resolveModelConfig } from "@/src/lib/modelConfigs";
+import { resolveModelConfig, getModelPath, MODEL_NAME } from "@/src/lib/modelConfigs";
 import { scoreFromConfidence } from "@/src/lib/scoreUtils";
 
 type DetectionResult = {
@@ -20,10 +20,7 @@ type InputMetadata = {
   dimensions?: Array<number | string | null>;
 };
 
-const BLOB_BASE_URL = process.env.NEXT_PUBLIC_BLOB_BASE_URL || "";
-const MODEL_PATHS = BLOB_BASE_URL
-  ? [`${BLOB_BASE_URL}/models/onnx/model.onnx`]
-  : ["/models/onnx/model.onnx"];
+const MODEL_PATHS = [getModelPath()];
 const ORT_WASM_PATH = "/onnxruntime/";
 const MAX_PIXELS = 4096 * 4096;
 const DEFAULT_SIZE = 224;
@@ -295,7 +292,7 @@ export async function analyzeImageWithWasm(
       name: file.name,
       size: file.size,
       type: file.type,
-      model: "model.onnx",
+      model: MODEL_NAME,
     });
     const decoded = await decodeImageToRgba(file);
     const result = await detectAI(decoded.pixels, decoded.width, decoded.height, 4);
@@ -309,7 +306,7 @@ export async function analyzeImageWithWasm(
     console.error("WASM detector: error", details);
     try {
       console.warn("WASM detector: falling back to API", {
-        model: "model.onnx",
+        model: MODEL_NAME,
       });
       const apiScore = await analyzeImageWithApi(file);
       console.info("WASM detector: API fallback score", { score: apiScore });

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import * as ort from "onnxruntime-node";
 import sharp from "sharp";
-import { resolveModelConfig } from "@/src/lib/modelConfigs";
+import { resolveModelConfig, MODEL_NAME } from "@/src/lib/modelConfigs";
 
 type DetectionResult = {
   isAI: boolean;
@@ -24,7 +24,7 @@ type InputMetadata = {
   dimensions?: Array<number | string | null>;
 };
 
-const MODEL_RELATIVE_PATH = "public/models/onnx/model.onnx";
+const MODEL_RELATIVE_PATH = `public/models/onnx/${MODEL_NAME}`;
 const MAX_PIXELS = 4096 * 4096;
 const DEFAULT_SIZE = 224;
 const MEAN = [0.485, 0.456, 0.406];

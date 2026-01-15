@@ -5,7 +5,7 @@ const { chromium } = require("playwright");
 
 const API_BASE = process.env.API_BASE || "http://localhost:3000";
 const WASM_URL = process.env.WASM_URL || `${API_BASE}/dev/wasm-check`;
-const models = ["model.onnx"];
+const models = ["model_q4.onnx"];
 
 const samples = [
   {
