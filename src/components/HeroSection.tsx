@@ -183,13 +183,13 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
               className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-gray-300"
             >
               <ShieldCheck className="h-4 w-4 text-purple-300" />
-              DetectAI Local Grid
+              AI-human detector
             </p>
             <h1
               ref={titleRef}
               className="font-display text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl"
             >
-              {"DetectAI spots synthetic images with forensic-grade confidence."
+              {"AI-human detector spots synthetic images with forensic-grade confidence."
                 .split(" ")
                 .map((word, index) => (
                   <span key={`${word}-${index}`} className="hero-word inline-block pr-2">

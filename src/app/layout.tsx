@@ -18,8 +18,8 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://detectai.app";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "DetectAI - Free AI Image Detector | Detect AI-Generated Images",
-    template: "%s | DetectAI",
+    default: "AI-human detector - Free AI Image Detector | Detect AI-Generated Images",
+    template: "%s | AI-human detector",
   },
   description:
     "Free AI image detection tool. Instantly detect if an image was created by AI (Midjourney, DALL-E, Stable Diffusion) or is a real photo. 100% private, runs locally in your browser.",
@@ -37,9 +37,9 @@ export const metadata: Metadata = {
     "AI vs real image",
     "synthetic image detection",
   ],
-  authors: [{ name: "DetectAI" }],
-  creator: "DetectAI",
-  publisher: "DetectAI",
+  authors: [{ name: "AI-human detector" }],
+  creator: "AI-human detector",
+  publisher: "AI-human detector",
   robots: {
     index: true,
     follow: true,
@@ -55,8 +55,8 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: siteUrl,
-    siteName: "DetectAI",
-    title: "DetectAI - Free AI Image Detector",
+    siteName: "AI-human detector",
+    title: "AI-human detector - Free AI Image Detector",
     description:
       "Instantly detect if an image was created by AI or is a real photo. Free, private, and runs entirely in your browser.",
     images: [
@@ -64,13 +64,13 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "DetectAI - AI Image Detection Tool",
+        alt: "AI-human detector - AI Image Detection Tool",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "DetectAI - Free AI Image Detector",
+    title: "AI-human detector - Free AI Image Detector",
     description:
       "Instantly detect if an image was created by AI or is a real photo. Free and 100% private.",
     images: ["/og-image.png"],
@@ -99,7 +99,7 @@ export default function RootLayout({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    name: "DetectAI",
+    name: "AI-human detector",
     description:
       "Free AI image detection tool that runs locally in your browser. Detect if images were created by AI generators like Midjourney, DALL-E, or Stable Diffusion.",
     url: siteUrl,

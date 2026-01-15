@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import React from "react";
-import { ShieldCheck } from "lucide-react";
+import Image from "next/image";
 
 export default function Footer() {
   return (
@@ -9,8 +9,14 @@ export default function Footer() {
       <div className="mx-auto grid w-full max-w-6xl gap-8 px-6 py-10 md:grid-cols-3">
         <div>
           <div className="flex items-center gap-2 text-lg font-semibold">
-            <ShieldCheck className="h-5 w-5 text-purple-300" />
-            DetectAI
+            <Image
+              src="/logo.png"
+              alt="DetectAI Logo"
+              width={24}
+              height={24}
+              className="rounded-lg"
+            />
+            AI-human detector
           </div>
           <p className="mt-3 text-sm text-gray-400">
             Forensic AI detection with privacy-first, on-device processing.
@@ -38,7 +44,7 @@ export default function Footer() {
           </p>
           <p>Local scans only. You control what gets stored or cleared.</p>
           <p className="mt-4 text-xs text-gray-500">
-            (c) 2026 DetectAI. All rights reserved.
+            (c) 2026 AI-human detector. All rights reserved.
           </p>
         </div>
       </div> 

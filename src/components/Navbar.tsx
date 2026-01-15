@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ShieldCheck } from "lucide-react";
+import Image from "next/image";
 
 type NavbarProps = {
   onActionClick: () => void;
@@ -12,10 +12,14 @@ export default function Navbar({ onActionClick }: NavbarProps) {
     <nav className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-white/5 backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/20">
-            <ShieldCheck className="h-5 w-5 text-purple-200" />
-          </span>
-          <span className="font-display text-xl">DetectAI</span>
+          <Image
+            src="/logo.png"
+            alt="DetectAI Logo"
+            width={36}
+            height={36}
+            className="rounded-xl"
+          />
+          <span className="font-display text-xl">AI-human detector</span>
         </div>
         <div className="hidden items-center gap-6 text-sm text-gray-300 md:flex">
           <a href="#upload" className="transition hover:text-white">

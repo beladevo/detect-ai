@@ -34,7 +34,7 @@ export default function PrivacySection() {
               Your images stay yours.
             </h2>
             <p className="mt-4 text-sm text-gray-300">
-              DetectAI runs a{" "}
+              AI-human detector runs a{" "}
               <strong className="font-semibold text-white">
                 local AI detection model
               </strong>{" "}
