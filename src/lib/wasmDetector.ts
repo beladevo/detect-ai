@@ -20,7 +20,10 @@ type InputMetadata = {
   dimensions?: Array<number | string | null>;
 };
 
-const MODEL_PATHS = ["/models/onnx/model.onnx"];
+const BLOB_BASE_URL = process.env.NEXT_PUBLIC_BLOB_BASE_URL || "";
+const MODEL_PATHS = BLOB_BASE_URL
+  ? [`${BLOB_BASE_URL}/models/onnx/model.onnx`]
+  : ["/models/onnx/model.onnx"];
 const ORT_WASM_PATH = "/onnxruntime/";
 const MAX_PIXELS = 4096 * 4096;
 const DEFAULT_SIZE = 224;
@@ -459,5 +462,8 @@ async function resolveExternalData(
   }
 
   const fileName = dataPath.split("/").pop() ?? dataPath;
-  return [{ path: fileName, data: dataPath }];
+  // For remote URLs (Vercel Blob), we need to pass the full URL as data
+  // For local paths, we pass the relative path
+  const isRemoteUrl = modelPath.startsWith("http");
+  return [{ path: fileName, data: isRemoteUrl ? dataPath : dataPath }];
 }

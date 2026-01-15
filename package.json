@@ -10,12 +10,14 @@
     "compare:local": "node scripts/compare-detectors.cjs"
   },
   "dependencies": {
+    "@vercel/blob": "^2.0.0",
     "clsx": "^2.1.1",
+    "dotenv": "^17.2.3",
     "gsap": "^3.12.7",
     "lucide-react": "^0.562.0",
     "next": "16.1.1",
-    "onnxruntime-web": "^1.23.2",
     "onnxruntime-node": "^1.23.0",
+    "onnxruntime-web": "^1.23.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "sharp": "^0.34.3",
