@@ -58,6 +58,9 @@ export default function FeaturesSection() {
               keeps images on your machine while still delivering forensic-grade
               insights.
             </p>
+            <p className="mt-2 text-xs text-gray-400">
+              Registered users can use server processing. Guests run in-browser only.
+            </p>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               {features.map((feature) => {
                 const Icon = feature.icon;

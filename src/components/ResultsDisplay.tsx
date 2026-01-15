@@ -74,6 +74,9 @@ export default function ResultsDisplay({
       <div className="mt-3 text-6xl font-black text-purple-300">
         {score}% <span className="text-lg font-medium text-gray-400">AI</span>
       </div>
+      <p className="mt-2 text-xs text-gray-400">
+        AI detection can be wrong, especially with blurred or edited content.
+      </p>
 
       <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4 text-right text-sm text-gray-300">
         <div className="flex items-center justify-end gap-2">

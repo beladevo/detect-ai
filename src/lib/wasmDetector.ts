@@ -49,6 +49,7 @@ async function getSession(): Promise<SessionState> {
       for (const modelPath of modelPaths) {
         const executionProviders: Array<"wasm"> = ["wasm"];
         const modelBuffer = await fetchModelBuffer(modelPath);
+        const externalData = await resolveExternalData(modelPath);
         const attempts: Array<{ simd: boolean; numThreads: number }> = [
           { simd: true, numThreads: cpuThreads },
           { simd: false, numThreads: 1 },
@@ -66,6 +67,7 @@ async function getSession(): Promise<SessionState> {
             const session = await ort.InferenceSession.create(modelBuffer.slice(0), {
               executionProviders,
               graphOptimizationLevel: "all",
+              externalData,
             });
 
             const inputName = session.inputNames[0];
@@ -298,6 +300,8 @@ export async function analyzeImageWithWasm(
     console.info("WASM detector: score", { score });
     return score;
   } catch (error) {
+    //
+    return -1;
     const details = formatWasmError(error);
     console.error("WASM detector: error", details);
     try {
@@ -439,4 +443,21 @@ async function fetchModelBuffer(modelPath: string): Promise<ArrayBuffer> {
     bytes: buffer.byteLength,
   });
   return buffer;
+}
+
+async function resolveExternalData(
+  modelPath: string
+): Promise<ort.InferenceSession.SessionOptions["externalData"] | undefined> {
+  const dataPath = `${modelPath}.data`;
+  try {
+    const response = await fetch(dataPath, { method: "HEAD" });
+    if (!response.ok && response.status === 404) {
+      return undefined;
+    }
+  } catch {
+    // If HEAD isn't supported, still attempt to load the external data.
+  }
+
+  const fileName = dataPath.split("/").pop() ?? dataPath;
+  return [{ path: fileName, data: dataPath }];
 }
