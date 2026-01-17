@@ -44,14 +44,14 @@ export default function HistoryList({ items, onClear }: HistoryListProps) {
               key={item.id}
               className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
             >
-              <div>
-                <p className="font-medium text-white">{item.fileName}</p>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium text-white" title={item.fileName}>{item.fileName}</p>
                 <div className="mt-1 flex items-center gap-2 text-xs text-gray-400">
                   <Clock className="h-3 w-3" />
                   {new Date(item.createdAt).toLocaleString("he-IL")}
                 </div>
               </div>
-              <div className="text-right">
+              <div className="ml-4 shrink-0 text-right">
                 <p className="text-xs uppercase tracking-[0.3em] text-gray-400">
                   AI
                 </p>
