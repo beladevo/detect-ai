@@ -28,6 +28,9 @@ export default function Navbar({ onActionClick }: NavbarProps) {
           <a href="#features" className="transition hover:text-white">
             Features
           </a>
+          <a href="#waitlist" className="transition hover:text-white">
+            Coming Soon
+          </a>
           <a href="#privacy" className="transition hover:text-white">
             Privacy
           </a>

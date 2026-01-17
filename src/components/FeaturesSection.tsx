@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Cpu, Layers, ScanSearch, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { Cloud, Cpu, Layers, ScanSearch, ShieldCheck, Sparkles, Zap } from "lucide-react";
 
 const features = [
   {
@@ -23,6 +23,11 @@ const features = [
     icon: ShieldCheck,
     title: "Zero retention",
     description: "Images stay local and are never uploaded to a server.",
+  },
+  {
+    icon: Cloud,
+    title: "Server API (coming soon)",
+    description: "Send images to our servers and get a clear score back fast.",
   },
   {
     icon: Zap,
@@ -59,7 +64,7 @@ export default function FeaturesSection() {
               insights.
             </p>
             <p className="mt-2 text-xs text-gray-400">
-              Registered users can use server processing. Guests run in-browser only.
+              Server-powered detection is coming soon. Join the waitlist for early access.
             </p>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               {features.map((feature) => {

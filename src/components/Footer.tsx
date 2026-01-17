@@ -33,6 +33,9 @@ export default function Footer() {
             <a href="#features" className="block transition hover:text-white">
               Features
             </a>
+            <a href="#waitlist" className="block transition hover:text-white">
+              Coming Soon
+            </a>
             <a href="#privacy" className="block transition hover:text-white">
               Privacy
             </a>

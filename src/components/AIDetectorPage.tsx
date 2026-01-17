@@ -7,6 +7,7 @@ import { AlertCircle, ShieldCheck, Sparkles } from "lucide-react";
 import Navbar from "@/src/components/Navbar";
 import HeroSection from "@/src/components/HeroSection";
 import FeaturesSection from "@/src/components/FeaturesSection";
+import WaitlistSection from "@/src/components/WaitlistSection";
 import UploadZone from "@/src/components/UploadZone";
 import ResultsDisplay from "@/src/components/ResultsDisplay";
 import HistoryList, { type HistoryItem } from "@/src/components/HistoryList";
@@ -150,6 +151,7 @@ export default function AIDetectorPage() {
 
         <HeroSection onCTA={handleCTAClick} />
         <FeaturesSection />
+        <WaitlistSection />
 
         <section
           id="upload"

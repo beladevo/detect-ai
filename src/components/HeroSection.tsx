@@ -237,8 +237,19 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
                 Start Detection
                 <ArrowDownRight className="h-4 w-4" />
               </button>
+              <a
+                href="#waitlist"
+                className="rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white transition hover:border-purple-300/60 hover:bg-white/5"
+              >
+                Join the waitlist
+              </a>
               <div className="text-sm text-gray-400">
-                Average time to result: 1.6 seconds | <strong className="font-semibold text-white">local model on your device</strong> | free to use (currently)
+                <span className="block">
+                  Average time to result: 1.6 seconds |{" "}
+                  <strong className="font-semibold text-white">local model on your device</strong>{" "}
+                  | free to use (currently)
+                </span>
+                <span className="block">Server API coming soon - join the waitlist.</span>
               </div>
             </div>
           </div>
