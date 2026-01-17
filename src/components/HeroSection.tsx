@@ -1,25 +1,42 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { ArrowDownRight, ShieldCheck } from "lucide-react";
+import { ArrowDownRight, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import GlowButton from "./ui/GlowButton";
+import GlassCard from "./ui/GlassCard";
 
 type HeroSectionProps = {
   onCTA: () => void;
 };
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: {
+      duration: 0.6,
+      ease: [0.25, 0.46, 0.45, 0.94] as const,
+    },
+  },
+};
+
 export default function HeroSection({ onCTA }: HeroSectionProps) {
   const heroRef = useRef<HTMLDivElement>(null);
-  const bgOneRef = useRef<HTMLDivElement>(null);
-  const bgTwoRef = useRef<HTMLDivElement>(null);
-  const bgGridRef = useRef<HTMLDivElement>(null);
-  const badgeRef = useRef<HTMLParagraphElement>(null);
-  const titleRef = useRef<HTMLHeadingElement>(null);
-  const bodyRef = useRef<HTMLParagraphElement>(null);
-  const ctaRef = useRef<HTMLDivElement>(null);
-  const ctaButtonRef = useRef<HTMLButtonElement>(null);
-  const metricsRef = useRef<HTMLDivElement>(null);
   const logoRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
@@ -27,74 +44,9 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
     if (!heroRef.current) return;
 
     const ctx = gsap.context(() => {
-      const q = gsap.utils.selector(heroRef);
-
-      gsap.from(heroRef.current, {
-        opacity: 0,
-        y: 18,
-        duration: 0.6,
-        ease: "power2.out",
-      });
-
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: heroRef.current,
-          start: "top 85%",
-          once: true,
-        },
-      });
-
-      tl.from(badgeRef.current, {
-        opacity: 0,
-        y: 16,
-        duration: 0.5,
-        ease: "power2.out",
-      })
-        .from(
-          q(".hero-word"),
-          {
-            opacity: 0,
-            y: 24,
-            duration: 0.6,
-            ease: "power3.out",
-            stagger: 0.04,
-          },
-          "-=0.2"
-        )
-        .from(
-          q(".hero-line"),
-          {
-            opacity: 0,
-            y: 18,
-            duration: 0.5,
-            ease: "power2.out",
-            stagger: 0.08,
-          },
-          "-=0.3"
-        )
-        .from(
-          ctaRef.current,
-          {
-            opacity: 0,
-            y: 18,
-            duration: 0.5,
-            ease: "power2.out",
-          },
-          "-=0.2"
-        )
-        .from(
-          metricsRef.current,
-          {
-            opacity: 0,
-            y: 18,
-            duration: 0.6,
-            ease: "power2.out",
-          },
-          "-=0.1"
-        );
-
+      // Parallax effect for the hero section
       gsap.to(heroRef.current, {
-        y: -30,
+        y: -40,
         ease: "none",
         scrollTrigger: {
           trigger: heroRef.current,
@@ -104,64 +56,8 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
         },
       });
 
-      if (bgOneRef.current) {
-        gsap.to(bgOneRef.current, {
-          y: -120,
-          ease: "none",
-          scrollTrigger: {
-            trigger: heroRef.current,
-            start: "top bottom",
-            end: "bottom top",
-            scrub: true,
-          },
-        });
-      }
-
-      if (bgTwoRef.current) {
-        gsap.to(bgTwoRef.current, {
-          y: -80,
-          ease: "none",
-          scrollTrigger: {
-            trigger: heroRef.current,
-            start: "top bottom",
-            end: "bottom top",
-            scrub: true,
-          },
-        });
-      }
-
-      if (bgGridRef.current) {
-        gsap.to(bgGridRef.current, {
-          y: -40,
-          ease: "none",
-          scrollTrigger: {
-            trigger: heroRef.current,
-            start: "top bottom",
-            end: "bottom top",
-            scrub: true,
-          },
-        });
-      }
-
-      if (ctaButtonRef.current) {
-        gsap.to(ctaButtonRef.current, {
-          y: -8,
-          duration: 1.6,
-          ease: "sine.inOut",
-          yoyo: true,
-          repeat: -1,
-        });
-      }
-
+      // Logo rotation on scroll
       if (logoRef.current) {
-        gsap.from(logoRef.current, {
-          opacity: 0,
-          scale: 0.94,
-          duration: 0.6,
-          ease: "power2.out",
-          delay: 0.2,
-        });
-
         gsap.to(logoRef.current, {
           rotate: 180,
           ease: "none",
@@ -179,119 +75,234 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
     return () => ctx.revert();
   }, []);
 
+  const titleWords = "Detect synthetic images with forensic-grade AI precision".split(" ");
+
   return (
-    <section className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-12 pt-12">
+    <section ref={heroRef} className="relative z-10 mx-auto w-full max-w-6xl px-4 pb-12 pt-28 sm:px-6 sm:pt-32">
+      {/* Background Effects */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div
-          ref={bgOneRef}
-          className="absolute left-[-6%] top-[-20%] h-56 w-56 rounded-full bg-purple-600/30 blur-[90px]"
+        {/* Animated gradient orbs */}
+        <motion.div
+          className="absolute -left-[15%] top-[5%] h-[500px] w-[500px] rounded-full"
+          style={{
+            background: "radial-gradient(circle, rgba(139,92,246,0.4) 0%, transparent 70%)",
+            filter: "blur(80px)",
+          }}
+          animate={{
+            x: [0, 30, 0],
+            y: [0, -20, 0],
+          }}
+          transition={{
+            duration: 15,
+            repeat: Infinity,
+            repeatType: "reverse",
+          }}
         />
-        <div
-          ref={bgTwoRef}
-          className="absolute right-[-4%] top-[10%] h-64 w-64 rounded-full bg-cyan-500/20 blur-[110px]"
+        <motion.div
+          className="absolute -right-[10%] top-[20%] h-[400px] w-[400px] rounded-full"
+          style={{
+            background: "radial-gradient(circle, rgba(6,182,212,0.3) 0%, transparent 70%)",
+            filter: "blur(90px)",
+          }}
+          animate={{
+            x: [0, -40, 0],
+            y: [0, 30, 0],
+          }}
+          transition={{
+            duration: 18,
+            repeat: Infinity,
+            repeatType: "reverse",
+          }}
         />
+
+        {/* Grid pattern */}
         <div
-          ref={bgGridRef}
-          className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:48px_48px] opacity-50"
+          className="absolute inset-0 opacity-[0.02]"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)
+            `,
+            backgroundSize: "60px 60px",
+          }}
         />
       </div>
-      <div
-        ref={heroRef}
-        className="rounded-[32px] border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-purple-500/10 p-10 shadow-2xl"
-      >
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-2xl">
-            <p
-              ref={badgeRef}
-              className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-gray-300"
-            >
-              <ShieldCheck className="h-4 w-4 text-purple-300" />
-              AI-human detector
-            </p>
-            <h1
-              ref={titleRef}
-              className="font-display text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl"
-            >
-              {"AI-human detector spots synthetic images with forensic-grade confidence."
-                .split(" ")
-                .map((word, index) => (
-                  <span key={`${word}-${index}`} className="hero-word inline-block pr-2">
-                    {word}
-                  </span>
-                ))}
-            </h1>
-            <p ref={bodyRef} className="mt-4 text-lg text-gray-300">
-              <span className="hero-line block">
-                Upload an image and get an instant report on how likely it is AI-generated,
-              </span>
-              <span className="hero-line block">
-                including signature analysis and an advanced heatmap.
-              </span>
-            </p>
-            <div ref={ctaRef} className="mt-8 flex flex-wrap items-center gap-4">
-              <button
-                ref={ctaButtonRef}
-                onClick={onCTA}
-                className="flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-purple-100"
-              >
-                Start Detection
-                <ArrowDownRight className="h-4 w-4" />
-              </button>
-              <a
-                href="#waitlist"
-                className="rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white transition hover:border-purple-300/60 hover:bg-white/5"
-              >
-                Join the waitlist
-              </a>
-              <div className="text-sm text-gray-400">
-                <span className="block">
-                  Average time to result: 1.6 seconds |{" "}
-                  <strong className="font-semibold text-white">local model on your device</strong>{" "}
-                  | free to use (currently)
+
+      <GlassCard hover={false} className="p-8 sm:p-12">
+        <div className="flex flex-col gap-10 lg:flex-row lg:items-center lg:justify-between">
+          {/* Left Content */}
+          <motion.div
+            className="max-w-2xl"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            {/* Badge */}
+            <motion.div variants={itemVariants}>
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-gradient-to-r from-purple-500/10 to-cyan-500/10 px-4 py-2 backdrop-blur-sm">
+                <div className="relative">
+                  <div className="absolute inset-0 animate-ping rounded-full bg-purple-400/40" />
+                  <ShieldCheck className="relative h-4 w-4 text-purple-300" />
+                </div>
+                <span className="text-xs font-medium uppercase tracking-[0.25em] text-gray-300">
+                  AI Detection Engine
                 </span>
-                <span className="block">Server API coming soon - join the waitlist.</span>
               </div>
-            </div>
-          </div>
-          <div className="flex flex-col items-center gap-6 lg:items-end">
+            </motion.div>
+
+            {/* Title with animated words */}
+            <motion.h1
+              variants={itemVariants}
+              className="font-display text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl"
+            >
+              {titleWords.map((word, index) => (
+                <motion.span
+                  key={`${word}-${index}`}
+                  className="inline-block pr-3"
+                  initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  transition={{
+                    duration: 0.5,
+                    delay: 0.3 + index * 0.05,
+                    ease: [0.25, 0.46, 0.45, 0.94],
+                  }}
+                >
+                  {word === "AI" || word === "forensic-grade" ? (
+                    <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
+                      {word}
+                    </span>
+                  ) : (
+                    word
+                  )}
+                </motion.span>
+              ))}
+            </motion.h1>
+
+            {/* Description */}
+            <motion.p
+              variants={itemVariants}
+              className="mt-6 text-lg leading-relaxed text-gray-400"
+            >
+              Upload an image and get an{" "}
+              <span className="text-white">instant analysis report</span> on AI generation likelihood,
+              including signature detection and advanced heatmap visualization.
+            </motion.p>
+
+            {/* CTAs */}
+            <motion.div variants={itemVariants} className="mt-8 flex flex-wrap items-center gap-4">
+              <GlowButton onClick={onCTA} size="lg">
+                <span>Start Detection</span>
+                <ArrowDownRight className="h-4 w-4" />
+              </GlowButton>
+
+              <GlowButton variant="secondary" size="lg" onClick={() => document.getElementById("waitlist")?.scrollIntoView({ behavior: "smooth" })}>
+                Join Waitlist
+              </GlowButton>
+            </motion.div>
+
+            {/* Features Pills */}
+            <motion.div
+              variants={itemVariants}
+              className="mt-8 flex flex-wrap gap-3"
+            >
+              {[
+                { icon: Zap, label: "1.6s avg response" },
+                { icon: ShieldCheck, label: "100% local processing" },
+                { icon: Sparkles, label: "Free to use" },
+              ].map((feature) => (
+                <div
+                  key={feature.label}
+                  className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-gray-400"
+                >
+                  <feature.icon className="h-3 w-3 text-purple-400" />
+                  <span>{feature.label}</span>
+                </div>
+              ))}
+            </motion.div>
+          </motion.div>
+
+          {/* Right Content - Logo & Stats */}
+          <motion.div
+            className="flex flex-col items-center gap-6 lg:items-end"
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+          >
+            {/* Logo with glow */}
             <div className="relative">
-              <div className="absolute inset-0 rounded-full bg-purple-400/20 blur-2xl" />
-              <img
+              <motion.div
+                className="absolute inset-0 rounded-full"
+                style={{
+                  background: "radial-gradient(circle, rgba(139,92,246,0.4) 0%, transparent 70%)",
+                  filter: "blur(40px)",
+                }}
+                animate={{
+                  scale: [1, 1.2, 1],
+                  opacity: [0.4, 0.6, 0.4],
+                }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  repeatType: "reverse",
+                }}
+              />
+              <motion.img
                 ref={logoRef}
                 src="/logo-350.png"
                 alt="AI Detector logo"
-                width={350}
-                height={350}
-                className="relative w-32 max-w-full drop-shadow-[0_18px_45px_rgba(99,102,241,0.35)] sm:w-40"
+                width={280}
+                height={280}
+                className="relative w-40 max-w-full drop-shadow-[0_20px_50px_rgba(139,92,246,0.4)] sm:w-52 lg:w-64"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
               />
             </div>
-            <div ref={metricsRef} className="grid gap-4 text-sm text-gray-300">
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
-                <p className="text-xs uppercase tracking-[0.3em] text-gray-400">
-                  Threat Score
+
+            {/* Stats Cards */}
+            <div className="grid w-full gap-4 sm:w-auto">
+              <motion.div
+                className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.08] to-purple-500/10 p-5 backdrop-blur-xl"
+                whileHover={{ scale: 1.02, y: -2 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
+                <p className="text-xs font-medium uppercase tracking-[0.25em] text-gray-500">
+                  Detection Score
                 </p>
-                <p className="mt-2 text-3xl font-semibold text-white">87%</p>
-                <p className="mt-1 text-gray-400">AI likelihood detected</p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
-                <p className="text-xs uppercase tracking-[0.3em] text-gray-400">
-                  Trust Layer
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-4xl font-bold text-white">87</span>
+                  <span className="text-xl font-semibold text-purple-400">%</span>
+                </div>
+                <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                  <motion.div
+                    className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500"
+                    initial={{ width: 0 }}
+                    animate={{ width: "87%" }}
+                    transition={{ duration: 1, delay: 0.8 }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-gray-500">AI likelihood detected</p>
+              </motion.div>
+
+              <motion.div
+                className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.08] to-emerald-500/10 p-5 backdrop-blur-xl"
+                whileHover={{ scale: 1.02, y: -2 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
+                <p className="text-xs font-medium uppercase tracking-[0.25em] text-gray-500">
+                  Privacy Status
                 </p>
-                <p className="mt-2 text-lg font-semibold text-emerald-200">
+                <p className="mt-2 text-lg font-semibold text-emerald-400">
                   Zero Retention
                 </p>
-                <p className="mt-1 text-gray-400">
-                  Scans are stored locally only.
+                <p className="mt-1 text-xs text-gray-500">
+                  All scans processed locally on your device
                 </p>
-              </div>
+              </motion.div>
             </div>
-          </div>
+          </motion.div>
         </div>
-      </div>
+      </GlassCard>
     </section>
   );
 }
-
-
-
-

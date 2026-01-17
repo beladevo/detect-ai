@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
-import { ArrowRight, CheckCircle2, Mail, Rocket } from "lucide-react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowRight, CheckCircle2, Mail, Rocket, Sparkles, Zap } from "lucide-react";
+import GlassCard from "./ui/GlassCard";
+import GlowButton from "./ui/GlowButton";
 
 type FormState = "idle" | "loading" | "success" | "error";
 
@@ -38,89 +41,198 @@ export default function WaitlistSection() {
     }
   };
 
+  const benefits = [
+    {
+      icon: Rocket,
+      text: "Built for teams and platforms that need reliable results.",
+      color: "text-cyan-400",
+    },
+    {
+      icon: Zap,
+      text: "Always improving. You get the newest model automatically.",
+      color: "text-purple-400",
+    },
+    {
+      icon: CheckCircle2,
+      text: "Simple results you can explain to non-technical stakeholders.",
+      color: "text-emerald-400",
+    },
+  ];
+
   return (
     <section
       id="waitlist"
-      className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-16 pt-6"
+      className="relative z-10 mx-auto w-full max-w-6xl px-4 pb-16 pt-6 sm:px-6"
     >
-      <div className="rounded-[32px] border border-white/10 bg-gradient-to-br from-white/5 via-purple-500/10 to-cyan-500/10 p-8 shadow-2xl">
-        <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
-          <div>
-            <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-gray-300">
-              Coming soon
-            </p>
-            <h2 className="font-display text-3xl font-semibold text-white sm:text-4xl">
-              Server-powered AI detection for your team.
+      <GlassCard hover={false} glow="purple" className="p-8 sm:p-10">
+        <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+          {/* Left Content */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-gradient-to-r from-purple-500/10 to-pink-500/10 px-4 py-2 backdrop-blur-sm">
+              <div className="relative">
+                <div className="absolute inset-0 animate-ping rounded-full bg-purple-400/40" />
+                <Sparkles className="relative h-4 w-4 text-purple-400" />
+              </div>
+              <span className="text-xs font-medium uppercase tracking-[0.25em] text-gray-300">
+                Coming Soon
+              </span>
+            </div>
+
+            <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
+              <span className="text-white">Server-powered </span>
+              <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
+                AI detection
+              </span>
+              <span className="text-white"> for your team</span>
             </h2>
-            <p className="mt-4 text-sm text-gray-300">
+
+            <p className="mt-4 text-gray-400">
               Send images to our servers and get a clear score back in seconds.
               No setup, no heavy computing on your device.
             </p>
-            <div className="mt-6 grid gap-3 text-sm text-gray-300">
-              <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                <Rocket className="mt-1 h-4 w-4 text-cyan-200" />
-                <span>Built for teams and platforms that need reliable results.</span>
-              </div>
-              <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                <Mail className="mt-1 h-4 w-4 text-purple-200" />
-                <span>Always improving. You get the newest model automatically.</span>
-              </div>
-              <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                <CheckCircle2 className="mt-1 h-4 w-4 text-emerald-200" />
-                <span>Simple results you can explain to non-technical stakeholders.</span>
-              </div>
-            </div>
-            <div className="mt-6 text-xs text-gray-400">
-              How it works: You send the image {"->"} We analyze it {"->"} You get a clear
-              score.
-            </div>
-            <div className="mt-2 text-xs text-gray-500">
-              Local detection stays available for privacy-focused workflows.
-            </div>
-          </div>
-          <div className="relative">
-            <div className="absolute -inset-3 rounded-3xl bg-purple-500/15 blur-2xl" />
-            <div className="relative rounded-3xl border border-white/10 bg-black/50 p-6">
-              <h3 className="text-lg font-semibold text-white">Join the waitlist</h3>
-              <p className="mt-2 text-sm text-gray-300">
-                Be first to know when the server API opens. We only email for launch updates.
-              </p>
-              <form onSubmit={handleSubmit} className="mt-6 grid gap-3">
-                <label className="text-xs uppercase tracking-[0.3em] text-gray-400">
-                  Email address
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@company.com"
-                  className="rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:border-purple-300 focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  disabled={state === "loading"}
-                  className="flex items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-purple-100 disabled:cursor-not-allowed"
+
+            {/* Benefits */}
+            <div className="mt-8 space-y-4">
+              {benefits.map((benefit, index) => (
+                <motion.div
+                  key={benefit.text}
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: index * 0.1 }}
+                  className="group flex items-start gap-4 rounded-2xl border border-white/[0.08] bg-gradient-to-r from-white/[0.04] to-transparent p-4 transition-all duration-300 hover:border-white/20 hover:bg-white/[0.06]"
                 >
-                  {state === "loading" ? "Submitting..." : "Join the waitlist"}
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-                {message ? (
-                  <p
-                    className={`text-xs ${
-                      state === "success" ? "text-emerald-200" : "text-red-200"
-                    }`}
-                  >
-                    {message}
-                  </p>
-                ) : null}
-              </form>
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 ${benefit.color}`}>
+                    <benefit.icon className="h-5 w-5" />
+                  </div>
+                  <span className="text-sm text-gray-300">{benefit.text}</span>
+                </motion.div>
+              ))}
             </div>
-          </div>
+
+            <p className="mt-6 text-xs text-gray-500">
+              How it works: You send the image → We analyze it → You get a clear score.
+            </p>
+            <p className="mt-2 text-xs text-gray-600">
+              Local detection stays available for privacy-focused workflows.
+            </p>
+          </motion.div>
+
+          {/* Right Content - Form Card */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="relative"
+          >
+            {/* Glow effect */}
+            <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-purple-500/20 via-pink-500/10 to-cyan-500/20 blur-2xl" />
+
+            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-black/60 via-black/40 to-purple-900/20 p-8 backdrop-blur-xl">
+              {/* Glass shine */}
+              <div
+                className="pointer-events-none absolute inset-0 rounded-3xl"
+                style={{
+                  background: "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%)",
+                }}
+              />
+
+              <div className="relative z-10">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10">
+                    <Mail className="h-6 w-6 text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Join the Waitlist</h3>
+                    <p className="text-xs text-gray-400">Get early access to the API</p>
+                  </div>
+                </div>
+
+                <p className="mt-4 text-sm text-gray-400">
+                  Be first to know when the server API opens. We only email for launch updates.
+                </p>
+
+                <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                  <div>
+                    <label className="mb-2 block text-xs font-medium uppercase tracking-[0.25em] text-gray-500">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        name="email"
+                        autoComplete="email"
+                        required
+                        value={email}
+                        onChange={(event) => setEmail(event.target.value)}
+                        placeholder="you@company.com"
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-white placeholder:text-gray-500 transition-all duration-300 focus:border-purple-500/50 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                      />
+                      <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-r from-purple-500/0 via-purple-500/5 to-pink-500/0 opacity-0 transition-opacity duration-300 focus-within:opacity-100" />
+                    </div>
+                  </div>
+
+                  <GlowButton
+                    type="submit"
+                    disabled={state === "loading"}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {state === "loading" ? (
+                      <>
+                        <motion.div
+                          className="h-4 w-4 rounded-full border-2 border-black/30 border-t-black"
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        />
+                        <span>Submitting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Join the Waitlist</span>
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
+                  </GlowButton>
+
+                  {/* Status message */}
+                  <AnimatePresence>
+                    {message && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm ${
+                          state === "success"
+                            ? "bg-emerald-500/10 text-emerald-400"
+                            : "bg-red-500/10 text-red-400"
+                        }`}
+                      >
+                        {state === "success" ? (
+                          <CheckCircle2 className="h-4 w-4" />
+                        ) : (
+                          <span className="h-4 w-4 text-center">!</span>
+                        )}
+                        {message}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </form>
+
+                <p className="mt-4 text-center text-xs text-gray-500">
+                  No spam, ever. Unsubscribe anytime.
+                </p>
+              </div>
+            </div>
+          </motion.div>
         </div>
-      </div>
+      </GlassCard>
     </section>
   );
 }

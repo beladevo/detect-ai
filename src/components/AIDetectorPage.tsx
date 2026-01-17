@@ -12,6 +12,7 @@ import UploadZone from "@/src/components/UploadZone";
 import ResultsDisplay from "@/src/components/ResultsDisplay";
 import HistoryList, { type HistoryItem } from "@/src/components/HistoryList";
 import PrivacySection from "@/src/components/PrivacySection";
+import FAQSection from "@/src/components/FAQSection";
 import Footer from "@/src/components/Footer";
 import ComparisonTool from "@/src/components/ComparisonTool";
 import { analyzeImageWithWasm } from "@/src/lib/wasmDetector";
@@ -237,6 +238,7 @@ export default function AIDetectorPage() {
           <ComparisonTool previewUrl={previewUrl} verdict={verdict} />
         ) : null}
         <PrivacySection />
+        <FAQSection />
       </main>
 
       <Footer />

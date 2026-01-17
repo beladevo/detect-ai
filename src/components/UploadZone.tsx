@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import { gsap } from "gsap";
-import { Upload } from "lucide-react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Upload, Sparkles, Shield } from "lucide-react";
 
 type UploadZoneProps = {
   isUploading: boolean;
@@ -11,12 +11,6 @@ type UploadZoneProps = {
 
 export default function UploadZone({ isUploading, onFileSelected }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const containerRef = useRef<HTMLLabelElement>(null);
-  const iconRef = useRef<SVGSVGElement>(null);
-  const titleRef = useRef<HTMLParagraphElement>(null);
-  const subRef = useRef<HTMLParagraphElement>(null);
-  const stampRef = useRef<HTMLParagraphElement>(null);
-  const idleTweenRef = useRef<gsap.core.Tween | null>(null);
 
   const handleFile = (fileList: FileList | null) => {
     const file = fileList?.[0];
@@ -25,64 +19,22 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
     }
   };
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        containerRef.current,
-        { opacity: 0, y: 16, scale: 0.98 },
-        { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "power3.out" }
-      );
-    }, containerRef);
-
-    return () => ctx.revert();
-  }, []);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    gsap.to(containerRef.current, {
-      scale: isDragging ? 1.02 : 1,
-      y: isDragging ? -2 : 0,
-      boxShadow: isDragging ? "0 30px 80px rgba(147, 51, 234, 0.25)" : "0 0 0 rgba(0, 0, 0, 0)",
-      duration: isDragging ? 0.2 : 0.35,
-      ease: "power3.out",
-    });
-  }, [isDragging]);
-
-  useEffect(() => {
-    idleTweenRef.current?.kill();
-    idleTweenRef.current = null;
-    if (isUploading) return;
-    if (!iconRef.current) return;
-
-    const ctx = gsap.context(() => {
-      const nodes = [iconRef.current, titleRef.current, subRef.current, stampRef.current].filter(
-        (node): node is SVGSVGElement | HTMLParagraphElement => Boolean(node)
-      );
-      gsap.fromTo(
-        nodes,
-        { opacity: 0, y: 10 },
-        { opacity: 1, y: 0, duration: 0.5, ease: "power2.out", stagger: 0.08 }
-      );
-      idleTweenRef.current = gsap.to(iconRef.current, {
-        y: -6,
-        duration: 1.6,
-        ease: "sine.inOut",
-        yoyo: true,
-        repeat: -1,
-      });
-    }, containerRef);
-
-    return () => ctx.revert();
-  }, [isUploading]);
-
   return (
-    <label
-      ref={containerRef}
-      className={`group flex h-64 w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed px-6 text-center transition ${isDragging
-          ? "border-purple-400/80 bg-purple-500/15"
-          : "border-purple-500/30 bg-purple-500/5 hover:border-purple-500/60"
-        }`}
+    <motion.label
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className={`
+        group relative flex h-72 w-full cursor-pointer flex-col items-center justify-center
+        overflow-hidden rounded-3xl
+        border-2 border-dashed
+        transition-all duration-500
+        ${isDragging
+          ? "border-purple-400/60 bg-purple-500/10 shadow-[0_0_60px_rgba(139,92,246,0.2)]"
+          : "border-white/20 bg-gradient-to-br from-white/[0.05] to-purple-500/[0.05] hover:border-purple-500/40 hover:shadow-[0_0_40px_rgba(139,92,246,0.1)]"
+        }
+        backdrop-blur-xl
+      `}
       onDragEnter={() => setIsDragging(true)}
       onDragLeave={() => setIsDragging(false)}
       onDragOver={(event) => {
@@ -94,7 +46,54 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
         setIsDragging(false);
         handleFile(event.dataTransfer.files);
       }}
+      whileHover={{ scale: 1.01, y: -4 }}
+      whileTap={{ scale: 0.99 }}
     >
+      {/* Glass shine effect */}
+      <div
+        className="pointer-events-none absolute inset-0 rounded-3xl"
+        style={{
+          background: "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 50%)",
+        }}
+      />
+
+      {/* Animated border gradient */}
+      <div
+        className={`
+          pointer-events-none absolute inset-0 rounded-3xl opacity-0 transition-opacity duration-500
+          ${isDragging ? "opacity-100" : "group-hover:opacity-60"}
+        `}
+        style={{
+          background: "linear-gradient(135deg, rgba(139,92,246,0.3), rgba(236,72,153,0.2), rgba(6,182,212,0.2))",
+          filter: "blur(20px)",
+        }}
+      />
+
+      {/* Floating particles effect */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
+        {[...Array(6)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute h-1 w-1 rounded-full bg-purple-400/40"
+            initial={{
+              x: `${20 + Math.random() * 60}%`,
+              y: "100%",
+              opacity: 0,
+            }}
+            animate={{
+              y: "-10%",
+              opacity: [0, 1, 0],
+            }}
+            transition={{
+              duration: 3 + Math.random() * 2,
+              repeat: Infinity,
+              delay: i * 0.5,
+              ease: "easeOut",
+            }}
+          />
+        ))}
+      </div>
+
       <input
         type="file"
         accept="image/*"
@@ -102,34 +101,106 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
         onChange={(event) => handleFile(event.target.files)}
       />
 
-      {isUploading ? (
-        <div className="flex flex-col items-center">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-purple-500 border-t-transparent" />
-          <p className="mt-4 text-sm font-medium text-purple-200">
-            Analyzing digital artifacts...
-          </p>
-          <div className="mt-6 grid w-full gap-3">
-            <div className="h-3 w-full animate-pulse rounded-full bg-white/10" />
-            <div className="h-3 w-2/3 animate-pulse rounded-full bg-white/10" />
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center">
-          <Upload
-            ref={iconRef}
-            className="mb-4 h-12 w-12 text-purple-400 transition-transform group-hover:scale-110"
-          />
-          <p ref={titleRef} className="text-xl font-semibold">
-            Drag an image here
-          </p>
-          <p ref={subRef} className="mt-2 text-sm text-gray-400">
-            PNG, JPG up to 10MB
-          </p>
-          <p ref={stampRef} className="mt-4 text-xs uppercase tracking-[0.4em] text-gray-500">
-            Secure Upload
-          </p>
-        </div>
-      )}
-    </label>
+      <AnimatePresence mode="wait">
+        {isUploading ? (
+          <motion.div
+            key="uploading"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="relative z-10 flex flex-col items-center"
+          >
+            {/* Animated spinner */}
+            <div className="relative">
+              <motion.div
+                className="h-16 w-16 rounded-full border-2 border-purple-500/30"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              />
+              <motion.div
+                className="absolute inset-0 h-16 w-16 rounded-full border-2 border-transparent border-t-purple-500"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              />
+              <Sparkles className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 text-purple-400" />
+            </div>
+
+            <motion.p
+              className="mt-6 text-sm font-medium text-purple-300"
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            >
+              Analyzing digital artifacts...
+            </motion.p>
+
+            {/* Progress bars skeleton */}
+            <div className="mt-6 w-48 space-y-2">
+              <motion.div
+                className="h-1.5 rounded-full bg-gradient-to-r from-purple-500/40 to-pink-500/40"
+                animate={{ scaleX: [0.3, 1, 0.3] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                style={{ transformOrigin: "left" }}
+              />
+              <motion.div
+                className="h-1.5 w-2/3 rounded-full bg-gradient-to-r from-purple-500/30 to-pink-500/30"
+                animate={{ scaleX: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity, delay: 0.3 }}
+                style={{ transformOrigin: "left" }}
+              />
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="idle"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="relative z-10 flex flex-col items-center"
+          >
+            {/* Upload icon with glow */}
+            <motion.div
+              className="relative"
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <div className="absolute inset-0 rounded-full bg-purple-500/20 blur-xl" />
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm transition-all duration-300 group-hover:scale-110 group-hover:border-purple-500/30">
+                <Upload className="h-8 w-8 text-purple-400 transition-transform duration-300 group-hover:scale-110" />
+              </div>
+            </motion.div>
+
+            <motion.p
+              className="mt-6 text-xl font-semibold text-white"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              Drag an image here
+            </motion.p>
+
+            <motion.p
+              className="mt-2 text-sm text-gray-400"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              PNG, JPG, WEBP up to 10MB
+            </motion.p>
+
+            <motion.div
+              className="mt-6 flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <Shield className="h-3 w-3 text-emerald-400" />
+              <span className="text-xs uppercase tracking-[0.25em] text-gray-500">
+                Secure & Private
+              </span>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.label>
   );
 }
