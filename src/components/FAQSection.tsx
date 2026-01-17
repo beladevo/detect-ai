@@ -175,8 +175,11 @@ export default function FAQSection() {
               <p className="text-sm font-medium text-white">Still have questions?</p>
               <p className="text-xs text-gray-400">
                 Contact us at{" "}
-                <a href="mailto:support@imagion.ai" className="text-cyan-400 hover:underline">
-                  support@imagion.ai
+                <a
+                  href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@imagion.ai"}`}
+                  className="text-cyan-400 hover:underline"
+                >
+                  {process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@imagion.ai"}
                 </a>
               </p>
             </div>
