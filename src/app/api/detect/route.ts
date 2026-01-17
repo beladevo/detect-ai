@@ -2,32 +2,56 @@ import { NextResponse } from "next/server";
 import { detectAIFromBuffer } from "@/src/lib/nodeDetector";
 import { scoreFromConfidence } from "@/src/lib/scoreUtils";
 import { MODEL_NAME } from "@/src/lib/modelConfigs";
+import { logServerEvent } from "@/src/lib/loggerServer";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  console.info("API /detect: request received");
+  await logServerEvent({
+    level: "Info",
+    source: "Backend",
+    service: "Detect",
+    message: "Request received",
+    request,
+  });
   const formData = await request.formData();
   const file = formData.get("file");
 
   if (!file || !(file instanceof File)) {
-    console.warn("API /detect: missing file");
+    await logServerEvent({
+      level: "Warn",
+      source: "Backend",
+      service: "Detect",
+      message: "Missing file",
+      request,
+    });
     return NextResponse.json({ error: "Missing file" }, { status: 400 });
   }
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
-    console.info("API /detect: running inference", {
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      model: MODEL_NAME,
+    await logServerEvent({
+      level: "Info",
+      source: "Backend",
+      service: "Detect",
+      message: "Running inference",
+      additional: JSON.stringify({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        model: MODEL_NAME,
+      }),
+      request,
     });
     const result = await detectAIFromBuffer(buffer);
     const score = scoreFromConfidence(result.confidence);
-    console.info("API /detect: inference complete", {
-      score,
-      model: result.model,
+    await logServerEvent({
+      level: "Info",
+      source: "Backend",
+      service: "Detect",
+      message: "Inference complete",
+      additional: JSON.stringify({ score, model: result.model }),
+      request,
     });
     return NextResponse.json({
       score,
@@ -35,7 +59,14 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Detection failed";
-    console.error("API /detect: error", message);
+    await logServerEvent({
+      level: "Error",
+      source: "Backend",
+      service: "Detect",
+      message: "Detection failed",
+      additional: message,
+      request,
+    });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

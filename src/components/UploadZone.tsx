@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Upload, Sparkles, Shield } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { gsap } from "gsap";
+import { Upload, Sparkles, Shield, Zap } from "lucide-react";
 
 type UploadZoneProps = {
   isUploading: boolean;
@@ -11,202 +11,223 @@ type UploadZoneProps = {
 
 export default function UploadZone({ isUploading, onFileSelected }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const particles = Array.from({ length: 6 }, (_, index) => ({
-    id: index,
-    x: `${20 + ((index * 17) % 60)}%`,
-    duration: 3 + (index % 3) * 0.6,
-    delay: index * 0.5,
-  }));
+  const containerRef = useRef<HTMLLabelElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const glowRef = useRef<HTMLDivElement>(null);
+  const borderRef = useRef<HTMLDivElement>(null);
+  const scanlineRef = useRef<HTMLDivElement>(null);
+  const particlesRef = useRef<HTMLDivElement>(null);
 
+  // Handle file selection
   const handleFile = (fileList: FileList | null) => {
     const file = fileList?.[0];
-    if (file) {
-      onFileSelected(file);
-    }
+    if (file) onFileSelected(file);
   };
 
+  
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLLabelElement>) => {
+    if (!containerRef.current || !contentRef.current) return;
+    
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
+    const rotateX = ((y - centerY) / centerY) * -5; 
+    const rotateY = ((x - centerX) / centerX) * 5;
+
+    gsap.to(contentRef.current, {
+      rotateX: rotateX,
+      rotateY: rotateY,
+      duration: 0.5,
+      ease: "power2.out",
+      transformPerspective: 1000,
+    });
+
+    gsap.to(glowRef.current, {
+      x: x - rect.width / 2,
+      y: y - rect.height / 2,
+      duration: 0.8,
+      ease: "power2.out",
+    });
+  };
+
+  const handleMouseLeave = () => {
+    if (!contentRef.current) return;
+    gsap.to(contentRef.current, {
+      rotateX: 0,
+      rotateY: 0,
+      duration: 0.8,
+      ease: "elastic.out(1, 0.5)",
+    });
+  };
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        containerRef.current,
+        { opacity: 0, scale: 0.95, y: 20 },
+        { opacity: 1, scale: 1, y: 0, duration: 1, ease: "power3.out" }
+      );
+
+      gsap.to(borderRef.current, {
+        backgroundPosition: "200% center",
+        duration: 4,
+        repeat: -1,
+        ease: "none",
+      });
+
+      if (!isUploading) {
+        gsap.to(scanlineRef.current, {
+          y: "300px",
+          opacity: 0,
+          duration: 3,
+          repeat: -1,
+          ease: "linear",
+          stagger: {
+            each: 0.5,
+            repeat: -1
+          }
+        });
+      }
+
+    }, containerRef);
+
+    return () => ctx.revert();
+  }, [isUploading]);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      if (isDragging) {
+        gsap.to(containerRef.current, {
+          scale: 1.02,
+          boxShadow: "0 0 50px rgba(168, 85, 247, 0.4)",
+          duration: 0.4,
+          ease: "back.out(1.7)",
+        });
+        gsap.to(particlesRef.current, {
+          opacity: 1,
+          duration: 0.3
+        });
+      } else {
+        gsap.to(containerRef.current, {
+          scale: 1,
+          boxShadow: "0 0 0px rgba(0,0,0,0)",
+          duration: 0.4,
+          ease: "power2.out",
+        });
+        gsap.to(particlesRef.current, {
+          opacity: 0,
+          duration: 0.3
+        });
+      }
+    }, containerRef);
+    return () => ctx.revert();
+  }, [isDragging]);
+
   return (
-    <motion.label
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className={`
-        group relative flex h-72 w-full cursor-pointer flex-col items-center justify-center
-        overflow-hidden rounded-3xl
-        border-2 border-dashed
-        transition-all duration-500
-        ${isDragging
-          ? "border-purple-400/60 bg-purple-500/10 shadow-[0_0_60px_rgba(139,92,246,0.2)]"
-          : "border-white/20 bg-gradient-to-br from-white/[0.05] to-purple-500/[0.05] hover:border-purple-500/40 hover:shadow-[0_0_40px_rgba(139,92,246,0.1)]"
-        }
-        backdrop-blur-xl
-      `}
-      onDragEnter={() => setIsDragging(true)}
-      onDragLeave={() => setIsDragging(false)}
-      onDragOver={(event) => {
-        event.preventDefault();
-        setIsDragging(true);
-      }}
-      onDrop={(event) => {
-        event.preventDefault();
+    <label
+      ref={containerRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => {
         setIsDragging(false);
-        handleFile(event.dataTransfer.files);
+        handleMouseLeave();
       }}
-      whileHover={{ scale: 1.01, y: -4 }}
-      whileTap={{ scale: 0.99 }}
+      onDragEnter={() => setIsDragging(true)}
+      onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsDragging(false);
+        handleFile(e.dataTransfer.files);
+      }}
+      className="group relative flex h-80 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[2rem] bg-gray-900/40 backdrop-blur-2xl transition-colors duration-500"
     >
-      {/* Glass shine effect */}
-      <div
-        className="pointer-events-none absolute inset-0 rounded-3xl"
+      <div 
+        className="absolute inset-0 rounded-[2rem] p-[2px]"
         style={{
-          background: "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 50%)",
+          background: "linear-gradient(90deg, transparent, rgba(168,85,247,0.5), transparent)",
+          mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+          maskComposite: "exclude",
         }}
-      />
-
-      {/* Animated border gradient */}
-      <div
-        className={`
-          pointer-events-none absolute inset-0 rounded-3xl opacity-0 transition-opacity duration-500
-          ${isDragging ? "opacity-100" : "group-hover:opacity-60"}
-        `}
-        style={{
-          background: "linear-gradient(135deg, rgba(139,92,246,0.3), rgba(236,72,153,0.2), rgba(6,182,212,0.2))",
-          filter: "blur(20px)",
-        }}
-      />
-
-      {/* Floating particles effect */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
-        {particles.map((particle) => (
-          <motion.div
-            key={particle.id}
-            className="absolute h-1 w-1 rounded-full bg-purple-400/40"
-            initial={{
-              x: particle.x,
-              y: "100%",
-              opacity: 0,
-            }}
-            animate={{
-              y: "-10%",
-              opacity: [0, 1, 0],
-            }}
-            transition={{
-              duration: particle.duration,
-              repeat: Infinity,
-              delay: particle.delay,
-              ease: "easeOut",
-            }}
-          />
-        ))}
+      >
+        <div ref={borderRef} className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500 to-transparent opacity-50 bg-[length:200%_auto]" />
       </div>
 
-      <input
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(event) => handleFile(event.target.files)}
-      />
+      <div ref={contentRef} className="relative z-10 flex flex-col items-center p-10 text-center">
+        
+        <div 
+          ref={glowRef}
+          className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-purple-600/20 blur-[80px]" 
+        />
 
-      <AnimatePresence mode="wait">
+        <div 
+          ref={scanlineRef}
+          className="pointer-events-none absolute -top-10 left-0 right-0 h-2 bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent blur-md bg-opacity-20"
+        />
+
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => handleFile(e.target.files)}
+        />
+
         {isUploading ? (
-          <motion.div
-            key="uploading"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="relative z-10 flex flex-col items-center"
-          >
-            {/* Animated spinner */}
-            <div className="relative">
-              <motion.div
-                className="h-16 w-16 rounded-full border-2 border-purple-500/30"
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              />
-              <motion.div
-                className="absolute inset-0 h-16 w-16 rounded-full border-2 border-transparent border-t-purple-500"
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-              />
-              <Sparkles className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 text-purple-400" />
-            </div>
-
-            <motion.p
-              className="mt-6 text-sm font-medium text-purple-300"
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-            >
-              Analyzing digital artifacts...
-            </motion.p>
-
-            {/* Progress bars skeleton */}
-            <div className="mt-6 w-48 space-y-2">
-              <motion.div
-                className="h-1.5 rounded-full bg-gradient-to-r from-purple-500/40 to-pink-500/40"
-                animate={{ scaleX: [0.3, 1, 0.3] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                style={{ transformOrigin: "left" }}
-              />
-              <motion.div
-                className="h-1.5 w-2/3 rounded-full bg-gradient-to-r from-purple-500/30 to-pink-500/30"
-                animate={{ scaleX: [0.5, 1, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity, delay: 0.3 }}
-                style={{ transformOrigin: "left" }}
-              />
-            </div>
-          </motion.div>
+          <div className="flex flex-col items-center space-y-6">
+             <div className="relative">
+                <div className="h-20 w-20 animate-[spin_3s_linear_infinite] rounded-full border-2 border-purple-500/30 border-t-purple-400" />
+                <div className="absolute inset-0 m-auto h-14 w-14 animate-[spin_2s_linear_infinite_reverse] rounded-full border-2 border-cyan-500/30 border-b-cyan-400" />
+                <Zap className="absolute inset-0 m-auto h-6 w-6 animate-pulse text-white" />
+             </div>
+             <div>
+                <h3 className="bg-gradient-to-r from-white to-purple-200 bg-clip-text text-xl font-bold text-transparent">
+                  Neural Scan Active
+                </h3>
+                <p className="text-sm text-purple-300/80 animate-pulse mt-1">Processing digital artifacts...</p>
+             </div>
+             <div className="h-1.5 w-48 overflow-hidden rounded-full bg-white/10">
+                <div className="h-full w-full origin-left animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-purple-500 to-transparent" />
+             </div>
+          </div>
         ) : (
-          <motion.div
-            key="idle"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="relative z-10 flex flex-col items-center"
-          >
-            {/* Upload icon with glow */}
-            <motion.div
-              className="relative"
-              animate={{ y: [0, -8, 0] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            >
-              <div className="absolute inset-0 rounded-full bg-purple-500/20 blur-xl" />
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm transition-all duration-300 group-hover:scale-110 group-hover:border-purple-500/30">
-                <Upload className="h-8 w-8 text-purple-400 transition-transform duration-300 group-hover:scale-110" />
-              </div>
-            </motion.div>
+          <div className="flex flex-col items-center">
+            <div className="relative mb-6">
+               <div className="absolute inset-0 animate-pulse rounded-full bg-purple-500/20 blur-xl" />
+               <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-md transition-transform duration-300 group-hover:scale-110">
+                  <Upload className="h-8 w-8 text-white transition-colors group-hover:text-purple-300" />
+               </div>
+               
+               <div className="absolute -right-4 -top-4 rounded-full border border-white/10 bg-black/60 px-2 py-1 backdrop-blur-md">
+                  <Sparkles className="h-3 w-3 text-yellow-400" />
+               </div>
+            </div>
 
-            <motion.p
-              className="mt-6 text-xl font-semibold text-white"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-            >
-              Drag an image here
-            </motion.p>
+            <h3 className="mb-2 text-2xl font-bold bg-gradient-to-br from-white via-white to-purple-200 bg-clip-text text-transparent">
+               Drop Visuals Here
+            </h3>
+            <p className="mb-6 max-w-xs text-sm leading-relaxed text-gray-400">
+              Drag & drop your image or <span className="cursor-pointer text-purple-400 underline decoration-purple-400/30 underline-offset-4 hover:text-purple-300">browse</span>
+              <br />to initialize analysis.
+            </p>
 
-            <motion.p
-              className="mt-2 text-sm text-gray-400"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              PNG, JPG, WEBP up to 10MB
-            </motion.p>
-
-            <motion.div
-              className="mt-6 flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <Shield className="h-3 w-3 text-emerald-400" />
-              <span className="text-xs uppercase tracking-[0.25em] text-gray-500">
-                Secure & Private
-              </span>
-            </motion.div>
-          </motion.div>
+            <div className="flex items-center gap-3 rounded-full border border-white/5 bg-white/5 px-4 py-1.5 text-xs font-medium text-gray-500 backdrop-blur-sm">
+              <Shield className="h-3 w-3 text-emerald-500/80" />
+              <div className="h-3 w-[1px] bg-white/10" />
+              <span className="tracking-widest uppercase opacity-60">Secure Enclave</span>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
-    </motion.label>
+      </div>
+
+      <div ref={particlesRef} className="pointer-events-none absolute inset-0 opacity-0 transition-opacity">
+         <div className="absolute left-1/4 top-1/4 h-1 w-1 rounded-full bg-purple-400 shadow-[0_0_10px_currentColor]" />
+         <div className="absolute right-1/4 bottom-1/4 h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_10px_currentColor]" />
+         <div className="absolute right-1/3 top-1/3 h-1 w-1 rounded-full bg-white shadow-[0_0_10px_currentColor]" />
+      </div>
+    </label>
   );
 }

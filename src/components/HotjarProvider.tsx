@@ -6,6 +6,8 @@ const HOTJAR_VERSION = 6;
 
 export default function HotjarProvider() {
   useEffect(() => {
+    if (process.env.NODE_ENV !== "production") return;
+
     const siteId = process.env.NEXT_PUBLIC_HOTJAR_SITE_ID;
     if (!siteId) return;
 
