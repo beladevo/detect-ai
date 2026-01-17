@@ -15,12 +15,13 @@ const bodyFont = Space_Grotesk({
 });
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://detectai.app";
+const siteName = process.env.NEXT_PUBLIC_SITE_NAME || "Imagion";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Imagion - AI Image Detector | Expose AI-Generated Images",
-    template: "%s | Imagion",
+    default: `${siteName} - AI Image Detector | Expose AI-Generated Images`,
+    template: `%s | ${siteName}`,
   },
   description:
     "Imagion — expose synthetic content instantly. Detect if an image was created by AI (Midjourney, DALL-E, Stable Diffusion) or is a real photo. 100% private, runs locally in your browser.",
@@ -40,9 +41,9 @@ export const metadata: Metadata = {
     "synthetic image detection",
     "expose AI images",
   ],
-  authors: [{ name: "Imagion" }],
-  creator: "Imagion",
-  publisher: "Imagion",
+  authors: [{ name: siteName }],
+  creator: siteName,
+  publisher: siteName,
   robots: {
     index: true,
     follow: true,
@@ -58,8 +59,8 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: siteUrl,
-    siteName: "Imagion",
-    title: "Imagion - AI Image Detector",
+    siteName,
+    title: `${siteName} - AI Image Detector`,
     description:
       "Expose AI-generated images instantly. Reveal the truth behind any image. Free, private, and runs entirely in your browser.",
     images: [
@@ -73,7 +74,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Imagion - AI Image Detector",
+    title: `${siteName} - AI Image Detector`,
     description:
       "Expose AI-generated images instantly. Reveal the truth behind any image. Free and 100% private.",
     images: ["/og-image.png"],
@@ -102,7 +103,7 @@ export default function RootLayout({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    name: "Imagion",
+    name: siteName,
     description:
       "Imagion — expose synthetic content instantly. Detect if images were created by AI generators like Midjourney, DALL-E, or Stable Diffusion. Runs locally in your browser.",
     url: siteUrl,
