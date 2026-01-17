@@ -24,7 +24,7 @@ type InputMetadata = {
   dimensions?: Array<number | string | null>;
 };
 
-const MODEL_RELATIVE_PATH = `public/models/onnx/${MODEL_NAME}`;
+const MODEL_RELATIVE_PATH = "public/models/onnx";
 const MAX_PIXELS = 4096 * 4096;
 const DEFAULT_SIZE = 224;
 const MEAN = [0.485, 0.456, 0.406];
@@ -32,11 +32,12 @@ const STD = [0.229, 0.224, 0.225];
 
 const sessionCache = new Map<string, Promise<SessionState>>();
 
-async function getSession(): Promise<SessionState> {
-  const cacheKey = "default";
+async function getSession(modelName?: string): Promise<SessionState> {
+  const { name } = resolveModelConfig(modelName);
+  const cacheKey = name;
   if (!sessionCache.has(cacheKey)) {
     const sessionPromise = (async () => {
-      const modelPath = resolveModelPath();
+      const modelPath = resolveModelPath(name);
       if (!fs.existsSync(modelPath)) {
         throw new Error(`Model not found: ${modelPath}`);
       }
@@ -56,7 +57,7 @@ async function getSession(): Promise<SessionState> {
       const { layout, width, height } = resolveInputShape(metadata);
 
       console.info("Node detector: model ready", {
-        modelName: MODEL_NAME,
+        modelName: name,
         inputName,
         outputName,
         layout,
@@ -79,8 +80,8 @@ async function getSession(): Promise<SessionState> {
   return sessionCache.get(cacheKey)!;
 }
 
-function resolveModelPath(): string {
-  return path.join(process.cwd(), MODEL_RELATIVE_PATH);
+function resolveModelPath(modelName: string): string {
+  return path.join(process.cwd(), MODEL_RELATIVE_PATH, modelName);
 }
 
 function resolveInputShape(meta?: InputMetadata): {
@@ -211,7 +212,10 @@ function probabilityFromOutput(output: ort.Tensor, aiIndex = 1): number {
   return probs[index];
 }
 
-export async function detectAIFromBuffer(buffer: Buffer): Promise<DetectionResult> {
+export async function detectAIFromBuffer(
+  buffer: Buffer,
+  modelName?: string
+): Promise<DetectionResult> {
   const image = sharp(buffer, { failOn: "none" }).ensureAlpha();
   const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
 
@@ -227,8 +231,8 @@ export async function detectAIFromBuffer(buffer: Buffer): Promise<DetectionResul
     throw new Error("Image dimensions out of range");
   }
 
-  const { config } = resolveModelConfig();
-  const session = await getSession();
+  const { config } = resolveModelConfig(modelName);
+  const session = await getSession(modelName);
   const tensor = buildInputTensor(
     new Uint8Array(data.buffer, data.byteOffset, data.byteLength),
     info.width,

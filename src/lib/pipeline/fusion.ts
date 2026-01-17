@@ -1,0 +1,90 @@
+import {
+  FusionResult,
+  MetadataForensicsResult,
+  MlEnsembleResult,
+  PhysicsConsistencyResult,
+  ProvenanceResult,
+  VisualArtifactsResult,
+  FrequencyForensicsResult,
+  StandardizedImage,
+} from "@/src/lib/pipeline/types";
+
+function clamp01(value: number): number {
+  if (value <= 0) return 0;
+  if (value >= 1) return 1;
+  return value;
+}
+
+export function fuseEvidence(input: {
+  image: StandardizedImage;
+  visual: VisualArtifactsResult;
+  metadata: MetadataForensicsResult;
+  physics: PhysicsConsistencyResult;
+  frequency: FrequencyForensicsResult;
+  ml: MlEnsembleResult;
+  provenance: ProvenanceResult;
+}): FusionResult {
+  const { image, visual, metadata, physics, frequency, ml, provenance } = input;
+  const weights = {
+    visual: 0.15,
+    metadata: 0.1,
+    physics: 0.2,
+    frequency: 0.25,
+    ml: 0.3,
+  };
+
+  if (!metadata.exif_present) {
+    weights.metadata *= 0.5;
+  }
+
+  if (ml.flags.includes("single_model")) {
+    weights.ml *= 0.85;
+  }
+
+  if (image.width < 256 || image.height < 256) {
+    weights.visual *= 0.7;
+    weights.physics *= 0.7;
+    weights.frequency *= 0.7;
+  }
+
+  const weightSum =
+    weights.visual + weights.metadata + weights.physics + weights.frequency + weights.ml;
+  const normalized = {
+    visual: weights.visual / weightSum,
+    metadata: weights.metadata / weightSum,
+    physics: weights.physics / weightSum,
+    frequency: weights.frequency / weightSum,
+    ml: weights.ml / weightSum,
+  };
+
+  const weighted =
+    normalized.visual * visual.visual_artifacts_score +
+    normalized.metadata * metadata.metadata_score +
+    normalized.physics * physics.physics_score +
+    normalized.frequency * frequency.frequency_score +
+    normalized.ml * ml.ml_score;
+
+  const scores = [
+    visual.visual_artifacts_score,
+    metadata.metadata_score,
+    physics.physics_score,
+    frequency.frequency_score,
+    ml.ml_score,
+  ];
+  const mean = scores.reduce((acc, v) => acc + v, 0) / scores.length;
+  const variance =
+    scores.reduce((acc, v) => acc + (v - mean) ** 2, 0) / scores.length;
+  const spread = Math.sqrt(variance);
+  const contradictionPenalty = clamp01(spread * 0.6);
+  let confidence = 0.5 + (weighted - 0.5) * (1 - contradictionPenalty);
+
+  if (provenance.c2pa_present && provenance.signature_valid) {
+    confidence = Math.max(0, confidence - 0.2);
+  }
+
+  return {
+    confidence: clamp01(confidence),
+    weights: normalized,
+    contradiction_penalty: contradictionPenalty,
+  };
+}

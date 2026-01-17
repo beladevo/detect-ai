@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { detectAIFromBuffer } from "@/src/lib/nodeDetector";
+import { analyzeImagePipeline } from "@/src/lib/pipeline/analyzeImagePipeline";
 import { scoreFromConfidence } from "@/src/lib/scoreUtils";
 import { MODEL_NAME } from "@/src/lib/modelConfigs";
 import { logServerEvent } from "@/src/lib/loggerServer";
@@ -43,19 +43,31 @@ export async function POST(request: Request) {
       }),
       request,
     });
-    const result = await detectAIFromBuffer(buffer);
-    const score = scoreFromConfidence(result.confidence);
+    const result = await analyzeImagePipeline(buffer);
+    const score = scoreFromConfidence(result.verdict.confidence);
     await logServerEvent({
       level: "Info",
       source: "Backend",
       service: "Detect",
       message: "Inference complete",
-      additional: JSON.stringify({ score, model: result.model }),
+      additional: JSON.stringify({ score, verdict: result.verdict.verdict }),
       request,
     });
     return NextResponse.json({
       score,
-      model: result.model,
+      verdict: result.verdict.verdict,
+      confidence: result.verdict.confidence,
+      explanations: result.verdict.explanations,
+      hashes: result.hashes,
+      modules: {
+        visual: result.visual,
+        metadata: result.metadata,
+        physics: result.physics,
+        frequency: result.frequency,
+        ml: result.ml,
+        provenance: result.provenance,
+        fusion: result.fusion,
+      },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Detection failed";
