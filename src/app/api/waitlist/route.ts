@@ -3,6 +3,7 @@ import { put } from "@vercel/blob";
 import { promises as fs } from "fs";
 import path from "path";
 import { createClient } from "@supabase/supabase-js";
+import { logServerEvent } from "@/src/lib/loggerServer";
 
 export const runtime = "nodejs";
 
@@ -24,11 +25,26 @@ const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabase
 
 export async function POST(request: Request) {
   try {
+    await logServerEvent({
+      level: "Info",
+      source: "Backend",
+      service: "Waitlist",
+      message: "Request received",
+      request,
+    });
     const payload = (await request.json()) as WaitlistPayload;
     const email = payload.email?.trim().toLowerCase() || "";
     const source = payload.source?.trim() || "unknown";
 
     if (!email || !isValidEmail(email)) {
+      await logServerEvent({
+        level: "Warn",
+        source: "Backend",
+        service: "Waitlist",
+        message: "Invalid email",
+        additional: JSON.stringify({ source }),
+        request,
+      });
       return NextResponse.json(
         { message: "Please enter a valid email address." },
         { status: 400 }
@@ -78,9 +94,24 @@ export async function POST(request: Request) {
       await fs.appendFile(filePath, `${exists ? "" : header}${line}`, "utf8");
     }
 
+    await logServerEvent({
+      level: "Info",
+      source: "Backend",
+      service: "Waitlist",
+      message: "Signup stored",
+      additional: JSON.stringify({ source }),
+      request,
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("Waitlist signup failed", error);
+    await logServerEvent({
+      level: "Error",
+      source: "Backend",
+      service: "Waitlist",
+      message: "Signup failed",
+      additional: error instanceof Error ? error.message : "Unknown error",
+      request,
+    });
     return NextResponse.json(
       { message: "Something went wrong. Please try again." },
       { status: 500 }

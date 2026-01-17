@@ -3,6 +3,7 @@ import { Space_Grotesk, Syne } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import HotjarProvider from "@/src/components/HotjarProvider";
+import ClientLogger from "@/src/components/ClientLogger";
 
 const displayFont = Syne({
   variable: "--font-display",
@@ -148,6 +149,7 @@ export default function RootLayout({
       </head>
       <body className={`${displayFont.variable} ${bodyFont.variable} antialiased`}>
         <HotjarProvider />
+        <ClientLogger />
         {children}
       </body>
     </html>
