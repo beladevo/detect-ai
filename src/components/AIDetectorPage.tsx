@@ -1,24 +1,24 @@
 ﻿"use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import dynamic from "next/dynamic";
 import { AlertCircle, ShieldCheck, Sparkles } from "lucide-react";
 import Navbar from "@/src/components/Navbar";
 import HeroSection from "@/src/components/HeroSection";
 import FeaturesSection from "@/src/components/FeaturesSection";
 import WaitlistSection from "@/src/components/WaitlistSection";
 import UploadZone from "@/src/components/UploadZone";
-import ResultsDisplay from "@/src/components/ResultsDisplay";
 import HistoryList, { type HistoryItem } from "@/src/components/HistoryList";
 import PrivacySection from "@/src/components/PrivacySection";
 import FAQSection from "@/src/components/FAQSection";
 import Footer from "@/src/components/Footer";
-import ComparisonTool from "@/src/components/ComparisonTool";
-import { analyzeImageWithWasm } from "@/src/lib/wasmDetector";
-import { getModelPath } from "@/src/lib/modelConfigs";
+const ResultsDisplay = dynamic(() => import("@/src/components/ResultsDisplay"), {
+  ssr: false,
+});
+const ComparisonTool = dynamic(() => import("@/src/components/ComparisonTool"), {
+  ssr: false,
+});
 
-gsap.registerPlugin(ScrollTrigger);
 
 type DetectionResult = {
   score: number | null;
@@ -52,32 +52,6 @@ export default function AIDetectorPage() {
   }, []);
 
   useEffect(() => {
-    const targets = [
-      { ref: uploadCardRef, delay: 0 },
-      { ref: statusCardRef, delay: 0.1 },
-      { ref: historyCardRef, delay: 0.2 },
-    ];
-
-    targets.forEach(({ ref, delay }) => {
-      if (!ref.current) return;
-      gsap.from(ref.current, {
-        opacity: 0,
-        y: 24,
-        duration: 0.7,
-        ease: "power2.out",
-        delay,
-        scrollTrigger: {
-          trigger: ref.current,
-          start: "top 85%",
-          once: true,
-        },
-      });
-    });
-
-    return () => ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
-  }, []);
-
-  useEffect(() => {
     if (!previewUrl) return;
     return () => {
       URL.revokeObjectURL(previewUrl);
@@ -90,66 +64,18 @@ export default function AIDetectorPage() {
     const estimateTime = async () => {
       try {
         const modelSizeMb = Number(process.env.NEXT_PUBLIC_MODEL_SIZE_MB || "0");
-
-        const resolveModelSizeBytes = async (): Promise<number> => {
-          try {
-            if (!Number.isNaN(modelSizeMb) && modelSizeMb > 0) {
-              return modelSizeMb * 1024 * 1024;
-            }
-
-            const modelUrl = getModelPath();
-            const headResponse = await fetch(modelUrl, { method: "HEAD" });
-            const lengthHeader = headResponse.headers.get("content-length");
-            if (lengthHeader) {
-              return Number(lengthHeader);
-            }
-
-            const rangeResponse = await fetch(modelUrl, {
-              headers: { Range: "bytes=0-0" },
-            });
-            const contentRange = rangeResponse.headers.get("content-range");
-            if (contentRange && contentRange.includes("/")) {
-              const total = Number(contentRange.split("/")[1]);
-              return Number.isNaN(total) ? 0 : total;
-            }
-          } catch {
-            return 0;
-          }
-
-          return 0;
-        };
-
-        const measureDownlinkMbps = async (): Promise<number> => {
-          try {
-            const connection = (navigator as Navigator & {
-              connection?: { downlink?: number };
-            }).connection;
-            if (connection?.downlink) {
-              return connection.downlink;
-            }
-
-            const start = performance.now();
-            const response = await fetch(`/speed-test.txt?ts=${Date.now()}`, {
-              cache: "no-store",
-            });
-            const buffer = await response.arrayBuffer();
-            const end = performance.now();
-            const seconds = Math.max(0.01, (end - start) / 1000);
-            const bytes = buffer.byteLength || 0;
-            const mbps = (bytes * 8) / (seconds * 1_000_000);
-            return mbps > 0 ? mbps : 10;
-          } catch {
-            return 10;
-          }
-        };
-
-        const [modelBytes, downlinkMbps] = await Promise.all([
-          resolveModelSizeBytes(),
-          measureDownlinkMbps(),
-        ]);
+        const estimatedModelBytes =
+          !Number.isNaN(modelSizeMb) && modelSizeMb > 0
+            ? modelSizeMb * 1024 * 1024
+            : 6 * 1024 * 1024;
+        const downlinkMbps =
+          (navigator as Navigator & { connection?: { downlink?: number } })
+            .connection?.downlink || 10;
 
         const downloadSeconds =
-          modelBytes > 0 ? (modelBytes * 8) / (downlinkMbps * 1_000_000) : 0;
+          estimatedModelBytes > 0
+            ? (estimatedModelBytes * 8) / (downlinkMbps * 1_000_000)
+            : 0;
         const wasmOverheadSeconds = 0.6;
         const totalSeconds = Math.max(0.5, downloadSeconds + wasmOverheadSeconds);
         const pretty = totalSeconds >= 10 ? totalSeconds.toFixed(0) : totalSeconds.toFixed(1);
@@ -202,6 +128,7 @@ export default function AIDetectorPage() {
     setPreviewUrl(URL.createObjectURL(file));
 
     try {
+      const { analyzeImageWithWasm } = await import("@/src/lib/wasmDetector");
       const score = await analyzeImageWithWasm(file);
       setResult({ score });
       pushHistory({

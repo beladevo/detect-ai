@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { gsap } from "gsap";
 import { AlertCircle, CheckCircle2, ShieldAlert, Sparkles, RotateCcw } from "lucide-react";
 import GlowButton from "./ui/GlowButton";
 
@@ -19,16 +17,6 @@ export default function ResultsDisplay({
   confidenceLabel,
   onReset,
 }: ResultsDisplayProps) {
-  const barRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!barRef.current) return;
-    gsap.fromTo(
-      barRef.current,
-      { width: "0%" },
-      { width: `${score}%`, duration: 1.2, ease: "power3.out" }
-    );
-  }, [score]);
 
   const config = {
     ai: {
@@ -167,9 +155,8 @@ export default function ResultsDisplay({
 
           <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-white/10">
             <div
-              ref={barRef}
-              className={`h-full rounded-full bg-gradient-to-r ${current.gradient}`}
-              style={{ width: 0 }}
+              className={`h-full rounded-full bg-gradient-to-r ${current.gradient} transition-[width] duration-1000 ease-out`}
+              style={{ width: `${score}%` }}
             />
           </div>
 

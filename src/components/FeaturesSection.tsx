@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Cloud, Cpu, Layers, ScanSearch, ShieldCheck, Sparkles, Zap, ArrowRight } from "lucide-react";
 import GlassCard from "./ui/GlassCard";
@@ -227,9 +228,12 @@ export default function FeaturesSection() {
             <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-cyan-500/20 via-transparent to-purple-500/20 blur-xl" />
 
             <div className="relative overflow-hidden bg-gradient-to-br from-black/60 to-black/40 backdrop-blur-xl">
-              <img
+              <Image
                 src="/AI-human.png"
                 alt="AI and human signal nexus illustration"
+                width={1024}
+                height={1024}
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 896px"
                 className="h-64 w-full object-cover opacity-80 transition-all duration-500 hover:scale-105 hover:opacity-100"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
