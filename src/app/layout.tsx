@@ -14,7 +14,7 @@ const bodyFont = Space_Grotesk({
   subsets: ["latin"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://detectai.app";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://imagion.vercel.app";
 const siteName = process.env.NEXT_PUBLIC_SITE_NAME || "Imagion";
 
 export const metadata: Metadata = {
@@ -24,10 +24,10 @@ export const metadata: Metadata = {
     template: `%s | ${siteName}`,
   },
   description:
-    "Imagion — expose synthetic content instantly. Detect if an image was created by AI (Midjourney, DALL-E, Stable Diffusion) or is a real photo. 100% private, runs locally in your browser.",
+    `${siteName} - expose synthetic content instantly. Detect if an image was created by AI (Midjourney, DALL-E, Stable Diffusion) or is a real photo. 100% private, runs locally in your browser.`,
   keywords: [
     "AI image detector",
-    "Imagion",
+    siteName,
     "detect AI generated images",
     "AI art detector",
     "deepfake detector",
@@ -68,7 +68,7 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Imagion - Expose AI-Generated Images",
+        alt: `${siteName} - Expose AI-Generated Images`,
       },
     ],
   },
@@ -105,7 +105,7 @@ export default function RootLayout({
     "@type": "WebApplication",
     name: siteName,
     description:
-      "Imagion — expose synthetic content instantly. Detect if images were created by AI generators like Midjourney, DALL-E, or Stable Diffusion. Runs locally in your browser.",
+      `${siteName} - expose synthetic content instantly. Detect if images were created by AI generators like Midjourney, DALL-E, or Stable Diffusion. Runs locally in your browser.`,
     url: siteUrl,
     applicationCategory: "UtilitiesApplication",
     operatingSystem: "Any",
