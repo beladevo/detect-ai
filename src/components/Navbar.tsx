@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Bot, Menu, X } from "lucide-react";
 import GlowButton from "./ui/GlowButton";
 
 type NavbarProps = {
@@ -84,11 +84,12 @@ export default function Navbar({ onActionClick }: NavbarProps) {
                     className="relative rounded-xl"
                   />
                 </div>
-                <span className="font-display text-lg font-semibold tracking-tight">
+                <span className="font-display text-lg font-semibold tracking-tight flex items-center">
                   <span className="bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-                    AI-human
-                  </span>{" "}
-                  <span className="text-purple-300">detector</span>
+                    Imag
+                  </span>
+                  <span className="text-purple-300">ion</span>
+                  <Bot className="ml-2 h-5 w-5 text-purple-300" />
                 </span>
               </motion.div>
 

@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { ArrowDownRight, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { ArrowDownRight, Bot, ShieldCheck, Sparkles, Zap } from "lucide-react";
 import GlowButton from "./ui/GlowButton";
 import GlassCard from "./ui/GlassCard";
 
@@ -75,7 +75,7 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
     return () => ctx.revert();
   }, []);
 
-  const titleWords = "Detect synthetic images with forensic-grade AI precision".split(" ");
+  const titleWords = "Expose AI-generated images. Reveal the truth.".split(" ");
 
   return (
     <section ref={heroRef} className="relative z-10 mx-auto w-full max-w-6xl px-4 pb-12 pt-28 sm:px-6 sm:pt-32">
@@ -142,10 +142,10 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-gradient-to-r from-purple-500/10 to-cyan-500/10 px-4 py-2 backdrop-blur-sm">
                 <div className="relative">
                   <div className="absolute inset-0 animate-ping rounded-full bg-purple-400/40" />
-                  <ShieldCheck className="relative h-4 w-4 text-purple-300" />
+                  <Bot className="relative h-4 w-4 text-purple-300" />
                 </div>
                 <span className="text-xs font-medium uppercase tracking-[0.25em] text-gray-300">
-                  AI Detection Engine
+                  Imagion AI Detection
                 </span>
               </div>
             </motion.div>
@@ -167,7 +167,7 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
                     ease: [0.25, 0.46, 0.45, 0.94],
                   }}
                 >
-                  {word === "AI" || word === "forensic-grade" ? (
+                  {word === "AI-generated" || word === "truth." ? (
                     <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
                       {word}
                     </span>
@@ -183,15 +183,15 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
               variants={itemVariants}
               className="mt-6 text-lg leading-relaxed text-gray-400"
             >
-              Upload an image and get an{" "}
-              <span className="text-white">instant analysis report</span> on AI generation likelihood,
-              including signature detection and advanced heatmap visualization.
+              Like a polygraph for images — upload any photo and{" "}
+              <span className="text-white">instantly detect</span> if it was created by AI.
+              Uncover synthetic content with forensic-grade analysis.
             </motion.p>
 
             {/* CTAs */}
             <motion.div variants={itemVariants} className="mt-8 flex flex-wrap items-center gap-4">
               <GlowButton onClick={onCTA} size="lg">
-                <span>Start Detection</span>
+                <span>Expose the Truth</span>
                 <ArrowDownRight className="h-4 w-4" />
               </GlowButton>
 

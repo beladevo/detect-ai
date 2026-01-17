@@ -19,13 +19,14 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://detectai.app";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "AI-human detector - Free AI Image Detector | Detect AI-Generated Images",
-    template: "%s | AI-human detector",
+    default: "Imagion - AI Image Detector | Expose AI-Generated Images",
+    template: "%s | Imagion",
   },
   description:
-    "Free AI image detection tool. Instantly detect if an image was created by AI (Midjourney, DALL-E, Stable Diffusion) or is a real photo. 100% private, runs locally in your browser.",
+    "Imagion — expose synthetic content instantly. Detect if an image was created by AI (Midjourney, DALL-E, Stable Diffusion) or is a real photo. 100% private, runs locally in your browser.",
   keywords: [
     "AI image detector",
+    "Imagion",
     "detect AI generated images",
     "AI art detector",
     "deepfake detector",
@@ -37,10 +38,11 @@ export const metadata: Metadata = {
     "is this image AI",
     "AI vs real image",
     "synthetic image detection",
+    "expose AI images",
   ],
-  authors: [{ name: "AI-human detector" }],
-  creator: "AI-human detector",
-  publisher: "AI-human detector",
+  authors: [{ name: "Imagion" }],
+  creator: "Imagion",
+  publisher: "Imagion",
   robots: {
     index: true,
     follow: true,
@@ -56,26 +58,26 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: siteUrl,
-    siteName: "AI-human detector",
-    title: "AI-human detector - Free AI Image Detector",
+    siteName: "Imagion",
+    title: "Imagion - AI Image Detector",
     description:
-      "Instantly detect if an image was created by AI or is a real photo. Free, private, and runs entirely in your browser.",
+      "Expose AI-generated images instantly. Reveal the truth behind any image. Free, private, and runs entirely in your browser.",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "AI-human detector - AI Image Detection Tool",
+        alt: "Imagion - Expose AI-Generated Images",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "AI-human detector - Free AI Image Detector",
+    title: "Imagion - AI Image Detector",
     description:
-      "Instantly detect if an image was created by AI or is a real photo. Free and 100% private.",
+      "Expose AI-generated images instantly. Reveal the truth behind any image. Free and 100% private.",
     images: ["/og-image.png"],
-    creator: "@detectai",
+    creator: "@imagion_ai",
   },
   alternates: {
     canonical: siteUrl,
@@ -100,9 +102,9 @@ export default function RootLayout({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    name: "AI-human detector",
+    name: "Imagion",
     description:
-      "Free AI image detection tool that runs locally in your browser. Detect if images were created by AI generators like Midjourney, DALL-E, or Stable Diffusion.",
+      "Imagion — expose synthetic content instantly. Detect if images were created by AI generators like Midjourney, DALL-E, or Stable Diffusion. Runs locally in your browser.",
     url: siteUrl,
     applicationCategory: "UtilitiesApplication",
     operatingSystem: "Any",
@@ -113,6 +115,7 @@ export default function RootLayout({
     },
     featureList: [
       "AI-generated image detection",
+      "Expose synthetic content",
       "Privacy-focused (runs locally)",
       "No image upload required",
       "Instant results",

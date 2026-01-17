@@ -208,7 +208,8 @@ export default function AIDetectorPage() {
             >
               <h3 className="text-lg font-semibold text-white">Detection engine status</h3>
               <p className="mt-2 text-sm text-gray-300">
-                Model version: LocalTrace v3.1 | Average response: 1.6s | Accuracy: 96.2%
+                Model version: {process.env.NEXT_PUBLIC_MODEL_NAME || "model_q4.onnx"} |
+                Average response: 1.6s | Accuracy: 96.2%
               </p>
               <div className="mt-5 grid grid-cols-2 gap-4 text-sm text-gray-200">
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">

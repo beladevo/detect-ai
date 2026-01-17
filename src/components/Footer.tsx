@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Mail, Shield } from "lucide-react";
+import { Bot, Mail, Shield } from "lucide-react";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -55,15 +55,16 @@ export default function Footer() {
                   className="relative rounded-lg"
                 />
               </div>
-              <span className="font-display text-lg font-semibold">
-                <span className="text-white">AI-human</span>{" "}
-                <span className="text-purple-400">detector</span>
+              <span className="font-display text-lg font-semibold flex items-center">
+                <span className="text-white">Imag</span>
+                <span className="text-purple-400">ion</span>
+                <Bot className="ml-2 h-5 w-5 text-purple-400" />
               </span>
             </div>
 
             <p className="mt-4 max-w-sm text-sm text-gray-400">
-              Forensic AI detection with privacy-first, on-device processing.
-              Detect synthetic images with confidence.
+              Imagion — expose synthetic content with forensic-grade AI analysis.
+              Privacy-first, on-device processing.
             </p>
 
             {/* Trust badge */}
@@ -149,7 +150,7 @@ export default function Footer() {
           className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/[0.06] pt-8 md:flex-row"
         >
           <p className="text-xs text-gray-500">
-            &copy; {currentYear} AI-human detector. All rights reserved.
+            &copy; {currentYear} Imagion. All rights reserved.
           </p>
           <p className="text-xs text-gray-600">
             Local scans only. You control what gets stored or cleared.
