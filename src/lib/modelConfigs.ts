@@ -14,6 +14,11 @@ export const BLOB_BASE_URL = process.env.NEXT_PUBLIC_BLOB_BASE_URL || "";
 
 // Get full model path (local or remote)
 export function getModelPath(): string {
+  const isDev = process.env.NODE_ENV !== "production";
+  if (isDev) {
+    return `/models/onnx/${MODEL_NAME}`;
+  }
+
   return BLOB_BASE_URL
     ? `${BLOB_BASE_URL}/models/onnx/${MODEL_NAME}`
     : `/models/onnx/${MODEL_NAME}`;
