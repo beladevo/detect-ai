@@ -11,6 +11,12 @@ type UploadZoneProps = {
 
 export default function UploadZone({ isUploading, onFileSelected }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const particles = Array.from({ length: 6 }, (_, index) => ({
+    id: index,
+    x: `${20 + ((index * 17) % 60)}%`,
+    duration: 3 + (index % 3) * 0.6,
+    delay: index * 0.5,
+  }));
 
   const handleFile = (fileList: FileList | null) => {
     const file = fileList?.[0];
@@ -71,12 +77,12 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
 
       {/* Floating particles effect */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
-        {[...Array(6)].map((_, i) => (
+        {particles.map((particle) => (
           <motion.div
-            key={i}
+            key={particle.id}
             className="absolute h-1 w-1 rounded-full bg-purple-400/40"
             initial={{
-              x: `${20 + Math.random() * 60}%`,
+              x: particle.x,
               y: "100%",
               opacity: 0,
             }}
@@ -85,9 +91,9 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
               opacity: [0, 1, 0],
             }}
             transition={{
-              duration: 3 + Math.random() * 2,
+              duration: particle.duration,
               repeat: Infinity,
-              delay: i * 0.5,
+              delay: particle.delay,
               ease: "easeOut",
             }}
           />

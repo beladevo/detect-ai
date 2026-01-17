@@ -1,23 +1,24 @@
 ﻿"use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import dynamic from "next/dynamic";
 import { AlertCircle, ShieldCheck, Sparkles } from "lucide-react";
 import Navbar from "@/src/components/Navbar";
 import HeroSection from "@/src/components/HeroSection";
 import FeaturesSection from "@/src/components/FeaturesSection";
 import WaitlistSection from "@/src/components/WaitlistSection";
 import UploadZone from "@/src/components/UploadZone";
-import ResultsDisplay from "@/src/components/ResultsDisplay";
 import HistoryList, { type HistoryItem } from "@/src/components/HistoryList";
 import PrivacySection from "@/src/components/PrivacySection";
 import FAQSection from "@/src/components/FAQSection";
 import Footer from "@/src/components/Footer";
-import ComparisonTool from "@/src/components/ComparisonTool";
-import { analyzeImageWithWasm } from "@/src/lib/wasmDetector";
+const ResultsDisplay = dynamic(() => import("@/src/components/ResultsDisplay"), {
+  ssr: false,
+});
+const ComparisonTool = dynamic(() => import("@/src/components/ComparisonTool"), {
+  ssr: false,
+});
 
-gsap.registerPlugin(ScrollTrigger);
 
 type DetectionResult = {
   score: number | null;
@@ -32,6 +33,7 @@ export default function AIDetectorPage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [estimatedTime, setEstimatedTime] = useState<string>("--");
   const uploadRef = useRef<HTMLDivElement>(null);
   const uploadCardRef = useRef<HTMLDivElement>(null);
   const statusCardRef = useRef<HTMLDivElement>(null);
@@ -50,37 +52,49 @@ export default function AIDetectorPage() {
   }, []);
 
   useEffect(() => {
-    const targets = [
-      { ref: uploadCardRef, delay: 0 },
-      { ref: statusCardRef, delay: 0.1 },
-      { ref: historyCardRef, delay: 0.2 },
-    ];
-
-    targets.forEach(({ ref, delay }) => {
-      if (!ref.current) return;
-      gsap.from(ref.current, {
-        opacity: 0,
-        y: 24,
-        duration: 0.7,
-        ease: "power2.out",
-        delay,
-        scrollTrigger: {
-          trigger: ref.current,
-          start: "top 85%",
-          once: true,
-        },
-      });
-    });
-
-    return () => ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
-  }, []);
-
-  useEffect(() => {
     if (!previewUrl) return;
     return () => {
       URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const estimateTime = async () => {
+      try {
+        const modelSizeMb = Number(process.env.NEXT_PUBLIC_MODEL_SIZE_MB || "0");
+        const estimatedModelBytes =
+          !Number.isNaN(modelSizeMb) && modelSizeMb > 0
+            ? modelSizeMb * 1024 * 1024
+            : 6 * 1024 * 1024;
+        const downlinkMbps =
+          (navigator as Navigator & { connection?: { downlink?: number } })
+            .connection?.downlink || 10;
+
+        const downloadSeconds =
+          estimatedModelBytes > 0
+            ? (estimatedModelBytes * 8) / (downlinkMbps * 1_000_000)
+            : 0;
+        const wasmOverheadSeconds = 0.6;
+        const totalSeconds = Math.max(0.5, downloadSeconds + wasmOverheadSeconds);
+        const pretty = totalSeconds >= 10 ? totalSeconds.toFixed(0) : totalSeconds.toFixed(1);
+
+        if (isMounted) {
+          setEstimatedTime(`~${pretty}s`);
+        }
+      } catch {
+        if (isMounted) {
+          setEstimatedTime("~2.0s");
+        }
+      }
+    };
+
+    estimateTime();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const verdict = useMemo(() => {
     if (result.score === null) return undefined;
@@ -114,6 +128,7 @@ export default function AIDetectorPage() {
     setPreviewUrl(URL.createObjectURL(file));
 
     try {
+      const { analyzeImageWithWasm } = await import("@/src/lib/wasmDetector");
       const score = await analyzeImageWithWasm(file);
       setResult({ score });
       pushHistory({
@@ -209,7 +224,7 @@ export default function AIDetectorPage() {
               <h3 className="text-lg font-semibold text-white">Detection engine status</h3>
               <p className="mt-2 text-sm text-gray-300">
                 Model version: {process.env.NEXT_PUBLIC_MODEL_NAME || "model_q4.onnx"} |
-                Average response: 1.6s | Accuracy: 96.2%
+                Estimated time: {estimatedTime} | Accuracy: 96.2%
               </p>
               <div className="mt-5 grid grid-cols-2 gap-4 text-sm text-gray-200">
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
