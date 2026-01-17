@@ -452,16 +452,32 @@ async function resolveExternalData(
   const dataPath = `${modelPath}.data`;
   try {
     const response = await fetch(dataPath, { method: "HEAD" });
-    if (!response.ok && response.status === 404) {
+    if (response.ok) {
+      return buildExternalData(modelPath, dataPath);
+    }
+    if (response.status === 404) {
       return undefined;
     }
   } catch {
-    // If HEAD isn't supported, still attempt to load the external data.
+    // Fall through to range check.
   }
 
+  try {
+    const response = await fetch(dataPath, { headers: { Range: "bytes=0-0" } });
+    if (!response.ok) {
+      return undefined;
+    }
+    return buildExternalData(modelPath, dataPath);
+  } catch {
+    return undefined;
+  }
+}
+
+function buildExternalData(
+  modelPath: string,
+  dataPath: string
+): ort.InferenceSession.SessionOptions["externalData"] {
   const fileName = dataPath.split("/").pop() ?? dataPath;
-  // For remote URLs (Vercel Blob), we need to pass the full URL as data
-  // For local paths, we pass the relative path
   const isRemoteUrl = modelPath.startsWith("http");
   return [{ path: fileName, data: isRemoteUrl ? dataPath : dataPath }];
 }

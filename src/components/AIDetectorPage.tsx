@@ -16,6 +16,7 @@ import FAQSection from "@/src/components/FAQSection";
 import Footer from "@/src/components/Footer";
 import ComparisonTool from "@/src/components/ComparisonTool";
 import { analyzeImageWithWasm } from "@/src/lib/wasmDetector";
+import { getModelPath } from "@/src/lib/modelConfigs";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -32,6 +33,7 @@ export default function AIDetectorPage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [estimatedTime, setEstimatedTime] = useState<string>("--");
   const uploadRef = useRef<HTMLDivElement>(null);
   const uploadCardRef = useRef<HTMLDivElement>(null);
   const statusCardRef = useRef<HTMLDivElement>(null);
@@ -81,6 +83,92 @@ export default function AIDetectorPage() {
       URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const estimateTime = async () => {
+      try {
+        const modelSizeMb = Number(process.env.NEXT_PUBLIC_MODEL_SIZE_MB || "0");
+
+        const resolveModelSizeBytes = async (): Promise<number> => {
+          try {
+            if (!Number.isNaN(modelSizeMb) && modelSizeMb > 0) {
+              return modelSizeMb * 1024 * 1024;
+            }
+
+            const modelUrl = getModelPath();
+            const headResponse = await fetch(modelUrl, { method: "HEAD" });
+            const lengthHeader = headResponse.headers.get("content-length");
+            if (lengthHeader) {
+              return Number(lengthHeader);
+            }
+
+            const rangeResponse = await fetch(modelUrl, {
+              headers: { Range: "bytes=0-0" },
+            });
+            const contentRange = rangeResponse.headers.get("content-range");
+            if (contentRange && contentRange.includes("/")) {
+              const total = Number(contentRange.split("/")[1]);
+              return Number.isNaN(total) ? 0 : total;
+            }
+          } catch {
+            return 0;
+          }
+
+          return 0;
+        };
+
+        const measureDownlinkMbps = async (): Promise<number> => {
+          try {
+            const connection = (navigator as Navigator & {
+              connection?: { downlink?: number };
+            }).connection;
+            if (connection?.downlink) {
+              return connection.downlink;
+            }
+
+            const start = performance.now();
+            const response = await fetch(`/speed-test.txt?ts=${Date.now()}`, {
+              cache: "no-store",
+            });
+            const buffer = await response.arrayBuffer();
+            const end = performance.now();
+            const seconds = Math.max(0.01, (end - start) / 1000);
+            const bytes = buffer.byteLength || 0;
+            const mbps = (bytes * 8) / (seconds * 1_000_000);
+            return mbps > 0 ? mbps : 10;
+          } catch {
+            return 10;
+          }
+        };
+
+        const [modelBytes, downlinkMbps] = await Promise.all([
+          resolveModelSizeBytes(),
+          measureDownlinkMbps(),
+        ]);
+
+        const downloadSeconds =
+          modelBytes > 0 ? (modelBytes * 8) / (downlinkMbps * 1_000_000) : 0;
+        const wasmOverheadSeconds = 0.6;
+        const totalSeconds = Math.max(0.5, downloadSeconds + wasmOverheadSeconds);
+        const pretty = totalSeconds >= 10 ? totalSeconds.toFixed(0) : totalSeconds.toFixed(1);
+
+        if (isMounted) {
+          setEstimatedTime(`~${pretty}s`);
+        }
+      } catch {
+        if (isMounted) {
+          setEstimatedTime("~2.0s");
+        }
+      }
+    };
+
+    estimateTime();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const verdict = useMemo(() => {
     if (result.score === null) return undefined;
@@ -209,7 +297,7 @@ export default function AIDetectorPage() {
               <h3 className="text-lg font-semibold text-white">Detection engine status</h3>
               <p className="mt-2 text-sm text-gray-300">
                 Model version: {process.env.NEXT_PUBLIC_MODEL_NAME || "model_q4.onnx"} |
-                Average response: 1.6s | Accuracy: 96.2%
+                Estimated time: {estimatedTime} | Accuracy: 96.2%
               </p>
               <div className="mt-5 grid grid-cols-2 gap-4 text-sm text-gray-200">
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
