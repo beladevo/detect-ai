@@ -43,3 +43,7 @@ next-env.d.ts
 
 # rust / wasm
 /wasm/ai_detector/target
+
+benchmark/test-assets
+benchmark/results
+public/models/onnx
