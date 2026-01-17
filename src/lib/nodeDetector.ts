@@ -56,6 +56,7 @@ async function getSession(): Promise<SessionState> {
       const { layout, width, height } = resolveInputShape(metadata);
 
       console.info("Node detector: model ready", {
+        modelName: MODEL_NAME,
         inputName,
         outputName,
         layout,

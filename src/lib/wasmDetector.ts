@@ -79,6 +79,7 @@ async function getSession(): Promise<SessionState> {
             const { layout, width, height } = resolveInputShape(metadata);
 
             console.info("WASM detector: model ready", {
+              modelName: MODEL_NAME,
               modelPath,
               executionProviders,
               simd: attempt.simd,
