@@ -1,6 +1,4 @@
-import { put } from "@vercel/blob";
-import { promises as fs } from "fs";
-import path from "path";
+import { getMongoClient } from "@/src/lib/mongodb";
 
 export type ServerLogLevel = "Error" | "Warn" | "Info" | "Log" | "System";
 
@@ -37,23 +35,25 @@ export async function logServerEvent(payload: ServerLogPayload) {
   const ip = resolveIp(payload.request);
   const timestamp = new Date().toISOString();
   const line = `[${level}] ${source}${service ? ` - ${service}` : ""}: ${message} - ${ip} - ${userAgent} - ${additional || "-"} - ${timestamp}\n`;
-
-  const useBlobStorage =
-    process.env.BLOB_READ_WRITE_TOKEN || process.env.VERCEL_BLOB_TOKEN;
-
-  if (useBlobStorage) {
-    const safeTimestamp = timestamp.replace(/[:.]/g, "-");
-    const folder = timestamp.slice(0, 10);
-    const fileName = `logs/${folder}/${safeTimestamp}-${crypto.randomUUID()}.log`;
-    await put(fileName, line, {
-      access: "public",
-      contentType: "text/plain",
-    });
+  const client = getMongoClient();
+  if (!client) {
     return;
   }
 
-  const dir = path.join(process.cwd(), "data");
-  await fs.mkdir(dir, { recursive: true });
-  const filePath = path.join(dir, "logs.log");
-  await fs.appendFile(filePath, line, "utf8");
+  const dbName = process.env.MONGODB_DB || "imagion";
+  const collectionName = process.env.MONGODB_LOGS_COLLECTION || "logs";
+
+  await client.connect();
+  const collection = client.db(dbName).collection(collectionName);
+  await collection.insertOne({
+    level,
+    source,
+    service,
+    message,
+    additional,
+    ip,
+    userAgent,
+    timestamp,
+    line,
+  });
 }
