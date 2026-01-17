@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { promises as fs } from "fs";
 import path from "path";
+import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,13 @@ type WaitlistPayload = {
 const isValidEmail = (value: string) => /.+@.+\..+/.test(value);
 
 const csvEscape = (value: string) => `"${value.replace(/"/g, "\"\"")}"`;
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_ANON_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 export async function POST(request: Request) {
   try {
@@ -31,11 +39,25 @@ export async function POST(request: Request) {
     const useBlobStorage =
       process.env.BLOB_READ_WRITE_TOKEN || process.env.VERCEL_BLOB_TOKEN;
 
-    if (useBlobStorage) {
+    if (supabase) {
+      const ip =
+        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "";
+      const userAgent = request.headers.get("user-agent") || "";
+      const { error } = await supabase.from("waitlist").insert({
+        email,
+        created_at: submittedAt,
+        ip,
+        user_agent: userAgent,
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+    } else if (useBlobStorage) {
       const entry = { email, submittedAt, source };
       const fileName = `waitlist/${submittedAt}-${crypto.randomUUID()}.json`;
       await put(fileName, JSON.stringify(entry), {
-        access: "private",
+        access: "public",
         contentType: "application/json",
       });
     } else {
