@@ -41,6 +41,12 @@ export default function ClientLogger() {
     };
 
     console.error = (...args) => {
+      // Filter out known benign warnings from libraries that log as errors
+      const isBenign = args.some(
+        (arg) => typeof arg === "string" && arg.includes("Unknown CPU vendor")
+      );
+      if (isBenign) return;
+
       originalConsoleError(...args);
       logConsoleError(args);
     };

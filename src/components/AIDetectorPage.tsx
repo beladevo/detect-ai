@@ -20,9 +20,12 @@ const ComparisonTool = dynamic(() => import("@/src/components/ComparisonTool"), 
 });
 
 
+import type { PipelineResult } from "@/src/lib/pipeline/types";
+
 type DetectionResult = {
   score: number | null;
   verdict?: "ai" | "real" | "uncertain";
+  pipeline?: PipelineResult;
 };
 
 const HISTORY_KEY = "detectai_history";
@@ -129,12 +132,12 @@ export default function AIDetectorPage() {
 
     try {
       const { analyzeImageWithWasm } = await import("@/src/lib/wasmDetector");
-      const score = await analyzeImageWithWasm(file);
-      setResult({ score });
+      const result = await analyzeImageWithWasm(file);
+      setResult({ score: result.score, pipeline: result.pipeline });
       pushHistory({
         id: crypto.randomUUID(),
         fileName: file.name,
-        score,
+        score: result.score,
         createdAt: new Date().toISOString(),
       });
     } catch (err) {
@@ -201,6 +204,7 @@ export default function AIDetectorPage() {
                 verdict={verdict}
                 confidenceLabel={confidenceLabel}
                 onReset={handleReset}
+                pipeline={result.pipeline}
               />
             ) : (
               <div className="mt-10 grid gap-4 text-sm text-gray-400">

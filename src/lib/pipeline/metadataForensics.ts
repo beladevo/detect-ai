@@ -1,4 +1,4 @@
-import exifReader from "exif-reader";
+import ExifReader from "exifreader";
 import { MetadataForensicsResult } from "@/src/lib/pipeline/types";
 
 const KNOWN_GENERATORS = [
@@ -59,20 +59,26 @@ export function analyzeMetadata(exif?: Buffer): MetadataForensicsResult {
   }
 
   try {
-    const data = exifReader(exif) as {
-      Image?: Record<string, unknown>;
-      Exif?: Record<string, unknown>;
-    };
+    const data = ExifReader.load(exif);
     exifPresent = true;
-    const make = data.Image?.Make || data.Exif?.Make;
-    const model = data.Image?.Model || data.Exif?.Model;
-    const software = data.Image?.Software || data.Exif?.Software;
-    const date = data.Exif?.DateTimeOriginal || data.Image?.DateTime;
+    
+    // Configurable access to common tags
+    const getTag = (key: string) => {
+      const tag = data[key];
+      if (tag && tag.description) return tag.description;
+      if (tag && tag.value) return String(tag.value);
+      return undefined;
+    };
 
-    if (make) tags.make = String(make);
-    if (model) tags.model = String(model);
-    if (software) tags.software = String(software);
-    if (date) tags.timestamp = String(date);
+    const make = getTag("Make");
+    const model = getTag("Model");
+    const software = getTag("Software");
+    const date = getTag("DateTimeOriginal") || getTag("DateTime");
+
+    if (make) tags.make = make;
+    if (model) tags.model = model;
+    if (software) tags.software = software;
+    if (date) tags.timestamp = date;
 
     const softwareText = normalizeText(software);
     if (KNOWN_GENERATORS.some((token) => softwareText.includes(token))) {
