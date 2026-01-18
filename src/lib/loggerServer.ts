@@ -35,6 +35,11 @@ export async function logServerEvent(payload: ServerLogPayload) {
   const ip = resolveIp(payload.request);
   const timestamp = new Date().toISOString();
   const line = `[${level}] ${source}${service ? ` - ${service}` : ""}: ${message} - ${ip} - ${userAgent} - ${additional || "-"} - ${timestamp}\n`;
+  if (process.env.NODE_ENV === "development") {
+    console.log(line.trim());
+    return;
+  }
+  
   const client = getMongoClient();
   if (!client) {
     return;
