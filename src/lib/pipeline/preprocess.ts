@@ -113,12 +113,16 @@ export async function preprocessImage(
   const gray = toGray(rgb);
 
   const resizeKernel = randomize && Math.random() > 0.5 ? "cubic" : "lanczos3";
-  const resizedImage = sharp(buffer, { failOn: "none" })
+  let resizedPipeline = sharp(buffer, { failOn: "none" })
     .ensureAlpha()
     .toColourspace("srgb")
-    .resize(ANALYSIS_SIZE, ANALYSIS_SIZE, { fit: "cover", kernel: resizeKernel })
-    .blur(randomize ? 0.3 : 0)
-    .removeAlpha();
+    .resize(ANALYSIS_SIZE, ANALYSIS_SIZE, { fit: "cover", kernel: resizeKernel });
+    
+  if (randomize) {
+    resizedPipeline = resizedPipeline.blur(0.3);
+  }
+  
+  const resizedImage = resizedPipeline.removeAlpha();
   const resized = await resizedImage.raw().toBuffer({ resolveWithObject: true });
   const resizedRgb = new Uint8Array(
     resized.data.buffer,

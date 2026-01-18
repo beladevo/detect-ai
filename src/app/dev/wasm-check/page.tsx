@@ -16,8 +16,8 @@ function WasmCheckContent() {
     setScore(null);
 
     try {
-      const nextScore = await analyzeImageWithWasm(file);
-      setScore(nextScore);
+      const result = await analyzeImageWithWasm(file);
+      setScore(result.score);
     } catch (err) {
       const message =
         err instanceof Error

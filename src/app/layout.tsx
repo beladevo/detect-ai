@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import HotjarProvider from "@/src/components/HotjarProvider";
 import ClientLogger from "@/src/components/ClientLogger";
+import { ToastProvider } from "@/src/context/ToastContext";
 
 const displayFont = Syne({
   variable: "--font-display",
@@ -148,9 +149,11 @@ export default function RootLayout({
         />
       </head>
       <body className={`${displayFont.variable} ${bodyFont.variable} antialiased`}>
-        <HotjarProvider />
-        <ClientLogger />
-        {children}
+        <ToastProvider>
+          <HotjarProvider />
+          <ClientLogger />
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

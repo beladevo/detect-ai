@@ -17,6 +17,11 @@ const normalize = (value: unknown) => {
 };
 
 export async function POST(request: Request) {
+  // Disable logging in development
+  if (process.env.NODE_ENV === "development") {
+    return NextResponse.json({ ok: true });
+  }
+
   try {
     const payload = (await request.json()) as LogPayload;
     const level = (normalize(payload.level) || "Log") as ServerLogLevel;
