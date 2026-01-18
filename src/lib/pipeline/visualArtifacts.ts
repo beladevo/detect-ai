@@ -70,6 +70,11 @@ export function analyzeVisualArtifacts(image: StandardizedImage): VisualArtifact
   let skinLaplacianSumSq = 0;
   let skinLaplacianCount = 0;
 
+  let skinCbSum = 0;
+  let skinCbSumSq = 0;
+  let skinCrSum = 0;
+  let skinCrSumSq = 0;
+
   for (let y = 0; y < height; y += 1) {
     const row = y * width;
     for (let x = 0; x < width; x += 1) {
@@ -87,6 +92,11 @@ export function analyzeVisualArtifacts(image: StandardizedImage): VisualArtifact
         cr <= 173;
       if (isSkin) {
         skinCount += 1;
+        skinCbSum += cb;
+        skinCbSumSq += cb * cb;
+        skinCrSum += cr;
+        skinCrSumSq += cr * cr;
+
         if (x > 0 && y > 0 && x < width - 1 && y < height - 1) {
           const lap =
             -4 * gray[idx] +
@@ -103,6 +113,8 @@ export function analyzeVisualArtifacts(image: StandardizedImage): VisualArtifact
   }
 
   let skinVariance = 0;
+  let skinChrominanceVariance = 0;
+
   if (skinLaplacianCount > 0) {
     const mean = skinLaplacianSum / skinLaplacianCount;
     skinVariance = Math.max(
@@ -111,12 +123,28 @@ export function analyzeVisualArtifacts(image: StandardizedImage): VisualArtifact
     );
   }
 
+  if (skinCount > 0) {
+    const cbMean = skinCbSum / skinCount;
+    const crMean = skinCrSum / skinCount;
+    const cbVar = Math.max(0, skinCbSumSq / skinCount - cbMean * cbMean);
+    const crVar = Math.max(0, skinCrSumSq / skinCount - crMean * crMean);
+    // Normalized variance (Cb/Cr range is roughly 0-255)
+    skinChrominanceVariance = (cbVar + crVar) / (2 * 255 * 255);
+  }
+
   const globalLaplacianVariance = computeLaplacianVariance(gray, width, height);
   const smoothingScore = skinCount > 0
     ? clamp01((0.015 - skinVariance) / 0.015)
     : clamp01((0.01 - globalLaplacianVariance) / 0.01);
   if (smoothingScore > 0.6) {
     flags.push("skin_smoothing");
+  }
+
+  const colorNoiseScore = skinCount > 0
+    ? clamp01((skinChrominanceVariance - 0.0005) / 0.002)
+    : 0;
+  if (colorNoiseScore > 0.5) {
+    flags.push("skin_color_noise");
   }
 
   const variances = blockVariance(gray, width, height, 8);
@@ -144,7 +172,10 @@ export function analyzeVisualArtifacts(image: StandardizedImage): VisualArtifact
   }
 
   const visualScore = clamp01(
-    0.4 * smoothingScore + 0.35 * textureMeltScore + 0.25 * symmetryScore
+    0.3 * smoothingScore +
+      0.25 * textureMeltScore +
+      0.2 * symmetryScore +
+      0.25 * colorNoiseScore
   );
 
   return {
@@ -152,10 +183,12 @@ export function analyzeVisualArtifacts(image: StandardizedImage): VisualArtifact
     flags,
     details: {
       smoothingScore,
+      colorNoiseScore,
       textureMeltScore,
       symmetryScore,
       skinCoverage: skinCount / (width * height),
       globalLaplacianVariance,
+      skinChrominanceVariance,
     },
   };
 }

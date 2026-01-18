@@ -15,12 +15,14 @@ The pipeline follows a modular architecture where an image passes through a prep
 
 2.  **Visual Artifacts (`visualArtifacts.ts`)**
     -   Analyzes skin texture for unnatural smoothing.
+    -   **Chrominance Variance Analysis**: Detects subtle "color noise" or mottling in skin tones, a common artifact in recent diffusion models like Flux.
     -   Checks for symmetry anomalies in facial features.
     -   Detects "melting" textures common in diffusion models.
 
 3.  **Metadata Forensics (`metadataForensics.ts`)**
     -   Parses EXIF/IPTC metadata.
-    -   Flags known generator signatures (e.g., "Adobe Firefly", "Stable Diffusion").
+    -   Flags known generator signatures (e.g., "Adobe Firefly", "Stable Diffusion", "Flux", "Midjourney v6").
+    -   **Deep Metadata Validation**: Cross-checks "Make" and "Model" tags against expected capture-specific technical details (ISO, Aperture). Detects spoofed metadata commonly found in advanced AI outputs.
     -   Checks for missing or inconsistent camera make/model tags.
 
 4.  **Physics Consistency (`physicsConsistency.ts`)**
