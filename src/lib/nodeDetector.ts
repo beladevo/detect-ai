@@ -2,7 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import * as ort from "onnxruntime-node";
 import sharp from "sharp";
-import { resolveModelConfig, MODEL_NAME } from "@/src/lib/modelConfigs";
+import { resolveModelConfig } from "@/src/lib/modelConfigs";
+import {
+  logInference,
+  createLogEntry,
+  isLoggingEnabled,
+} from "@/src/lib/inferenceLogger";
 
 type DetectionResult = {
   isAI: boolean;
@@ -214,7 +219,8 @@ function probabilityFromOutput(output: ort.Tensor, aiIndex = 1): number {
 
 export async function detectAIFromBuffer(
   buffer: Buffer,
-  modelName?: string
+  modelName?: string,
+  fileName?: string
 ): Promise<DetectionResult> {
   const image = sharp(buffer, { failOn: "none" }).ensureAlpha();
   const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
@@ -242,13 +248,51 @@ export async function detectAIFromBuffer(
     session.height,
     session.layout
   );
+
+  const startTime = performance.now();
   const results = await session.session.run({ [session.inputName]: tensor });
+  const inferenceTimeMs = performance.now() - startTime;
+
   const output = results[session.outputName];
   if (!output) {
     throw new Error("Model output missing");
   }
+
+  // Get raw output for logging
+  const rawData = output.data as Float32Array | number[];
+  const rawValues = Array.from(rawData).map((v) => Number(v));
+
   const confidence = probabilityFromOutput(output, config.aiIndex);
   const clamped = Math.min(1, Math.max(0, confidence));
-  console.debug("Node detector: output", { confidence: clamped });
+  const score = Math.round(clamped * 100);
+
+  // Log inference details if enabled
+  if (isLoggingEnabled()) {
+    const logEntry = createLogEntry(
+      "node",
+      session.model,
+      fileName,
+      {
+        originalWidth: info.width,
+        originalHeight: info.height,
+        channels: info.channels,
+        targetWidth: session.width,
+        targetHeight: session.height,
+        layout: session.layout,
+        tensorShape: tensor.dims as number[],
+        tensorData: tensor.data as Float32Array,
+      },
+      {
+        rawValues,
+        aiIndex: config.aiIndex,
+        confidence: clamped,
+        score,
+      },
+      inferenceTimeMs
+    );
+    logInference(logEntry);
+  }
+
+  console.debug("Node detector: output", { confidence: clamped, inferenceTimeMs });
   return { isAI: clamped >= 0.5, confidence: clamped, model: session.model };
 }
