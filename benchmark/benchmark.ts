@@ -90,9 +90,25 @@ const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"];
 
 // Model-specific AI index configuration (which output index represents AI)
 const MODEL_AI_INDEX: Record<string, number> = {
-  "model_q4.onnx": 0,
-  // Default for others is 1
+  // 2-class models: [AI, Real] - AI at index 0
+  "sdxl-detector.onnx": 0,
+  "model.onnx": 0,
+
+  // 2-class models: [Real, AI] - AI at index 1
+  "model_q4.onnx": 1,
+
+  // 3-class models: [class0, AI, class2] - AI at index 1
+  "nyuad.onnx": 1,
+  "smogy.onnx": 1,
 };
+
+// Models to skip (embedding models, not classifiers)
+const SKIP_MODELS: string[] = [
+  "e5-small-lora-ai.onnx", // Embedding model with 768 outputs, not a classifier
+];
+
+// Default AI index for unconfigured models
+const DEFAULT_AI_INDEX = 0;
 
 // ============================================================================
 // Logger Class
@@ -204,9 +220,14 @@ function discoverModels(specificModels: string[]): string[] {
     });
   }
 
-  // Auto-discover all .onnx files (exclude .data files)
+  // Auto-discover all .onnx files (exclude .data files and skip models)
   const files = fs.readdirSync(MODELS_DIR);
-  return files.filter((f) => f.endsWith(".onnx") && !f.endsWith(".onnx.data"));
+  return files.filter(
+    (f) =>
+      f.endsWith(".onnx") &&
+      !f.endsWith(".onnx.data") &&
+      !SKIP_MODELS.includes(f)
+  );
 }
 
 function discoverTestImages(): { real: string[]; fake: string[] } {
@@ -618,7 +639,7 @@ async function runBenchmark() {
       continue;
     }
 
-    const aiIndex = MODEL_AI_INDEX[modelName] ?? 1;
+    const aiIndex = MODEL_AI_INDEX[modelName] ?? DEFAULT_AI_INDEX;
     const imageResults: ImageResult[] = [];
     let processed = 0;
 

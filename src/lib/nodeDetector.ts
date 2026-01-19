@@ -262,11 +262,43 @@ export async function detectAIFromBuffer(
   const rawData = output.data as Float32Array | number[];
   const rawValues = Array.from(rawData).map((v) => Number(v));
 
+  // Calculate probabilities for logging
+  let probabilities: number[];
+  if (rawValues.length === 1) {
+    const value = rawValues[0];
+    const prob = value >= 0 && value <= 1 ? value : 1 / (1 + Math.exp(-value));
+    probabilities = [prob];
+  } else {
+    let sum = 0;
+    let inRange = true;
+    for (const v of rawValues) {
+      sum += v;
+      if (v < 0 || v > 1) inRange = false;
+    }
+    if (inRange && Math.abs(sum - 1) < 0.01) {
+      probabilities = rawValues;
+    } else {
+      probabilities = Array.from(softmax(rawValues));
+    }
+  }
+
   const confidence = probabilityFromOutput(output, config.aiIndex);
   const clamped = Math.min(1, Math.max(0, confidence));
   const score = Math.round(clamped * 100);
 
-  // Log inference details if enabled
+  // Always log model output to console for debugging
+  console.log("=== MODEL INFERENCE ===");
+  console.log("File:", fileName || "unknown");
+  console.log("Model:", session.model);
+  console.log("AI Index:", config.aiIndex);
+  console.log("Raw Output:", rawValues);
+  console.log("Probabilities:", probabilities);
+  console.log("Confidence:", clamped);
+  console.log("Score:", score);
+  console.log("Inference Time:", inferenceTimeMs.toFixed(2), "ms");
+  console.log("=======================");
+
+  // Log inference details to file if enabled
   if (isLoggingEnabled()) {
     const logEntry = createLogEntry(
       "node",
@@ -284,6 +316,7 @@ export async function detectAIFromBuffer(
       },
       {
         rawValues,
+        probabilities,
         aiIndex: config.aiIndex,
         confidence: clamped,
         score,
@@ -293,6 +326,5 @@ export async function detectAIFromBuffer(
     logInference(logEntry);
   }
 
-  console.debug("Node detector: output", { confidence: clamped, inferenceTimeMs });
   return { isAI: clamped >= 0.5, confidence: clamped, model: session.model };
 }
