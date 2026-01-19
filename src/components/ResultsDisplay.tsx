@@ -1,13 +1,16 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { AlertCircle, CheckCircle2, ShieldAlert, Sparkles, RotateCcw, Fingerprint, Aperture, BarChart3, ScanEye, ArrowRight, Eye, Zap } from "lucide-react";
+import { AlertCircle, CheckCircle2, ShieldAlert, Sparkles, RotateCcw, Fingerprint, Aperture, BarChart3, ScanEye, ArrowRight, Eye, Zap, Brain } from "lucide-react";
 import React, { useState } from "react";
 import { cn } from "@/src/lib/utils";
 import Modal from "./ui/Modal";
 import GlassCard from "./ui/GlassCard";
 import GlowButton from "./ui/GlowButton";
 import type { PipelineResult } from "@/src/lib/pipeline/types";
+import MLModelsCard from "./ui/MLModelsCard";
+import FusionBreakdown from "./ui/FusionBreakdown";
+import DetailCard from "./ui/DetailCard";
 
 type ResultsDisplayProps = {
   score: number;
@@ -227,61 +230,75 @@ export default function ResultsDisplay({
         onClose={() => setShowModal(false)}
         title="Comprehensive Analysis"
       >
-        <div className="space-y-6">
+        <div className="space-y-8">
           <p className="text-gray-400">
             A deep dive into the forensic trace of the image. Our multi-stage pipeline analyzes visual artifacts, metadata anomalies, and physical inconsistencies.
           </p>
 
           {pipeline && (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {/* Visual Artifacts */}
-              <DetailCard
-                title="Visual Analysis"
-                icon={ScanEye}
-                color="purple"
-                score={pipeline.visual.visual_artifacts_score * 100}
-                metrics={[
-                  { label: "Skin Smoothing", value: pipeline.visual.details.smoothingScore, threshold: 0.6 },
-                  { label: "Texture Consistency", value: pipeline.visual.details.textureMeltScore, threshold: 0.5 },
-                  { label: "Symmetry", value: pipeline.visual.details.symmetryScore, threshold: 0.7 },
-                ]}
-                flags={pipeline.visual.flags}
-              />
+            <>
+              {/* AI Model Predictions Section */}
+              <div className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-transparent p-6">
+                <MLModelsCard ml={pipeline.ml} />
+              </div>
 
-              {/* Digital Forensics */}
-              <DetailCard
-                title="Digital Forensics"
-                icon={Fingerprint}
-                color="cyan"
-                score={pipeline.metadata.metadata_score * 100}
-                metrics={[
-                  { label: "Metadata Risk", value: pipeline.metadata.metadata_score, threshold: 0.3 },
-                  { label: "Frequency Anomalies", value: pipeline.frequency.frequency_score, threshold: 0.5 },
-                  { label: "C2PA Signature", value: pipeline.provenance.c2pa_present ? 1 : 0, isBinary: true },
-                ]}
-                flags={[...pipeline.metadata.flags, ...pipeline.provenance.flags]}
-              />
+              {/* Score Calculation Breakdown */}
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                <FusionBreakdown fusion={pipeline.fusion} />
+              </div>
 
-              {/* Physics & Light */}
-              <DetailCard
-                title="Physics & Light"
-                icon={Zap} // Using Zap or Sun if available, fallback to Zap
-                color="pink"
-                score={100 - pipeline.physics.physics_score * 100} // Invert for "Consistency"
-                scoreLabel="Consistency"
-                metrics={[
-                  { label: "Lighting Coherence", value: 1 - pipeline.physics.details.lightInconsistency, threshold: 0.3, invertColor: true },
-                  { label: "Shadow Alignment", value: 1 - pipeline.physics.details.shadowMisalignment, threshold: 0.4, invertColor: true },
-                  { label: "Perspective", value: 1 - pipeline.physics.details.perspectiveChaos, threshold: 0.3, invertColor: true },
-                ]}
-                flags={pipeline.physics.flags}
-              />
-            </div>
+              {/* Forensic Modules Grid */}
+              <div>
+                <h3 className="mb-4 text-lg font-semibold text-white">Forensic Module Details</h3>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {/* Visual Artifacts */}
+                  <DetailCard
+                    title="Visual Analysis"
+                    icon={ScanEye}
+                    color="purple"
+                    score={pipeline.visual.visual_artifacts_score * 100}
+                    metrics={[
+                      { label: "Skin Smoothing", value: pipeline.visual.details.smoothingScore, threshold: 0.6 },
+                      { label: "Texture Consistency", value: pipeline.visual.details.textureMeltScore, threshold: 0.5 },
+                      { label: "Symmetry", value: pipeline.visual.details.symmetryScore, threshold: 0.7 },
+                    ]}
+                    flags={pipeline.visual.flags}
+                  />
+
+                  {/* Digital Forensics */}
+                  <DetailCard
+                    title="Digital Forensics"
+                    icon={Fingerprint}
+                    color="cyan"
+                    score={pipeline.metadata.metadata_score * 100}
+                    metrics={[
+                      { label: "Metadata Risk", value: pipeline.metadata.metadata_score, threshold: 0.3 },
+                      { label: "Frequency Anomalies", value: pipeline.frequency.frequency_score, threshold: 0.5 },
+                      { label: "C2PA Signature", value: pipeline.provenance.c2pa_present ? 1 : 0, isBinary: true },
+                    ]}
+                    flags={[...pipeline.metadata.flags, ...pipeline.provenance.flags]}
+                  />
+
+                  {/* Physics & Light */}
+                  <DetailCard
+                    title="Physics & Light"
+                    icon={Zap}
+                    color="pink"
+                    score={100 - pipeline.physics.physics_score * 100}
+                    scoreLabel="Consistency"
+                    metrics={[
+                      { label: "Lighting Coherence", value: 1 - pipeline.physics.details.lightInconsistency, threshold: 0.3, invertColor: true },
+                      { label: "Shadow Alignment", value: 1 - pipeline.physics.details.shadowMisalignment, threshold: 0.4, invertColor: true },
+                      { label: "Perspective", value: 1 - pipeline.physics.details.perspectiveChaos, threshold: 0.3, invertColor: true },
+                    ]}
+                    flags={pipeline.physics.flags}
+                  />
+                </div>
+              </div>
+            </>
           )}
         </div>
       </Modal>
     </>
   );
 }
-
-import DetailCard from "./ui/DetailCard";

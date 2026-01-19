@@ -85,6 +85,21 @@ export function fuseEvidence(input: {
   return {
     confidence: clamp01(confidence),
     weights: normalized,
+    raw_weights: weights,
     contradiction_penalty: contradictionPenalty,
+    weighted_scores: {
+      visual: normalized.visual * visual.visual_artifacts_score,
+      metadata: normalized.metadata * metadata.metadata_score,
+      physics: normalized.physics * physics.physics_score,
+      frequency: normalized.frequency * frequency.frequency_score,
+      ml: normalized.ml * ml.ml_score,
+    },
+    module_scores: {
+      visual: visual.visual_artifacts_score,
+      metadata: metadata.metadata_score,
+      physics: physics.physics_score,
+      frequency: frequency.frequency_score,
+      ml: ml.ml_score,
+    },
   };
 }
