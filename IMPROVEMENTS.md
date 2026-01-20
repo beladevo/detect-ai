@@ -9,12 +9,17 @@
 | Phase | Status | Completed | Total | Progress |
 |-------|--------|-----------|-------|----------|
 | Phase 1: Quick Wins | ✅ Complete | 6 | 6 | 100% |
-| Phase 2: Core Improvements | 🟡 In Progress | 2 | 6 | 33% |
+| Phase 2: Core Improvements | 🟡 In Progress | 3 | 6 | 50% |
 | Phase 3: Advanced Detection | ⚪ Not Started | 0 | 6 | 0% |
 | Phase 4: Polish & Scale | ⚪ Not Started | 0 | 7 | 0% |
-| **Overall** | **🟡 In Progress** | **8** | **42** | **19%** |
+| **Overall** | **🟡 In Progress** | **9** | **42** | **21%** |
 
 ### Recent Changes
+
+**2026-01-20 (Part 3)** - Export & Bug Fixes:
+- ✅ Fixed `weighted_scores` missing from fusion result (caused FusionBreakdown error)
+- ✅ Implemented report export (JSON + Text formats)
+- ✅ Created `ExportButton` component with dropdown menu
 
 **2026-01-20 (Part 2)** - Phase 2 WASM Improvements:
 - ✅ Fixed WASM parity - browser mode now returns full pipeline data
@@ -198,16 +203,19 @@ Foundation improvements for detection quality and transparency:
 
 - [x] **Fix WASM parity** - Browser mode now returns full pipeline data with all forensic modules. Created `analyzeImagePipelineBrowser.ts` that runs visual, metadata, physics, frequency, and provenance checks client-side
 - [x] **Multi-crop analysis in WASM** - Implemented 5-crop strategy (center + 4 corners) matching server-side behavior for images ≥512px
+- [x] **Report export** - Implemented JSON and Text export with detailed findings, module breakdown, and explanations
 - [ ] Grad-CAM attention visualization
 - [ ] Multi-model ensemble
 - [ ] Model selection dropdown
-- [ ] Report export (PDF/JSON)
 
 **New Files Created:**
 - `src/lib/pipeline/analyzeImagePipelineBrowser.ts` - Browser-compatible forensic pipeline
+- `src/lib/exportReport.ts` - Export utilities for JSON and text reports
+- `src/components/ui/ExportButton.tsx` - Export dropdown component
 
 **Modified Files:**
 - `src/lib/wasmDetector.ts` - Added multi-crop support + full pipeline execution in browser
+- `src/lib/pipeline/fusion.ts` - Added `weighted_scores` field for UI display
 
 ### Phase 3: Advanced Detection (4-6 weeks)
 

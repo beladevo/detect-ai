@@ -86,12 +86,22 @@ export function fuseEvidence(input: {
   // Higher module disagreement = higher uncertainty
   const uncertainty = Math.min(spread * 0.5, 0.15); // Cap at ±15%
 
+  // Calculate weighted scores (weight * score)
+  const weighted_scores = {
+    visual: normalized.visual * visual.visual_artifacts_score,
+    metadata: normalized.metadata * metadata.metadata_score,
+    physics: normalized.physics * physics.physics_score,
+    frequency: normalized.frequency * frequency.frequency_score,
+    ml: normalized.ml * ml.ml_score,
+  };
+
   return {
     confidence: clamp01(confidence),
     weights: normalized,
     raw_weights: weights,
     contradiction_penalty: contradictionPenalty,
     uncertainty,
+    weighted_scores,
     module_scores: {
       visual: visual.visual_artifacts_score,
       metadata: metadata.metadata_score,
