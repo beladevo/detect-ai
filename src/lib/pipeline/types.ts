@@ -47,8 +47,13 @@ export type FrequencyForensicsResult = {
 
 export type MlEnsembleResult = {
   ml_score: number;
-  model_votes: Array<{ model: string; confidence: number }>;
+  model_votes: Array<{ model: string; confidence: number; prediction: "AI" | "REAL" }>;
   flags: string[];
+  ensemble_stats?: {
+    mean: number;
+    variance: number;
+    spread: number;
+  };
 };
 
 export type ProvenanceResult = {
@@ -62,9 +67,17 @@ export type ProvenanceResult = {
 export type FusionResult = {
   confidence: number;
   weights: Record<string, number>;
+  raw_weights: Record<string, number>;
   contradiction_penalty: number;
   uncertainty: number; // Standard deviation of module scores (for ± display)
-  module_scores: Record<string, number>; // Individual module scores for breakdown
+  weighted_scores: Record<string, number>;
+  module_scores: {
+    visual: number;
+    metadata: number;
+    physics: number;
+    frequency: number;
+    ml: number;
+  };
 };
 
 export type VerdictResult = {

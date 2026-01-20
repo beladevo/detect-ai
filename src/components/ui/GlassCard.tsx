@@ -9,6 +9,7 @@ interface GlassCardProps {
   hover?: boolean;
   glow?: "purple" | "cyan" | "pink" | "emerald" | "none";
   animate?: boolean;
+  variant?: "default" | "glowing";
 }
 
 export default function GlassCard({
@@ -17,6 +18,7 @@ export default function GlassCard({
   hover = true,
   glow = "purple",
   animate = true,
+  variant = "default",
 }: GlassCardProps) {
   const glowColors = {
     purple: "hover:shadow-[0_0_60px_rgba(139,92,246,0.15)]",
@@ -44,6 +46,7 @@ export default function GlassCard({
     transition-all duration-500 ease-out
     ${hover ? glowColors[glow] : ""}
     ${hover ? glowBorder[glow] : ""}
+    ${variant === "glowing" ? "shadow-[0_0_50px_rgba(139,92,246,0.1)] border-white/20" : ""}
   `;
 
   const content = (

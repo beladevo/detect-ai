@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "@hotjar/browser": "^1.0.9",
+    "@prisma/client": "^5.22.0",
+    "@stripe/stripe-js": "^8.6.1",
+    "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.57.2",
     "@vercel/blob": "^2.0.0",
     "clsx": "^2.1.1",
@@ -23,9 +26,11 @@
     "next": "16.1.1",
     "onnxruntime-node": "^1.23.0",
     "onnxruntime-web": "^1.23.2",
+    "prisma": "^5.22.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "sharp": "^0.34.3",
+    "stripe": "^20.2.0",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {

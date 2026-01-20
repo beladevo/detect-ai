@@ -5,6 +5,7 @@ import "./globals.css";
 import HotjarProvider from "@/src/components/HotjarProvider";
 import ClientLogger from "@/src/components/ClientLogger";
 import { ToastProvider } from "@/src/context/ToastContext";
+import { AuthProvider } from "@/src/context/AuthContext";
 
 const displayFont = Syne({
   variable: "--font-display",
@@ -149,11 +150,13 @@ export default function RootLayout({
         />
       </head>
       <body className={`${displayFont.variable} ${bodyFont.variable} antialiased`}>
-        <ToastProvider>
-          <HotjarProvider />
-          <ClientLogger />
-          {children}
-        </ToastProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <HotjarProvider />
+            <ClientLogger />
+            {children}
+          </ToastProvider>
+        </AuthProvider>
       </body>
     </html>
   );

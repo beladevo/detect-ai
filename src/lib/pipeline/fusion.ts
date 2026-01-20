@@ -89,6 +89,7 @@ export function fuseEvidence(input: {
   return {
     confidence: clamp01(confidence),
     weights: normalized,
+    raw_weights: weights,
     contradiction_penalty: contradictionPenalty,
     uncertainty,
     module_scores: {

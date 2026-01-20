@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, HelpCircle, Sparkles } from "lucide-react";
 import GlassCard from "./ui/GlassCard";
 
@@ -52,13 +51,7 @@ export default function FAQSection() {
     >
       <GlassCard hover={false} glow="cyan" className="p-8 sm:p-10">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="mb-10 text-center"
-        >
+        <div className="mb-10 text-center">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 px-4 py-2 backdrop-blur-sm">
             <HelpCircle className="h-4 w-4 text-cyan-400" />
             <span className="text-xs font-medium uppercase tracking-[0.25em] text-gray-300">
@@ -76,19 +69,13 @@ export default function FAQSection() {
           <p className="mx-auto mt-4 max-w-2xl text-gray-400">
             Everything you need to know about our AI detection technology and how it works.
           </p>
-        </motion.div>
+        </div>
 
         {/* FAQ Items */}
         <div className="mx-auto max-w-3xl space-y-4">
           {faqs.map((faq, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: index * 0.05 }}
-            >
-              <motion.div
+            <div key={index}>
+              <div
                 className={`
                   group overflow-hidden rounded-2xl border transition-all duration-300
                   ${openIndex === index
@@ -118,32 +105,23 @@ export default function FAQSection() {
                     <span className="font-medium text-white">{faq.question}</span>
                   </div>
 
-                  <motion.div
-                    animate={{ rotate: openIndex === index ? 180 : 0 }}
-                    transition={{ duration: 0.3 }}
+                  <div
                     className={`
                       flex h-8 w-8 shrink-0 items-center justify-center rounded-lg
-                      transition-colors duration-300
+                      transition-all duration-300
                       ${openIndex === index
-                        ? "bg-purple-500/20 text-purple-400"
-                        : "bg-white/5 text-gray-400"
+                        ? "bg-purple-500/20 text-purple-400 rotate-180"
+                        : "bg-white/5 text-gray-400 rotate-0"
                       }
                     `}
                   >
                     <ChevronDown className="h-4 w-4" />
-                  </motion.div>
+                  </div>
                 </button>
 
                 {/* Answer */}
-                <AnimatePresence>
-                  {openIndex === index && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-                      className="overflow-hidden"
-                    >
+                {openIndex === index && (
+                  <div className="overflow-hidden animate-fadeIn">
                       <div className="border-t border-white/[0.06] px-6 pb-6 pt-4">
                         <div className="ml-14">
                           <p className="text-sm leading-relaxed text-gray-400">
@@ -151,22 +129,15 @@ export default function FAQSection() {
                           </p>
                         </div>
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            </motion.div>
+                    </div>
+                )}
+              </div>
+            </div>
           ))}
         </div>
 
         {/* Bottom CTA */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          className="mt-10 text-center"
-        >
+        <div className="mt-10 text-center">
           <div className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.04] to-transparent px-6 py-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-500/30 bg-cyan-500/10">
               <HelpCircle className="h-5 w-5 text-cyan-400" />
@@ -184,7 +155,7 @@ export default function FAQSection() {
               </p>
             </div>
           </div>
-        </motion.div>
+        </div>
       </GlassCard>
     </section>
   );
