@@ -304,6 +304,13 @@ export async function analyzeImageWithWasm(
       console.info("WASM detector: API-only mode score", { score: apiResult.score });
       return apiResult;
     }
+    if (isHeicLike(file)) {
+      console.info("WASM detector: HEIC/HEIF detected, using API fallback", {
+        name: file.name,
+        type: file.type,
+      });
+      return await analyzeImageWithApi(file);
+    }
     console.info("WASM detector: analyzing file", {
       name: file.name,
       size: file.size,
@@ -316,8 +323,6 @@ export async function analyzeImageWithWasm(
     console.info("WASM detector: score", { score });
     return { score };
   } catch (error) {
-    //
-    return { score: -1 };
     const details = formatWasmError(error);
     console.error("WASM detector: error", details);
     try {
@@ -359,6 +364,13 @@ function shouldUseApiOnly(): boolean {
   }
   
   return env.USE_API_ONLY;
+}
+
+function isHeicLike(file: File): boolean {
+  const type = file.type.toLowerCase();
+  if (type === "image/heic" || type === "image/heif") return true;
+  const name = file.name.toLowerCase();
+  return name.endsWith(".heic") || name.endsWith(".heif");
 }
 
 async function analyzeImageWithApi(file: File): Promise<AnalysisResult> {

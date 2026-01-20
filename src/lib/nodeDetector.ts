@@ -30,7 +30,6 @@ type InputMetadata = {
 };
 
 const MODEL_RELATIVE_PATH = "public/models/onnx";
-const MAX_PIXELS = 4096 * 4096;
 const DEFAULT_SIZE = 224;
 const MEAN = [0.485, 0.456, 0.406];
 const STD = [0.229, 0.224, 0.225];
@@ -222,7 +221,10 @@ export async function detectAIFromBuffer(
   modelName?: string,
   fileName?: string
 ): Promise<DetectionResult> {
-  const image = sharp(buffer, { failOn: "none" }).ensureAlpha();
+  const session = await getSession(modelName);
+  const image = sharp(buffer, { failOn: "none" })
+    .ensureAlpha()
+    .resize(session.width, session.height, { fit: "fill" });
   const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
 
   console.debug("Node detector: decoded image", {
@@ -233,12 +235,8 @@ export async function detectAIFromBuffer(
   if (!Number.isFinite(info.width) || !Number.isFinite(info.height)) {
     throw new Error("Invalid image dimensions");
   }
-  if (info.width * info.height > MAX_PIXELS) {
-    throw new Error("Image dimensions out of range");
-  }
 
   const { config } = resolveModelConfig(modelName);
-  const session = await getSession(modelName);
   const tensor = buildInputTensor(
     new Uint8Array(data.buffer, data.byteOffset, data.byteLength),
     info.width,
