@@ -82,9 +82,21 @@ export function fuseEvidence(input: {
     confidence = Math.max(0, confidence - 0.2);
   }
 
+  // Calculate uncertainty as standard deviation
+  // Higher module disagreement = higher uncertainty
+  const uncertainty = Math.min(spread * 0.5, 0.15); // Cap at ±15%
+
   return {
     confidence: clamp01(confidence),
     weights: normalized,
     contradiction_penalty: contradictionPenalty,
+    uncertainty,
+    module_scores: {
+      visual: visual.visual_artifacts_score,
+      metadata: metadata.metadata_score,
+      physics: physics.physics_score,
+      frequency: frequency.frequency_score,
+      ml: ml.ml_score,
+    },
   };
 }

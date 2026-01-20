@@ -10,6 +10,7 @@ import {
 
 export function buildVerdict(input: {
   confidence: number;
+  uncertainty: number;
   visual: VisualArtifactsResult;
   metadata: MetadataForensicsResult;
   physics: PhysicsConsistencyResult;
@@ -17,7 +18,7 @@ export function buildVerdict(input: {
   ml: MlEnsembleResult;
   provenance: ProvenanceResult;
 }): VerdictResult {
-  const { confidence, visual, metadata, physics, frequency, ml, provenance } = input;
+  const { confidence, uncertainty, visual, metadata, physics, frequency, ml, provenance } = input;
 
   let verdict: VerdictResult["verdict"] = "UNCERTAIN";
   if (confidence >= 0.85) verdict = "AI_GENERATED";
@@ -44,6 +45,7 @@ export function buildVerdict(input: {
   return {
     verdict,
     confidence,
+    uncertainty,
     explanations: Array.from(explanations),
   };
 }

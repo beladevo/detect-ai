@@ -63,11 +63,14 @@ export type FusionResult = {
   confidence: number;
   weights: Record<string, number>;
   contradiction_penalty: number;
+  uncertainty: number; // Standard deviation of module scores (for ± display)
+  module_scores: Record<string, number>; // Individual module scores for breakdown
 };
 
 export type VerdictResult = {
   verdict: "AI_GENERATED" | "LIKELY_AI" | "UNCERTAIN" | "LIKELY_REAL" | "REAL";
   confidence: number;
+  uncertainty: number; // ± uncertainty value (e.g., 0.06 for ±6%)
   explanations: string[];
 };
 

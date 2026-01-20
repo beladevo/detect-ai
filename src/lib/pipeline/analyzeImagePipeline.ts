@@ -32,6 +32,7 @@ export async function analyzeImagePipeline(
   });
   const verdict = buildVerdict({
     confidence: fusion.confidence,
+    uncertainty: fusion.uncertainty,
     visual,
     metadata,
     physics,
