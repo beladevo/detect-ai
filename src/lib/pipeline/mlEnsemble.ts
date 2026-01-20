@@ -19,7 +19,10 @@ function resolveModelList(): string[] {
   return [MODEL_NAME];
 }
 
-export async function runMlEnsemble(buffer: Buffer): Promise<MlEnsembleResult> {
+export async function runMlEnsemble(
+  buffer: Buffer,
+  fileName?: string
+): Promise<MlEnsembleResult> {
   const models = resolveModelList();
   const votes = await Promise.all(
     models.map(async (model) => {

@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       }),
       request,
     });
-    const result = await analyzeImagePipeline(buffer);
+    const result = await analyzeImagePipeline(buffer, file.name);
     const score = scoreFromConfidence(result.verdict.confidence);
     await logServerEvent({
       level: "Info",

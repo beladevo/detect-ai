@@ -9,14 +9,17 @@ import { fuseEvidence } from "@/src/lib/pipeline/fusion";
 import { buildVerdict } from "@/src/lib/pipeline/verdict";
 import { PipelineResult } from "@/src/lib/pipeline/types";
 
-export async function analyzeImagePipeline(buffer: Buffer): Promise<PipelineResult> {
+export async function analyzeImagePipeline(
+  buffer: Buffer,
+  fileName?: string
+): Promise<PipelineResult> {
   const randomized = process.env.AI_RANDOMIZE_PREPROCESS === "true";
   const standardized = await preprocessImage(buffer, { randomize: randomized });
   const visual = analyzeVisualArtifacts(standardized);
   const metadata = analyzeMetadata(standardized.metadata.exif);
   const physics = analyzePhysicsConsistency(standardized);
   const frequency = analyzeFrequencyForensics(standardized);
-  const ml = await runMlEnsemble(buffer);
+  const ml = await runMlEnsemble(buffer, fileName);
   const provenance = analyzeProvenance(buffer);
   const fusion = fuseEvidence({
     image: standardized,

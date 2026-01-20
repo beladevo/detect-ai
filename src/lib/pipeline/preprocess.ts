@@ -97,7 +97,10 @@ export async function preprocessImage(
     throw new Error("Unable to read image dimensions");
   }
   if (metadata.width * metadata.height > MAX_PIXELS) {
-    throw new Error("Image dimensions out of range");
+    console.warn("Preprocess: large image, downscaling for analysis", {
+      width: metadata.width,
+      height: metadata.height,
+    });
   }
 
   const normalized = image
