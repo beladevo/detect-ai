@@ -16,6 +16,11 @@ import MLModelsCard from "./ui/MLModelsCard";
 import FusionBreakdown from "./ui/FusionBreakdown";
 import DetailCard from "./ui/DetailCard";
 import ShareModal from "./ShareModal";
+import DetectionVisualization from "./ui/DetectionVisualization";
+import ModuleBreakdown from "./ui/ModuleBreakdown";
+import ExplanationList from "./ui/ExplanationList";
+import ConfidenceDisplay from "./ui/ConfidenceDisplay";
+import ExportButton from "./ui/ExportButton";
 
 type ResultsDisplayProps = {
   score: number;
@@ -23,6 +28,7 @@ type ResultsDisplayProps = {
   confidenceLabel: string;
   onReset: () => void;
   pipeline?: PipelineResult;
+  imageUrl?: string;
 };
 
 export default function ResultsDisplay({
@@ -31,6 +37,7 @@ export default function ResultsDisplay({
   confidenceLabel,
   onReset,
   pipeline,
+  imageUrl,
 }: ResultsDisplayProps) {
   const [showModal, setShowModal] = useState(false);
   const [showShare, setShowShare] = useState(false);
@@ -211,34 +218,51 @@ export default function ResultsDisplay({
               )}
             </div>
 
-            {/* Confidence meter */}
-            <motion.div
-              className="mt-8 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent p-5"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-            >
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-400">Confidence Level</span>
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-purple-400" />
-                  <span className="font-medium text-white">{confidenceLabel}</span>
-                </div>
-              </div>
-
-              <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-white/10">
-                <div
-                  className={`h-full rounded-full bg-gradient-to-r ${current.gradient} transition-[width] duration-1000 ease-out`}
-                  style={{ width: `${score}%` }}
+            {/* Confidence Display with Uncertainty */}
+            {pipeline?.verdict && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+              >
+                <ConfidenceDisplay
+                  confidence={pipeline.verdict.confidence}
+                  uncertainty={pipeline.verdict.uncertainty}
+                  verdict={pipeline.verdict.verdict}
                 />
-              </div>
+              </motion.div>
+            )}
 
-              <div className="mt-3 flex justify-between text-xs text-gray-500">
-                <span>0%</span>
-                <span>50%</span>
-                <span>100%</span>
-              </div>
-            </motion.div>
+            {/* Fallback simple confidence meter if no pipeline data */}
+            {!pipeline && (
+              <motion.div
+                className="mt-8 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent p-5"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+              >
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-400">Confidence Level</span>
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-purple-400" />
+                    <span className="font-medium text-white">{confidenceLabel}</span>
+                  </div>
+                </div>
+
+                <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className={`h-full rounded-full bg-gradient-to-r ${current.gradient} transition-[width] duration-1000 ease-out`}
+                    style={{ width: `${score}%` }}
+                  />
+                </div>
+
+                <div className="mt-3 flex justify-between text-xs text-gray-500">
+                  <span>0%</span>
+                  <span>50%</span>
+                  <span>100%</span>
+                </div>
+              </motion.div>
+            )}
 
             {/* Verdict badge */}
             <motion.div
@@ -250,6 +274,27 @@ export default function ResultsDisplay({
               <Icon className={`h-5 w-5 ${current.iconColor}`} />
               <span className="text-sm font-medium text-white">{current.message}</span>
             </motion.div>
+
+            {/* Key Findings - Show top explanations */}
+            {pipeline?.verdict && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.65 }}
+                className="mt-6"
+              >
+                <ExplanationList
+                  flags={{
+                    visual: pipeline.visual.flags,
+                    metadata: pipeline.metadata.flags,
+                    physics: pipeline.physics.flags,
+                    frequency: pipeline.frequency.flags,
+                    provenance: pipeline.provenance.flags,
+                  }}
+                  maxDisplay={3}
+                />
+              </motion.div>
+            )}
 
             {/* Action buttons */}
             <motion.div
@@ -270,6 +315,10 @@ export default function ResultsDisplay({
                 <Share2 className="h-4 w-4" />
                 <span>Share Result</span>
               </button>
+
+              {pipeline && (
+                <ExportButton pipeline={pipeline} variant="secondary" />
+              )}
             </motion.div>
           </div>
         </GlassCard>
@@ -297,6 +346,15 @@ export default function ResultsDisplay({
               {/* AI Model Predictions Section */}
               <div className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-transparent p-6">
                 <MLModelsCard ml={pipeline.ml} />
+              </div>
+
+              {/* Module Contribution Breakdown */}
+              <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-transparent p-6">
+                <ModuleBreakdown
+                  weights={pipeline.fusion.weights}
+                  scores={pipeline.fusion.module_scores}
+                  finalConfidence={pipeline.fusion.confidence}
+                />
               </div>
 
               {/* Score Calculation Breakdown */}
@@ -352,6 +410,13 @@ export default function ResultsDisplay({
                   />
                 </div>
               </div>
+
+              {/* Detection Visualization */}
+              {imageUrl && (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                  <DetectionVisualization pipeline={pipeline} imageUrl={imageUrl} />
+                </div>
+              )}
             </>
           )}
         </div>

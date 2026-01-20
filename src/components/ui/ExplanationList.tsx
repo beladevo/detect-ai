@@ -6,12 +6,29 @@ import { AlertCircle, Info, AlertTriangle } from "lucide-react";
 import { getExplanations } from "@/src/lib/explanations";
 
 interface ExplanationListProps {
-  flags: string[];
+  flags: string[] | {
+    visual?: string[];
+    metadata?: string[];
+    physics?: string[];
+    frequency?: string[];
+    provenance?: string[];
+  };
   maxDisplay?: number;
 }
 
 export default function ExplanationList({ flags, maxDisplay }: ExplanationListProps) {
-  const explanations = getExplanations(flags);
+  // Flatten flags if it's an object
+  const flatFlags = Array.isArray(flags)
+    ? flags
+    : [
+        ...(flags.visual || []),
+        ...(flags.metadata || []),
+        ...(flags.physics || []),
+        ...(flags.frequency || []),
+        ...(flags.provenance || []),
+      ];
+
+  const explanations = getExplanations(flatFlags);
   const displayedExplanations = maxDisplay
     ? explanations.slice(0, maxDisplay)
     : explanations;

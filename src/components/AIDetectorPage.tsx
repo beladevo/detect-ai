@@ -12,6 +12,7 @@ import HistoryList, { type HistoryItem } from "@/src/components/HistoryList";
 import PrivacySection from "@/src/components/PrivacySection";
 import FAQSection from "@/src/components/FAQSection";
 import Footer from "@/src/components/Footer";
+import ModelSelector from "@/src/components/ui/ModelSelector";
 const ResultsDisplay = dynamic(() => import("@/src/components/ResultsDisplay"), {
   ssr: false,
 });
@@ -37,6 +38,7 @@ export default function AIDetectorPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [estimatedTime, setEstimatedTime] = useState<string>("--");
+  const [selectedModel, setSelectedModel] = useState<string>("model_q4.onnx");
   const uploadRef = useRef<HTMLDivElement>(null);
   const uploadCardRef = useRef<HTMLDivElement>(null);
   const statusCardRef = useRef<HTMLDivElement>(null);
@@ -205,6 +207,7 @@ export default function AIDetectorPage() {
                 confidenceLabel={confidenceLabel}
                 onReset={handleReset}
                 pipeline={result.pipeline}
+                imageUrl={previewUrl || undefined}
               />
             ) : (
               <div className="mt-10 grid gap-4 text-sm text-gray-400">
@@ -225,10 +228,16 @@ export default function AIDetectorPage() {
               ref={statusCardRef}
               className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 via-white/5 to-purple-500/10 p-6 shadow-glow-purple"
             >
-              <h3 className="text-lg font-semibold text-white">Detection engine status</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white">Detection engine status</h3>
+                <ModelSelector
+                  currentModel={selectedModel}
+                  onModelChange={setSelectedModel}
+                  variant="single"
+                />
+              </div>
               <p className="mt-2 text-sm text-gray-300">
-                Model version: {process.env.NEXT_PUBLIC_MODEL_NAME || "model_q4.onnx"} |
-                Estimated time: {estimatedTime} | Accuracy: 96.2%
+                Model: {selectedModel} | Estimated time: {estimatedTime} | Accuracy: 96.2%
               </p>
               <div className="mt-5 grid grid-cols-2 gap-4 text-sm text-gray-200">
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
@@ -255,7 +264,7 @@ export default function AIDetectorPage() {
         </section>
 
         {result.score !== null && previewUrl ? (
-          <ComparisonTool previewUrl={previewUrl} verdict={verdict} />
+          <ComparisonTool previewUrl={previewUrl} verdict={verdict} pipeline={result.pipeline} />
         ) : null}
         <PrivacySection />
         <FAQSection />
