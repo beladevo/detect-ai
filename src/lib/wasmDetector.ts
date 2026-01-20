@@ -2,6 +2,7 @@ import * as ort from "onnxruntime-web";
 import { resolveModelConfig, getModelPath, MODEL_NAME } from "@/src/lib/modelConfigs";
 import { scoreFromConfidence } from "@/src/lib/scoreUtils";
 import type { PipelineResult } from "@/src/lib/pipeline/types";
+import { analyzeImagePipelineBrowser } from "@/src/lib/pipeline/analyzeImagePipelineBrowser";
 
 type DetectionResult = {
   isAI: boolean;
@@ -254,6 +255,34 @@ function probabilityFromOutput(output: ort.Tensor, aiIndex = 1): number {
   return probs[index];
 }
 
+/**
+ * Extract crop from image
+ */
+function extractCrop(
+  image: Uint8Array,
+  width: number,
+  height: number,
+  channels: number,
+  x: number,
+  y: number,
+  cropWidth: number,
+  cropHeight: number
+): Uint8Array {
+  const crop = new Uint8Array(cropWidth * cropHeight * channels);
+  for (let cy = 0; cy < cropHeight; cy++) {
+    const srcY = Math.min(height - 1, y + cy);
+    for (let cx = 0; cx < cropWidth; cx++) {
+      const srcX = Math.min(width - 1, x + cx);
+      const srcIdx = (srcY * width + srcX) * channels;
+      const dstIdx = (cy * cropWidth + cx) * channels;
+      for (let c = 0; c < channels; c++) {
+        crop[dstIdx + c] = image[srcIdx + c];
+      }
+    }
+  }
+  return crop;
+}
+
 export async function detectAI(
   image: Uint8Array,
   width: number,
@@ -274,6 +303,79 @@ export async function detectAI(
 
   const { config } = resolveModelConfig();
   const session = await getSession();
+
+  // Multi-crop analysis for large images (matching server-side nodeDetector.ts)
+  const MIN_CROP_SIZE = 512;
+  const useCrops = width >= MIN_CROP_SIZE && height >= MIN_CROP_SIZE;
+
+  if (useCrops) {
+    const cropSize = 448;
+    const crops: Array<{ x: number; y: number; weight: number }> = [
+      // Center crop (higher weight)
+      {
+        x: Math.floor((width - cropSize) / 2),
+        y: Math.floor((height - cropSize) / 2),
+        weight: 2,
+      },
+      // Corner crops
+      { x: 0, y: 0, weight: 1 },
+      { x: width - cropSize, y: 0, weight: 1 },
+      { x: 0, y: height - cropSize, weight: 1 },
+      { x: width - cropSize, y: height - cropSize, weight: 1 },
+    ];
+
+    let totalWeight = 0;
+    let weightedSum = 0;
+
+    console.debug("WASM detector: multi-crop analysis", { numCrops: crops.length });
+
+    for (const crop of crops) {
+      const cropData = extractCrop(
+        image,
+        width,
+        height,
+        channels,
+        crop.x,
+        crop.y,
+        cropSize,
+        cropSize
+      );
+
+      const tensor = buildInputTensor(
+        cropData,
+        cropSize,
+        cropSize,
+        channels,
+        session.width,
+        session.height,
+        session.layout
+      );
+
+      const results = await session.session.run({ [session.inputName]: tensor });
+      const output = results[session.outputName];
+      if (!output) {
+        throw new Error("Model output missing");
+      }
+
+      const confidence = probabilityFromOutput(output, config.aiIndex);
+      weightedSum += confidence * crop.weight;
+      totalWeight += crop.weight;
+
+      console.debug("WASM detector: crop result", {
+        x: crop.x,
+        y: crop.y,
+        weight: crop.weight,
+        confidence,
+      });
+    }
+
+    const finalConfidence = weightedSum / totalWeight;
+    const clamped = Math.min(1, Math.max(0, finalConfidence));
+    console.debug("WASM detector: multi-crop output", { confidence: clamped });
+    return { isAI: clamped >= 0.5, confidence: clamped };
+  }
+
+  // Single inference for small images
   const tensor = buildInputTensor(
     image,
     width,
@@ -290,7 +392,7 @@ export async function detectAI(
   }
   const confidence = probabilityFromOutput(output, config.aiIndex);
   const clamped = Math.min(1, Math.max(0, confidence));
-  console.debug("WASM detector: output", { confidence: clamped });
+  console.debug("WASM detector: single-crop output", { confidence: clamped });
   return { isAI: clamped >= 0.5, confidence: clamped };
 }
 
@@ -319,9 +421,26 @@ export async function analyzeImageWithWasm(
     });
     const decoded = await decodeImageToRgba(file);
     const result = await detectAI(decoded.pixels, decoded.width, decoded.height, 4);
-    const score = scoreFromConfidence(result.confidence);
-    console.info("WASM detector: score", { score });
-    return { score };
+
+    // Run full pipeline analysis in browser
+    console.info("WASM detector: running forensic pipeline");
+    const pipeline = await analyzeImagePipelineBrowser(
+      decoded.pixels,
+      decoded.width,
+      decoded.height,
+      result.confidence,
+      modelName
+    );
+
+    const score = scoreFromConfidence(pipeline.verdict.confidence);
+    console.info("WASM detector: analysis complete", {
+      score,
+      mlScore: result.confidence,
+      finalConfidence: pipeline.verdict.confidence,
+      uncertainty: pipeline.verdict.uncertainty,
+    });
+
+    return { score, pipeline };
   } catch (error) {
     const details = formatWasmError(error);
     console.error("WASM detector: error", details);

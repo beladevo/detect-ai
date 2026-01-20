@@ -9,14 +9,19 @@
 | Phase | Status | Completed | Total | Progress |
 |-------|--------|-----------|-------|----------|
 | Phase 1: Quick Wins | ✅ Complete | 6 | 6 | 100% |
-| Phase 2: Core Improvements | ⚪ Not Started | 0 | 6 | 0% |
+| Phase 2: Core Improvements | 🟡 In Progress | 2 | 6 | 33% |
 | Phase 3: Advanced Detection | ⚪ Not Started | 0 | 6 | 0% |
 | Phase 4: Polish & Scale | ⚪ Not Started | 0 | 7 | 0% |
-| **Overall** | **🟡 In Progress** | **6** | **42** | **14%** |
+| **Overall** | **🟡 In Progress** | **8** | **42** | **19%** |
 
 ### Recent Changes
 
-**2026-01-20** - Phase 1 Complete:
+**2026-01-20 (Part 2)** - Phase 2 WASM Improvements:
+- ✅ Fixed WASM parity - browser mode now returns full pipeline data
+- ✅ Added multi-crop analysis to WASM detector (5-crop strategy matching server)
+- ✅ Created `analyzeImagePipelineBrowser.ts` for client-side forensic analysis
+
+**2026-01-20 (Part 1)** - Phase 1 Complete:
 - ✅ Added forensic explanation system (`src/lib/explanations.ts`)
 - ✅ Implemented confidence interval calculation (uncertainty ±σ)
 - ✅ Enhanced error messages with specific error types
@@ -187,16 +192,22 @@ High impact, low effort tasks that provide immediate value:
 - `src/lib/pipeline/verdict.ts` - Pass uncertainty through to final result
 - `src/app/api/detect/route.ts` - Add validation, rate limiting, and better errors
 
-### Phase 2: Core Improvements (2-4 weeks)
+### Phase 2: Core Improvements 🟡 IN PROGRESS
 
 Foundation improvements for detection quality and transparency:
 
-- [ ] Fix WASM parity (pipeline data + multi-crop)
+- [x] **Fix WASM parity** - Browser mode now returns full pipeline data with all forensic modules. Created `analyzeImagePipelineBrowser.ts` that runs visual, metadata, physics, frequency, and provenance checks client-side
+- [x] **Multi-crop analysis in WASM** - Implemented 5-crop strategy (center + 4 corners) matching server-side behavior for images ≥512px
 - [ ] Grad-CAM attention visualization
 - [ ] Multi-model ensemble
 - [ ] Model selection dropdown
 - [ ] Report export (PDF/JSON)
-- [ ] Result caching
+
+**New Files Created:**
+- `src/lib/pipeline/analyzeImagePipelineBrowser.ts` - Browser-compatible forensic pipeline
+
+**Modified Files:**
+- `src/lib/wasmDetector.ts` - Added multi-crop support + full pipeline execution in browser
 
 ### Phase 3: Advanced Detection (4-6 weeks)
 
