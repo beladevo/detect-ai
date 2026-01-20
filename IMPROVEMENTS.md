@@ -9,12 +9,18 @@
 | Phase | Status | Completed | Total | Progress |
 |-------|--------|-----------|-------|----------|
 | Phase 1: Quick Wins | ✅ Complete | 6 | 6 | 100% |
-| Phase 2: Core Improvements | 🟡 In Progress | 3 | 6 | 50% |
+| Phase 2: Core Improvements | 🟢 Nearly Complete | 5 | 6 | 83% |
 | Phase 3: Advanced Detection | ⚪ Not Started | 0 | 6 | 0% |
 | Phase 4: Polish & Scale | ⚪ Not Started | 0 | 7 | 0% |
-| **Overall** | **🟡 In Progress** | **9** | **42** | **21%** |
+| **Overall** | **🟡 In Progress** | **11** | **42** | **26%** |
 
 ### Recent Changes
+
+**2026-01-20 (Part 4)** - Model Selection & Ensemble:
+- ✅ Added `ModelSelector` component for single and ensemble modes
+- ✅ Created model selection utilities (`modelSelection.ts`)
+- ✅ Added `.env.example` with ensemble configuration docs
+- ✅ Updated `CLAUDE.md` with multi-model setup instructions
 
 **2026-01-20 (Part 3)** - Export & Bug Fixes:
 - ✅ Fixed `weighted_scores` missing from fusion result (caused FusionBreakdown error)
@@ -204,18 +210,22 @@ Foundation improvements for detection quality and transparency:
 - [x] **Fix WASM parity** - Browser mode now returns full pipeline data with all forensic modules. Created `analyzeImagePipelineBrowser.ts` that runs visual, metadata, physics, frequency, and provenance checks client-side
 - [x] **Multi-crop analysis in WASM** - Implemented 5-crop strategy (center + 4 corners) matching server-side behavior for images ≥512px
 - [x] **Report export** - Implemented JSON and Text export with detailed findings, module breakdown, and explanations
+- [x] **Multi-model ensemble** - Infrastructure already exists via `AI_ENSEMBLE_MODELS` env var. Created ensemble presets (fast/balanced/thorough) and configuration utilities
+- [x] **Model selection dropdown** - Created `ModelSelector` component with single and ensemble modes
 - [ ] Grad-CAM attention visualization
-- [ ] Multi-model ensemble
-- [ ] Model selection dropdown
 
 **New Files Created:**
 - `src/lib/pipeline/analyzeImagePipelineBrowser.ts` - Browser-compatible forensic pipeline
 - `src/lib/exportReport.ts` - Export utilities for JSON and text reports
 - `src/components/ui/ExportButton.tsx` - Export dropdown component
+- `src/components/ui/ModelSelector.tsx` - Model selection UI (single + ensemble modes)
+- `src/lib/modelSelection.ts` - Ensemble configuration and validation utilities
+- `.env.example` - Environment configuration template
 
 **Modified Files:**
 - `src/lib/wasmDetector.ts` - Added multi-crop support + full pipeline execution in browser
 - `src/lib/pipeline/fusion.ts` - Added `weighted_scores` field for UI display
+- `CLAUDE.md` - Updated with multi-model setup instructions and WASM details
 
 ### Phase 3: Advanced Detection (4-6 weeks)
 

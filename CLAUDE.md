@@ -46,11 +46,17 @@ MODEL_CONFIGS = {
 }
 ```
 
-**Inference**: `src/lib/nodeDetector.ts`
+**Inference**: `src/lib/nodeDetector.ts` (server) + `src/lib/wasmDetector.ts` (browser)
 - Session caching for loaded models
-- Multi-crop analysis for images >512px (5 crops: center + 4 corners)
+- Multi-crop analysis for images ≥512px (5 crops: center + 4 corners, center weighted 2x)
 - ImageNet normalization (mean: [0.485, 0.456, 0.406], std: [0.229, 0.224, 0.225])
 - Supports NCHW and NHWC tensor layouts
+- **WASM mode**: Full forensic pipeline runs client-side via `analyzeImagePipelineBrowser.ts`
+
+**Multi-Model Ensemble**: `src/lib/pipeline/mlEnsemble.ts`
+- Configure via `AI_ENSEMBLE_MODELS` environment variable (comma-separated)
+- Presets: `fast` (1 model), `balanced` (2 models), `thorough` (3 models)
+- Weighted voting with disagreement detection (spread > 0.25 flags conflict)
 
 ### API
 
@@ -60,11 +66,25 @@ MODEL_CONFIGS = {
 
 ## Key Configuration
 
-**Environment Variables** (`.env.local`):
-```
-NEXT_PUBLIC_MODEL_NAME=model.onnx       # Active model
-NEXT_PUBLIC_BLOB_BASE_URL=...           # Remote model storage (production)
-INFERENCE_LOG_ENABLED=true              # Enable inference logging
+**Environment Variables** (`.env.local` - see `.env.example` for full list):
+```bash
+# Single model
+NEXT_PUBLIC_MODEL_NAME=model_q4.onnx
+
+# Multi-model ensemble (recommended for production)
+AI_ENSEMBLE_MODELS=model_q4.onnx,model.onnx,nyuad.onnx
+# OR use preset
+AI_ENSEMBLE_PRESET=balanced  # fast | balanced | thorough
+
+# Remote storage
+NEXT_PUBLIC_BLOB_BASE_URL=...           # CDN/blob storage URL (production)
+
+# Logging
+INFERENCE_LOG_ENABLED=true
+
+# API limits
+MAX_FILE_SIZE=10485760                  # 10MB max
+RATE_LIMIT_MAX_REQUESTS=10             # 10 req/min per IP
 ```
 
 **Models Location**: `public/models/onnx/`
