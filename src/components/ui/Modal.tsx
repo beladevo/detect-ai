@@ -50,7 +50,7 @@ export default function Modal({ isOpen, onClose, children, title }: ModalProps) 
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
                             transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
                             className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto pointer-events-auto rounded-3xl border border-white/10 bg-[#0A0A0A]/90 p-6 shadow-2xl ring-1 ring-white/10 backdrop-blur-xl sm:p-8"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         >
                             {/* Header */}
                             <div className="mb-6 flex items-center justify-between">

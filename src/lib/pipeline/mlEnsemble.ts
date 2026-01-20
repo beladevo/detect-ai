@@ -26,8 +26,12 @@ export async function runMlEnsemble(
   const models = resolveModelList();
   const votes = await Promise.all(
     models.map(async (model) => {
-      const result = await detectAIFromBuffer(buffer, model, fileName);
-      return { model: result.model, confidence: result.confidence };
+      const result = await detectAIFromBuffer(buffer, model);
+      return {
+        model: result.model,
+        confidence: result.confidence,
+        prediction: (result.confidence >= 0.5 ? "AI" : "REAL") as "AI" | "REAL"
+      };
     })
   );
 
@@ -49,5 +53,10 @@ export async function runMlEnsemble(
     ml_score: confidence,
     model_votes: votes,
     flags,
+    ensemble_stats: {
+      mean: avg,
+      variance,
+      spread,
+    },
   };
 }

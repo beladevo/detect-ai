@@ -544,7 +544,10 @@ function printProgress(current: number, total: number, width = 40) {
   const percent = current / total;
   const filled = Math.round(width * percent);
   const bar = "█".repeat(filled) + "░".repeat(width - filled);
-  process.stdout.write(`\rProgress: [${bar}] ${current}/${total}`);
+  // Skip progress bar during build
+  if (typeof process !== 'undefined' && process.stdout && 'write' in process.stdout) {
+    (process.stdout as any).write(`\rProgress: [${bar}] ${current}/${total}`);
+  }
   if (current === total) {
     console.log("");
   }
