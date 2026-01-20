@@ -1,4 +1,4 @@
-import exifReader from "exif-reader";
+import ExifReader from "exifreader";
 import { MetadataForensicsResult } from "@/src/lib/pipeline/types";
 
 const KNOWN_GENERATORS = [
@@ -12,6 +12,10 @@ const KNOWN_GENERATORS = [
   "sdxl",
   "diffusion",
   "novelai",
+  "flux",
+  "black forest labs",
+  "mj v6",
+  "midjourney v6",
 ];
 
 const KNOWN_CAMERA_MAKES = [
@@ -29,6 +33,15 @@ const KNOWN_CAMERA_MAKES = [
   "huawei",
   "xiaomi",
   "oneplus",
+];
+
+const CAPTURE_DETAIL_TAGS = [
+  "FNumber",
+  "ExposureTime",
+  "ISOSpeedRatings",
+  "FocalLength",
+  "ExposureProgram",
+  "Whitebalance",
 ];
 
 function clamp01(value: number): number {
@@ -59,20 +72,26 @@ export function analyzeMetadata(exif?: Buffer): MetadataForensicsResult {
   }
 
   try {
-    const data = exifReader(exif) as {
-      Image?: Record<string, unknown>;
-      Exif?: Record<string, unknown>;
-    };
+    const data = ExifReader.load(exif);
     exifPresent = true;
-    const make = data.Image?.Make || data.Exif?.Make;
-    const model = data.Image?.Model || data.Exif?.Model;
-    const software = data.Image?.Software || data.Exif?.Software;
-    const date = data.Exif?.DateTimeOriginal || data.Image?.DateTime;
 
-    if (make) tags.make = String(make);
-    if (model) tags.model = String(model);
-    if (software) tags.software = String(software);
-    if (date) tags.timestamp = String(date);
+    // Configurable access to common tags
+    const getTag = (key: string) => {
+      const tag = data[key];
+      if (tag && tag.description) return tag.description;
+      if (tag && tag.value) return String(tag.value);
+      return undefined;
+    };
+
+    const make = getTag("Make");
+    const model = getTag("Model");
+    const software = getTag("Software");
+    const date = getTag("DateTimeOriginal") || getTag("DateTime");
+
+    if (make) tags.make = make;
+    if (model) tags.model = model;
+    if (software) tags.software = software;
+    if (date) tags.timestamp = date;
 
     const softwareText = normalizeText(software);
     if (KNOWN_GENERATORS.some((token) => softwareText.includes(token))) {
@@ -81,7 +100,9 @@ export function analyzeMetadata(exif?: Buffer): MetadataForensicsResult {
     }
 
     const makeText = normalizeText(make);
-    if (makeText && !KNOWN_CAMERA_MAKES.some((token) => makeText.includes(token))) {
+    const hasMake = Boolean(makeText && KNOWN_CAMERA_MAKES.some((token) => makeText.includes(token)));
+
+    if (makeText && !hasMake) {
       score += 0.2;
       flags.push("unknown_camera_make");
     }
@@ -89,6 +110,21 @@ export function analyzeMetadata(exif?: Buffer): MetadataForensicsResult {
     if (!make && !model) {
       score += 0.1;
       flags.push("camera_make_model_missing");
+    }
+
+    // Deep Validation: Check for capture-specific details if a Make is present
+    if (hasMake) {
+      let captureDetailCount = 0;
+      for (const tag of CAPTURE_DETAIL_TAGS) {
+        if (getTag(tag)) {
+          captureDetailCount += 1;
+        }
+      }
+
+      if (captureDetailCount < 2) {
+        score += 0.3;
+        flags.push("spoofed_metadata_detected");
+      }
     }
 
     if (date) {

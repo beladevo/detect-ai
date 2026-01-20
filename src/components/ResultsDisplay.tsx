@@ -1,14 +1,20 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { AlertCircle, CheckCircle2, ShieldAlert, Sparkles, RotateCcw } from "lucide-react";
+import { AlertCircle, CheckCircle2, ShieldAlert, Sparkles, RotateCcw, Fingerprint, Aperture, BarChart3, ScanEye, ArrowRight, Eye, Zap } from "lucide-react";
+import React, { useState } from "react";
+import { cn } from "@/src/lib/utils";
+import Modal from "./ui/Modal";
+import GlassCard from "./ui/GlassCard";
 import GlowButton from "./ui/GlowButton";
+import type { PipelineResult } from "@/src/lib/pipeline/types";
 
 type ResultsDisplayProps = {
   score: number;
   verdict?: "ai" | "real" | "uncertain";
   confidenceLabel: string;
   onReset: () => void;
+  pipeline?: PipelineResult;
 };
 
 export default function ResultsDisplay({
@@ -16,7 +22,9 @@ export default function ResultsDisplay({
   verdict,
   confidenceLabel,
   onReset,
+  pipeline,
 }: ResultsDisplayProps) {
+  const [showModal, setShowModal] = useState(false);
 
   const config = {
     ai: {
@@ -55,142 +63,225 @@ export default function ResultsDisplay({
   const Icon = current.Icon;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="relative mt-10 overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-white/[0.08] via-white/[0.04] to-transparent p-8 backdrop-blur-xl"
-      style={{
-        boxShadow: `0 0 60px ${current.glowColor}`,
-      }}
-    >
-      {/* Glass shine effect */}
-      <div
-        className="pointer-events-none absolute inset-0 rounded-3xl"
-        style={{
-          background: "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%)",
-        }}
-      />
-
-      {/* Animated background glow */}
+    <>
       <motion.div
-        className="pointer-events-none absolute -inset-20 opacity-30"
+        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+        className="relative mt-10 overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-white/[0.08] via-white/[0.04] to-transparent p-8 backdrop-blur-xl"
         style={{
-          background: `radial-gradient(circle at 50% 50%, ${current.glowColor}, transparent 70%)`,
+          boxShadow: `0 0 60px ${current.glowColor}`,
         }}
-        animate={{
-          scale: [1, 1.2, 1],
-          opacity: [0.2, 0.4, 0.2],
-        }}
-        transition={{
-          duration: 4,
-          repeat: Infinity,
-          repeatType: "reverse",
-        }}
-      />
+      >
+        {/* Glass shine effect */}
+        <div
+          className="pointer-events-none absolute inset-0 rounded-3xl"
+          style={{
+            background: "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%)",
+          }}
+        />
 
-      <div className="relative z-10">
-        {/* Header with icon */}
-        <div className="flex flex-col items-center text-center">
+        {/* Animated background glow */}
+        <motion.div
+          className="pointer-events-none absolute -inset-20 opacity-30"
+          style={{
+            background: `radial-gradient(circle at 50% 50%, ${current.glowColor}, transparent 70%)`,
+          }}
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.2, 0.4, 0.2],
+          }}
+          transition={{
+            duration: 4,
+            repeat: Infinity,
+            repeatType: "reverse",
+          }}
+        />
+
+        <div className="relative z-10">
+          {/* Header with icon */}
+          <div className="flex flex-col items-center text-center">
+            <motion.div
+              className={`relative flex h-20 w-20 items-center justify-center rounded-2xl border ${current.borderColor} bg-gradient-to-br ${current.iconBg}`}
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ duration: 0.6, type: "spring", stiffness: 200 }}
+            >
+              <div className="absolute inset-0 rounded-2xl bg-white/5" />
+              <Icon className={`h-10 w-10 ${current.iconColor}`} />
+            </motion.div>
+
+            <motion.h2
+              className="mt-6 text-2xl font-bold text-white"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              {current.title}
+            </motion.h2>
+
+            {/* Score display */}
+            <motion.div
+              className="mt-4"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
+            >
+              <div className="flex items-baseline justify-center gap-1">
+                <span className={`text-7xl font-black bg-gradient-to-r ${current.gradient} bg-clip-text text-transparent`}>
+                  {score}
+                </span>
+                <span className="text-3xl font-bold text-gray-400">%</span>
+              </div>
+              <p className="mt-1 text-sm text-gray-500">AI Detection Score</p>
+            </motion.div>
+
+            {/* Disclaimer */}
+            <motion.p
+              className="mt-4 max-w-sm text-xs text-gray-500"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              AI detection can be imperfect, especially with heavily edited, compressed, or blurred content.
+            </motion.p>
+
+            {/* View Details Button (Only if pipeline data is available) */}
+            {pipeline && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="mt-8"
+              >
+                <GlowButton
+                  onClick={() => setShowModal(true)}
+                  variant="secondary"
+                  className="group"
+                >
+                  <span>View Detailed Analysis</span>
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </GlowButton>
+              </motion.div>
+            )}
+          </div>
+
+          {/* Confidence meter */}
           <motion.div
-            className={`relative flex h-20 w-20 items-center justify-center rounded-2xl border ${current.borderColor} bg-gradient-to-br ${current.iconBg}`}
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ duration: 0.6, type: "spring", stiffness: 200 }}
-          >
-            <div className="absolute inset-0 rounded-2xl bg-white/5" />
-            <Icon className={`h-10 w-10 ${current.iconColor}`} />
-          </motion.div>
-
-          <motion.h2
-            className="mt-6 text-2xl font-bold text-white"
+            className="mt-8 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent p-5"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            transition={{ delay: 0.5 }}
           >
-            {current.title}
-          </motion.h2>
-
-          {/* Score display */}
-          <motion.div
-            className="mt-4"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
-          >
-            <div className="flex items-baseline justify-center gap-1">
-              <span className={`text-7xl font-black bg-gradient-to-r ${current.gradient} bg-clip-text text-transparent`}>
-                {score}
-              </span>
-              <span className="text-3xl font-bold text-gray-400">%</span>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-400">Confidence Level</span>
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-purple-400" />
+                <span className="font-medium text-white">{confidenceLabel}</span>
+              </div>
             </div>
-            <p className="mt-1 text-sm text-gray-500">AI Detection Score</p>
+
+            <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className={`h-full rounded-full bg-gradient-to-r ${current.gradient} transition-[width] duration-1000 ease-out`}
+                style={{ width: `${score}%` }}
+              />
+            </div>
+
+            <div className="mt-3 flex justify-between text-xs text-gray-500">
+              <span>0%</span>
+              <span>50%</span>
+              <span>100%</span>
+            </div>
           </motion.div>
 
-          {/* Disclaimer */}
-          <motion.p
-            className="mt-4 max-w-sm text-xs text-gray-500"
+          {/* Verdict badge */}
+          <motion.div
+            className={`mt-6 flex items-center justify-center gap-3 rounded-full border ${current.borderColor} bg-gradient-to-r from-transparent via-white/5 to-transparent px-6 py-3`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            <Icon className={`h-5 w-5 ${current.iconColor}`} />
+            <span className="text-sm font-medium text-white">{current.message}</span>
+          </motion.div>
+
+          {/* Reset button */}
+          <motion.div
+            className="mt-8 flex justify-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
+            transition={{ delay: 0.7 }}
           >
-            AI detection can be imperfect, especially with heavily edited, compressed, or blurred content.
-          </motion.p>
+            <GlowButton onClick={onReset} size="lg">
+              <RotateCcw className="h-4 w-4" />
+              <span>Analyze Another Image</span>
+            </GlowButton>
+          </motion.div>
         </div>
+      </motion.div>
 
-        {/* Confidence meter */}
-        <motion.div
-          className="mt-8 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent p-5"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-400">Confidence Level</span>
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-purple-400" />
-              <span className="font-medium text-white">{confidenceLabel}</span>
+      {/* Detailed Analysis Modal */}
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title="Comprehensive Analysis"
+      >
+        <div className="space-y-6">
+          <p className="text-gray-400">
+            A deep dive into the forensic trace of the image. Our multi-stage pipeline analyzes visual artifacts, metadata anomalies, and physical inconsistencies.
+          </p>
+
+          {pipeline && (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {/* Visual Artifacts */}
+              <DetailCard
+                title="Visual Analysis"
+                icon={ScanEye}
+                color="purple"
+                score={pipeline.visual.visual_artifacts_score * 100}
+                metrics={[
+                  { label: "Skin Smoothing", value: pipeline.visual.details.smoothingScore, threshold: 0.6 },
+                  { label: "Texture Consistency", value: pipeline.visual.details.textureMeltScore, threshold: 0.5 },
+                  { label: "Symmetry", value: pipeline.visual.details.symmetryScore, threshold: 0.7 },
+                ]}
+                flags={pipeline.visual.flags}
+              />
+
+              {/* Digital Forensics */}
+              <DetailCard
+                title="Digital Forensics"
+                icon={Fingerprint}
+                color="cyan"
+                score={pipeline.metadata.metadata_score * 100}
+                metrics={[
+                  { label: "Metadata Risk", value: pipeline.metadata.metadata_score, threshold: 0.3 },
+                  { label: "Frequency Anomalies", value: pipeline.frequency.frequency_score, threshold: 0.5 },
+                  { label: "C2PA Signature", value: pipeline.provenance.c2pa_present ? 1 : 0, isBinary: true },
+                ]}
+                flags={[...pipeline.metadata.flags, ...pipeline.provenance.flags]}
+              />
+
+              {/* Physics & Light */}
+              <DetailCard
+                title="Physics & Light"
+                icon={Zap} // Using Zap or Sun if available, fallback to Zap
+                color="pink"
+                score={100 - pipeline.physics.physics_score * 100} // Invert for "Consistency"
+                scoreLabel="Consistency"
+                metrics={[
+                  { label: "Lighting Coherence", value: 1 - pipeline.physics.details.lightInconsistency, threshold: 0.3, invertColor: true },
+                  { label: "Shadow Alignment", value: 1 - pipeline.physics.details.shadowMisalignment, threshold: 0.4, invertColor: true },
+                  { label: "Perspective", value: 1 - pipeline.physics.details.perspectiveChaos, threshold: 0.3, invertColor: true },
+                ]}
+                flags={pipeline.physics.flags}
+              />
             </div>
-          </div>
-
-          <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-white/10">
-            <div
-              className={`h-full rounded-full bg-gradient-to-r ${current.gradient} transition-[width] duration-1000 ease-out`}
-              style={{ width: `${score}%` }}
-            />
-          </div>
-
-          <div className="mt-3 flex justify-between text-xs text-gray-500">
-            <span>0%</span>
-            <span>50%</span>
-            <span>100%</span>
-          </div>
-        </motion.div>
-
-        {/* Verdict badge */}
-        <motion.div
-          className={`mt-6 flex items-center justify-center gap-3 rounded-full border ${current.borderColor} bg-gradient-to-r from-transparent via-white/5 to-transparent px-6 py-3`}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-        >
-          <Icon className={`h-5 w-5 ${current.iconColor}`} />
-          <span className="text-sm font-medium text-white">{current.message}</span>
-        </motion.div>
-
-        {/* Reset button */}
-        <motion.div
-          className="mt-8 flex justify-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.7 }}
-        >
-          <GlowButton onClick={onReset} size="lg">
-            <RotateCcw className="h-4 w-4" />
-            <span>Analyze Another Image</span>
-          </GlowButton>
-        </motion.div>
-      </div>
-    </motion.div>
+          )}
+        </div>
+      </Modal>
+    </>
   );
 }
+
+import DetailCard from "./ui/DetailCard";

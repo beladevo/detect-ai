@@ -46,4 +46,8 @@ next-env.d.ts
 
 benchmark/test-assets
 benchmark/results
+benchmark/logs
 public/models/onnx
+
+# inference logs
+/logs

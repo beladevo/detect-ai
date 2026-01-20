@@ -1,10 +1,17 @@
 import * as ort from "onnxruntime-web";
 import { resolveModelConfig, getModelPath, MODEL_NAME } from "@/src/lib/modelConfigs";
 import { scoreFromConfidence } from "@/src/lib/scoreUtils";
+import type { PipelineResult } from "@/src/lib/pipeline/types";
 
 type DetectionResult = {
   isAI: boolean;
   confidence: number;
+  pipeline?: PipelineResult;
+};
+
+export type AnalysisResult = {
+  score: number;
+  pipeline?: PipelineResult;
 };
 
 type SessionState = {
@@ -26,6 +33,14 @@ const MAX_PIXELS = 4096 * 4096;
 const DEFAULT_SIZE = 224;
 const MEAN = [0.485, 0.456, 0.406];
 const STD = [0.229, 0.224, 0.225];
+
+// Helper to dispatch toast events from non-React code
+function dispatchToast(detail: { title?: string; description: string; variant?: "default" | "success" | "error" | "warning"; duration?: number }) {
+  if (typeof window !== "undefined") {
+    const event = new CustomEvent("dispatch-toast", { detail });
+    window.dispatchEvent(event);
+  }
+}
 
 const sessionCache = new Map<string, Promise<SessionState>>();
 
@@ -282,12 +297,19 @@ export async function detectAI(
 export async function analyzeImageWithWasm(
   file: File,
   modelName?: string
-): Promise<number> {
+): Promise<AnalysisResult> {
   try {
     if (shouldUseApiOnly()) {
-      const apiScore = await analyzeImageWithApi(file);
-      console.info("WASM detector: API-only mode score", { score: apiScore });
-      return apiScore;
+      const apiResult = await analyzeImageWithApi(file);
+      console.info("WASM detector: API-only mode score", { score: apiResult.score });
+      return apiResult;
+    }
+    if (isHeicLike(file)) {
+      console.info("WASM detector: HEIC/HEIF detected, using API fallback", {
+        name: file.name,
+        type: file.type,
+      });
+      return await analyzeImageWithApi(file);
     }
     console.info("WASM detector: analyzing file", {
       name: file.name,
@@ -299,19 +321,17 @@ export async function analyzeImageWithWasm(
     const result = await detectAI(decoded.pixels, decoded.width, decoded.height, 4);
     const score = scoreFromConfidence(result.confidence);
     console.info("WASM detector: score", { score });
-    return score;
+    return { score };
   } catch (error) {
-    //
-    return -1;
     const details = formatWasmError(error);
     console.error("WASM detector: error", details);
     try {
       console.warn("WASM detector: falling back to API", {
         model: MODEL_NAME,
       });
-      const apiScore = await analyzeImageWithApi(file);
-      console.info("WASM detector: API fallback score", { score: apiScore });
-      return apiScore;
+      const apiResult = await analyzeImageWithApi(file);
+      console.info("WASM detector: API fallback score", { score: apiResult.score });
+      return apiResult;
     } catch (fallbackError) {
       const fallbackDetails = formatWasmError(fallbackError);
       console.error("WASM detector: API fallback failed", fallbackDetails);
@@ -329,22 +349,31 @@ export async function detectAIFromEncoded(
   return detectAI(decoded.pixels, decoded.width, decoded.height, 4);
 }
 
+import { env } from "@/src/lib/env";
+
 function shouldUseApiOnly(): boolean {
   if (typeof window === "undefined") return true;
-  const globalFlag = (window as Window & { __USE_API_ONLY__?: boolean }).__USE_API_ONLY__;
-  if (typeof globalFlag === "boolean") return globalFlag;
+  // Allow URL override
   try {
     const params = new URLSearchParams(window.location.search);
     if (params.has("useApi")) {
       return params.get("useApi") !== "0";
     }
   } catch {
-    return false;
+    // ignore
   }
-  return false;
+  
+  return env.USE_API_ONLY;
 }
 
-async function analyzeImageWithApi(file: File): Promise<number> {
+function isHeicLike(file: File): boolean {
+  const type = file.type.toLowerCase();
+  if (type === "image/heic" || type === "image/heif") return true;
+  const name = file.name.toLowerCase();
+  return name.endsWith(".heic") || name.endsWith(".heif");
+}
+
+async function analyzeImageWithApi(file: File): Promise<AnalysisResult> {
   const formData = new FormData();
   formData.append("file", file);
   const response = await fetch("/api/detect", {
@@ -356,7 +385,24 @@ async function analyzeImageWithApi(file: File): Promise<number> {
     throw new Error(`API error ${response.status}: ${text}`);
   }
   const data = await response.json();
-  return data.score;
+  return {
+    score: data.score,
+    pipeline: {
+      hashes: data.hashes,
+      visual: data.modules.visual,
+      metadata: data.modules.metadata,
+      physics: data.modules.physics,
+      frequency: data.modules.frequency,
+      ml: data.modules.ml,
+      provenance: data.modules.provenance,
+      fusion: data.modules.fusion,
+      verdict: {
+        verdict: data.verdict,
+        confidence: data.confidence,
+        explanations: data.explanations,
+      },
+    },
+  };
 }
 
 export async function decodeImageToRgba(
@@ -436,6 +482,19 @@ function formatWasmError(error: unknown): string {
 async function fetchModelBuffer(modelPath: string): Promise<ArrayBuffer> {
   const response = await fetch(modelPath);
   if (!response.ok) {
+    if (response.status === 403) {
+      dispatchToast({
+        title: "Access Forbidden",
+        description: `Unable to load the AI model (403 Forbidden). Please check your network or contact support. URL: ${modelPath}`,
+        variant: "error",
+      });
+    } else {
+      dispatchToast({
+        title: "Model Loading Error",
+        description: `Failed to load AI model: ${response.status} ${response.statusText}`,
+        variant: "error",
+      });
+    }
     throw new Error(`Failed to fetch model: ${response.status} ${modelPath}`);
   }
   const buffer = await response.arrayBuffer();

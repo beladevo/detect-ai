@@ -10,7 +10,17 @@ export type LogPayload = {
 
 const LOG_ENDPOINT = "/api/logs";
 
+import { env } from "@/src/lib/env";
+
 export async function logClientEvent(payload: LogPayload): Promise<void> {
+  // Disable remote logging in development
+  if (env.IS_DEV) {
+    if (payload.level === "Error") {
+        console.error("[DEV LOG]", payload);
+    }
+    return;
+  }
+
   try {
     await fetch(LOG_ENDPOINT, {
       method: "POST",

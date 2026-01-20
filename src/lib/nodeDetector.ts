@@ -2,7 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import * as ort from "onnxruntime-node";
 import sharp from "sharp";
-import { resolveModelConfig, MODEL_NAME } from "@/src/lib/modelConfigs";
+import { resolveModelConfig } from "@/src/lib/modelConfigs";
+import {
+  logInference,
+  createLogEntry,
+  isLoggingEnabled,
+} from "@/src/lib/inferenceLogger";
 
 type DetectionResult = {
   isAI: boolean;
@@ -25,7 +30,6 @@ type InputMetadata = {
 };
 
 const MODEL_RELATIVE_PATH = "public/models/onnx";
-const MAX_PIXELS = 4096 * 4096;
 const DEFAULT_SIZE = 224;
 const MEAN = [0.485, 0.456, 0.406];
 const STD = [0.229, 0.224, 0.225];
@@ -214,9 +218,13 @@ function probabilityFromOutput(output: ort.Tensor, aiIndex = 1): number {
 
 export async function detectAIFromBuffer(
   buffer: Buffer,
-  modelName?: string
+  modelName?: string,
+  fileName?: string
 ): Promise<DetectionResult> {
-  const image = sharp(buffer, { failOn: "none" }).ensureAlpha();
+  const session = await getSession(modelName);
+  const image = sharp(buffer, { failOn: "none" })
+    .ensureAlpha()
+    .resize(session.width, session.height, { fit: "fill" });
   const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
 
   console.debug("Node detector: decoded image", {
@@ -227,12 +235,8 @@ export async function detectAIFromBuffer(
   if (!Number.isFinite(info.width) || !Number.isFinite(info.height)) {
     throw new Error("Invalid image dimensions");
   }
-  if (info.width * info.height > MAX_PIXELS) {
-    throw new Error("Image dimensions out of range");
-  }
 
   const { config } = resolveModelConfig(modelName);
-  const session = await getSession(modelName);
   const tensor = buildInputTensor(
     new Uint8Array(data.buffer, data.byteOffset, data.byteLength),
     info.width,
@@ -242,13 +246,83 @@ export async function detectAIFromBuffer(
     session.height,
     session.layout
   );
+
+  const startTime = performance.now();
   const results = await session.session.run({ [session.inputName]: tensor });
+  const inferenceTimeMs = performance.now() - startTime;
+
   const output = results[session.outputName];
   if (!output) {
     throw new Error("Model output missing");
   }
+
+  // Get raw output for logging
+  const rawData = output.data as Float32Array | number[];
+  const rawValues = Array.from(rawData).map((v) => Number(v));
+
+  // Calculate probabilities for logging
+  let probabilities: number[];
+  if (rawValues.length === 1) {
+    const value = rawValues[0];
+    const prob = value >= 0 && value <= 1 ? value : 1 / (1 + Math.exp(-value));
+    probabilities = [prob];
+  } else {
+    let sum = 0;
+    let inRange = true;
+    for (const v of rawValues) {
+      sum += v;
+      if (v < 0 || v > 1) inRange = false;
+    }
+    if (inRange && Math.abs(sum - 1) < 0.01) {
+      probabilities = rawValues;
+    } else {
+      probabilities = Array.from(softmax(rawValues));
+    }
+  }
+
   const confidence = probabilityFromOutput(output, config.aiIndex);
   const clamped = Math.min(1, Math.max(0, confidence));
-  console.debug("Node detector: output", { confidence: clamped });
+  const score = Math.round(clamped * 100);
+
+  // Always log model output to console for debugging
+  console.log("=== MODEL INFERENCE ===");
+  console.log("File:", fileName || "unknown");
+  console.log("Model:", session.model);
+  console.log("AI Index:", config.aiIndex);
+  console.log("Raw Output:", rawValues);
+  console.log("Probabilities:", probabilities);
+  console.log("Confidence:", clamped);
+  console.log("Score:", score);
+  console.log("Inference Time:", inferenceTimeMs.toFixed(2), "ms");
+  console.log("=======================");
+
+  // Log inference details to file if enabled
+  if (isLoggingEnabled()) {
+    const logEntry = createLogEntry(
+      "node",
+      session.model,
+      fileName,
+      {
+        originalWidth: info.width,
+        originalHeight: info.height,
+        channels: info.channels,
+        targetWidth: session.width,
+        targetHeight: session.height,
+        layout: session.layout,
+        tensorShape: tensor.dims as number[],
+        tensorData: tensor.data as Float32Array,
+      },
+      {
+        rawValues,
+        probabilities,
+        aiIndex: config.aiIndex,
+        confidence: clamped,
+        score,
+      },
+      inferenceTimeMs
+    );
+    logInference(logEntry);
+  }
+
   return { isAI: clamped >= 0.5, confidence: clamped, model: session.model };
 }
