@@ -57,6 +57,16 @@ const METADATA_EXPLANATIONS: Record<string, ExplanationInfo> = {
     description: "The image timestamp is missing or contains an invalid date.",
     severity: "low",
   },
+  generator_in_make_model: {
+    title: "AI Generator in Camera Fields",
+    description: "Camera make/model fields contain AI generator names (e.g., Midjourney, DALL-E, Stable Diffusion).",
+    severity: "high",
+  },
+  incomplete_camera_metadata: {
+    title: "Incomplete Camera Metadata",
+    description: "Camera information present but missing critical capture details like ISO, aperture, or shutter speed.",
+    severity: "medium",
+  },
 };
 
 const PHYSICS_EXPLANATIONS: Record<string, ExplanationInfo> = {

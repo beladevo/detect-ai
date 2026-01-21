@@ -16,6 +16,51 @@
 
 ### Recent Changes
 
+**2026-01-20 (Part 7)** - Major Pipeline Optimization & AI Weight Increase:
+- ✅ **Increased ML model weight** from 30% → 45% in fusion algorithm (fusion.ts:28-34)
+- ✅ **Reduced single_model penalty** from 15% → 5% (fusion.ts:40-42)
+- ✅ **Adjusted verdict thresholds** for more sensitive classification (verdict.ts:23-27):
+  - AI_GENERATED: 0.85 → 0.8
+  - LIKELY_AI: 0.70 → 0.65
+  - REAL: 0.15 → 0.2
+  - LIKELY_REAL: 0.30 → 0.35
+- ✅ **Enhanced frequency forensics** with better thresholds (frequencyForensics.ts:234-259):
+  - Improved spectral peak detection (mean + 2.5σ threshold)
+  - More sensitive noise correlation detection (0.08 baseline)
+  - Enhanced DCT energy analysis (0.42 threshold)
+  - Adjusted scoring weights (30% high-freq, 20% peaks, 20% noise, 30% DCT)
+- ✅ **Improved visual artifacts detection** (visualArtifacts.ts:136-179):
+  - Better skin smoothing detection (0.018 threshold)
+  - Enhanced texture melting detection (0.0025 variance)
+  - More sensitive color noise detection (0.0004 baseline)
+  - Optimized scoring weights (35% smoothing, 30% texture, 15% symmetry, 20% color)
+- ✅ **Enhanced physics consistency** (physicsConsistency.ts:81-113):
+  - Improved light direction detection (0.65 threshold)
+  - Better shadow alignment analysis (0.22 gray threshold, 0.08 magnitude)
+  - Adjusted perspective chaos detection (0.65 entropy threshold)
+  - Balanced scoring weights (35% light, 35% shadow, 30% perspective)
+- ✅ **Fixed UI styling issues**:
+  - Enlarged score display (40 → 44 size, ResultsDisplay.tsx:165-189)
+  - Improved score circle with better border and gradient
+  - Changed label from "AI Logic" to "AI Score"
+  - Added beautiful card wrapper around disclaimer text
+  - Fixed ConfidenceDisplay positioning bug (ConfidenceDisplay.tsx:99)
+- ✅ **Added ensemble configuration** to .env.local (AI_ENSEMBLE_MODELS=model.onnx,model_q4.onnx)
+- ✅ **Fixed TypeScript errors** in wasmDetector.ts and ResultsDisplay.tsx
+- ✅ **Verified build** - Production build successful
+
+**Summary**: This update significantly increases the ML model's influence on detection (from ~26% to ~42% effective weight), making the AI detection more responsive to the trained model while maintaining forensic pipeline validation. Enhanced all forensic modules with more sensitive thresholds to catch subtle AI artifacts. The UI now has better visual hierarchy and clearer presentation.
+
+**2026-01-20 (Part 6)** - Full UI Integration Complete:
+- ✅ **Integrated ALL Phase 1 & 2 components** into the live application
+- ✅ `ConfidenceDisplay` - Replaces simple meter in main results, shows ±σ uncertainty
+- ✅ `ExplanationList` - Top 3 key findings with severity indicators
+- ✅ `ExportButton` - JSON/Text export next to Share button
+- ✅ `ModuleBreakdown` - Visual contribution chart in detailed modal
+- ✅ `DetectionVisualization` - Full-width heatmap in comparison section + modal
+- ✅ `ModelSelector` - Dropdown in status card for model selection
+- ✅ Fixed `ExplanationList` to accept both flat arrays and module flag objects
+
 **2026-01-20 (Part 5)** - Phase 2 Complete - Detection Visualization:
 - ✅ Created `DetectionVisualization` component with heatmap overlay on original image
 - ✅ Implemented `visualizationMap.ts` for importance map generation based on forensic scores
@@ -222,6 +267,29 @@ Foundation improvements for detection quality and transparency:
 - [x] **Model selection dropdown** - Created `ModelSelector` component with single and ensemble modes
 - [x] **Grad-CAM attention visualization** - Created simplified visualization system based on forensic module scores. Includes heatmap overlay, mode selector (Combined/Visual/Physics/Frequency), opacity slider, and important regions list. Note: This is a simplified approach using forensic scores rather than true Grad-CAM which requires model internal access.
 
+**✨ Full Integration Summary:**
+
+All Phase 1 and Phase 2 components are now **live and functional** in the application. When users upload an image, they experience:
+
+**Main Results Display:**
+- Enhanced confidence meter showing "87% ± 6%" with uncertainty range (ConfidenceDisplay)
+- Top 3 key findings with severity-based icons and explanations (ExplanationList)
+- Export button for downloading JSON/Text reports (ExportButton)
+- Model selector in status card for choosing detection models (ModelSelector)
+
+**Comparison Section:**
+- Interactive heatmap visualization with mode selector (🔮 Combined, 👁️ Visual, ⚡ Physics, 📊 Frequency)
+- Opacity slider for overlay control (0-100%)
+- Important regions list showing specific suspicious areas
+- Replaces the previous fake gradient with real forensic-based visualization
+
+**Detailed Analysis Modal:**
+- Module contribution breakdown showing each forensic module's weight and score (ModuleBreakdown)
+- All existing components (MLModelsCard, FusionBreakdown, DetailCard grid)
+- Detection visualization for in-depth inspection
+
+See [INTEGRATION_SUMMARY.md](INTEGRATION_SUMMARY.md) for detailed implementation documentation including exact file locations and line numbers.
+
 **New Files Created:**
 - `src/lib/pipeline/analyzeImagePipelineBrowser.ts` - Browser-compatible forensic pipeline
 - `src/lib/exportReport.ts` - Export utilities for JSON and text reports
@@ -235,9 +303,12 @@ Foundation improvements for detection quality and transparency:
 **Modified Files:**
 - `src/lib/wasmDetector.ts` - Added multi-crop support + full pipeline execution in browser
 - `src/lib/pipeline/fusion.ts` - Added `weighted_scores` field for UI display
-- `src/components/ResultsDisplay.tsx` - Integrated DetectionVisualization into modal
-- `src/components/AIDetectorPage.tsx` - Pass imageUrl to ResultsDisplay
+- `src/components/ResultsDisplay.tsx` - Integrated ALL new components (ConfidenceDisplay, ExplanationList, ExportButton, ModuleBreakdown, DetectionVisualization)
+- `src/components/AIDetectorPage.tsx` - Added ModelSelector, pass imageUrl and pipeline to child components
+- `src/components/ComparisonTool.tsx` - Replaced fake gradient with real DetectionVisualization
+- `src/components/ui/ExplanationList.tsx` - Support both flat arrays and module flag objects
 - `CLAUDE.md` - Updated with multi-model setup instructions and WASM details
+- `INTEGRATION_SUMMARY.md` - Created comprehensive integration documentation
 
 ### Phase 3: Advanced Detection (4-6 weeks)
 

@@ -163,7 +163,7 @@ export default function ResultsDisplay({
 
               {/* Score display */}
               <motion.div
-                className="mt-6 relative"
+                className="mt-6 relative flex justify-center"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
@@ -173,30 +173,34 @@ export default function ResultsDisplay({
                   <motion.div
                     animate={{ rotate: 360, scale: [1, 1.05, 1] }}
                     transition={{ rotate: { duration: 10, repeat: Infinity, ease: "linear" }, scale: { duration: 4, repeat: Infinity, ease: "easeInOut" } }}
-                    className={`h-40 w-40 rounded-full border-2 border-dashed ${current.borderColor} opacity-30`}
+                    className={`h-44 w-44 rounded-full border-2 border-dashed ${current.borderColor} opacity-30`}
                   />
                 </div>
 
-                <div className="relative flex flex-col items-center justify-center h-40 w-40 rounded-full border border-white/10 bg-white/5 backdrop-blur-md shadow-inner">
-                  <div className="flex items-baseline justify-center gap-1">
-                    <span className={`text-6xl font-black font-display bg-gradient-to-r ${current.gradient} bg-clip-text text-transparent`}>
+                <div className="relative flex flex-col items-center justify-center h-44 w-44 rounded-full border-2 border-white/10 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md shadow-2xl">
+                  <div className="flex items-baseline justify-center gap-1.5">
+                    <span className={`text-7xl font-black font-display bg-gradient-to-r ${current.gradient} bg-clip-text text-transparent`}>
                       {displayScore}
                     </span>
-                    <span className="text-2xl font-bold text-gray-400">%</span>
+                    <span className="text-3xl font-bold text-gray-400 -ml-0.5">%</span>
                   </div>
-                  <p className="text-[10px] uppercase tracking-[0.2em] font-medium text-gray-500">AI Logic</p>
+                  <p className="mt-1 text-[11px] uppercase tracking-[0.25em] font-semibold text-gray-400">AI Score</p>
                 </div>
               </motion.div>
 
               {/* Disclaimer */}
-              <motion.p
-                className="mt-4 max-w-sm text-xs text-gray-500"
+              <motion.div
+                className="mt-6 max-w-md mx-auto"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4 }}
               >
-                AI detection can be imperfect, especially with heavily edited, compressed, or blurred content.
-              </motion.p>
+                <div className="rounded-xl border border-white/5 bg-gradient-to-br from-white/5 to-transparent p-4 backdrop-blur-sm">
+                  <p className="text-xs text-center text-gray-400 leading-relaxed">
+                    AI detection can be imperfect, especially with heavily edited, compressed, or blurred content.
+                  </p>
+                </div>
+              </motion.div>
 
               {/* View Details Button (Only if pipeline data is available) */}
               {pipeline && (
@@ -317,7 +321,7 @@ export default function ResultsDisplay({
               </button>
 
               {pipeline && (
-                <ExportButton pipeline={pipeline} variant="secondary" />
+                <ExportButton pipeline={pipeline} />
               )}
             </motion.div>
           </div>

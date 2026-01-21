@@ -109,8 +109,10 @@ export async function preprocessImage(
       height: metadata.height > RESIZE_MAX ? RESIZE_MAX : undefined,
       fit: "inside",
       withoutEnlargement: true,
+      kernel: "lanczos3",
     })
-    .removeAlpha();
+    .removeAlpha()
+    .sharpen({ sigma: 0.5 });
   const { data, info } = await normalized.raw().toBuffer({ resolveWithObject: true });
   const rgb = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
   const gray = toGray(rgb);
@@ -119,12 +121,18 @@ export async function preprocessImage(
   let resizedPipeline = sharp(buffer, { failOn: "none" })
     .ensureAlpha()
     .toColourspace("srgb")
-    .resize(ANALYSIS_SIZE, ANALYSIS_SIZE, { fit: "cover", kernel: resizeKernel });
-    
+    .resize(ANALYSIS_SIZE, ANALYSIS_SIZE, {
+      fit: "cover",
+      kernel: resizeKernel,
+      position: "entropy",
+    });
+
   if (randomize) {
     resizedPipeline = resizedPipeline.blur(0.3);
+  } else {
+    resizedPipeline = resizedPipeline.sharpen({ sigma: 0.5 });
   }
-  
+
   const resizedImage = resizedPipeline.removeAlpha();
   const resized = await resizedImage.raw().toBuffer({ resolveWithObject: true });
   const resizedRgb = new Uint8Array(

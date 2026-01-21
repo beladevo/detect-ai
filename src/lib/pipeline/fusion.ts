@@ -26,11 +26,11 @@ export function fuseEvidence(input: {
 }): FusionResult {
   const { image, visual, metadata, physics, frequency, ml, provenance } = input;
   const weights = {
-    visual: 0.15,
-    metadata: 0.1,
-    physics: 0.2,
-    frequency: 0.25,
-    ml: 0.3,
+    visual: 0.12,
+    metadata: 0.08,
+    physics: 0.15,
+    frequency: 0.2,
+    ml: 0.45,
   };
 
   if (!metadata.exif_present) {
@@ -38,7 +38,7 @@ export function fuseEvidence(input: {
   }
 
   if (ml.flags.includes("single_model")) {
-    weights.ml *= 0.85;
+    weights.ml *= 0.95;
   }
 
   if (image.width < 256 || image.height < 256) {
@@ -75,7 +75,13 @@ export function fuseEvidence(input: {
   const variance =
     scores.reduce((acc, v) => acc + (v - mean) ** 2, 0) / scores.length;
   const spread = Math.sqrt(variance);
-  const contradictionPenalty = clamp01(spread * 0.6);
+
+  const mlDiff = Math.abs(ml.ml_score - mean);
+  const mlConfident = mlDiff < 0.2;
+  const contradictionPenalty = mlConfident
+    ? clamp01(spread * 0.4)
+    : clamp01(spread * 0.5);
+
   let confidence = 0.5 + (weighted - 0.5) * (1 - contradictionPenalty);
 
   if (provenance.c2pa_present && provenance.signature_valid) {

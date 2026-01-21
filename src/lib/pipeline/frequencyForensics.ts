@@ -231,31 +231,31 @@ export function analyzeFrequencyForensics(image: StandardizedImage): FrequencyFo
     values.reduce((acc, v) => acc + (v - mean) * (v - mean), 0) /
     Math.max(1, values.length);
   const std = Math.sqrt(variance);
-  const peakThreshold = mean + 3 * std;
+  const peakThreshold = mean + 2.5 * std; 
   const peakCount = values.filter((v) => v > peakThreshold).length;
-  const peakScore = clamp01(peakCount / Math.max(1, values.length / 50));
-  if (peakScore > 0.6) {
+  const peakScore = clamp01(peakCount / Math.max(1, values.length / 45));
+  if (peakScore > 0.5) {
     flags.push("spectral_peaks");
   }
 
   const residual = laplacianResidual(gray, width, height);
   const noiseCorr = correlation(residual, width, height, 1, 0);
-  const noiseScore = clamp01((noiseCorr - 0.1) / 0.4);
-  if (noiseScore > 0.6) {
+  const noiseScore = clamp01((noiseCorr - 0.08) / 0.35);
+  if (noiseScore > 0.55) {
     flags.push("structured_noise");
   }
 
   const dctEnergyRatio = dctBlockStats(gray, width, height);
-  const dctScore = clamp01((0.45 - dctEnergyRatio) / 0.45);
-  if (dctScore > 0.6) {
+  const dctScore = clamp01((0.42 - dctEnergyRatio) / 0.42);
+  if (dctScore > 0.55) {
     flags.push("low_dct_highfreq_energy");
   }
 
   const frequencyScore = clamp01(
-    0.35 * clamp01((highRatio - 0.15) / 0.35) +
+    0.3 * clamp01((highRatio - 0.12) / 0.32) +
       0.2 * peakScore +
       0.2 * noiseScore +
-      0.25 * dctScore
+      0.3 * dctScore
   );
 
   return {

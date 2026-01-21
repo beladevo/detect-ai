@@ -25,11 +25,11 @@ Image → Preprocessing → [7 Parallel Modules] → Fusion → Verdict → Resu
 ```
 
 **Modules** (in `src/lib/pipeline/`):
-- `visualArtifacts.ts` - Skin smoothing, texture melting, symmetry (15% weight)
-- `metadataForensics.ts` - EXIF analysis, AI generator signatures (10% weight)
-- `physicsConsistency.ts` - Light direction, shadow alignment (20% weight)
-- `frequencyForensics.ts` - FFT spectral analysis, DCT patterns (25% weight)
-- `mlEnsemble.ts` - ONNX model inference (30% weight)
+- `mlEnsemble.ts` - ONNX model inference (45% weight, 42.75% after single_model penalty)
+- `frequencyForensics.ts` - FFT spectral analysis, DCT patterns (20% weight)
+- `physicsConsistency.ts` - Light direction, shadow alignment (15% weight)
+- `visualArtifacts.ts` - Skin smoothing, texture melting, symmetry (12% weight)
+- `metadataForensics.ts` - EXIF analysis, AI generator signatures (8% weight)
 - `provenance.ts` - C2PA digital signature detection
 - `fusion.ts` - Weighted aggregation with contradiction penalty
 - `verdict.ts` - Final classification (AI_GENERATED, LIKELY_AI, UNCERTAIN, LIKELY_REAL, REAL)

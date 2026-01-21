@@ -518,6 +518,7 @@ async function analyzeImageWithApi(file: File): Promise<AnalysisResult> {
       verdict: {
         verdict: data.verdict,
         confidence: data.confidence,
+        uncertainty: data.uncertainty || 0,
         explanations: data.explanations,
       },
     },

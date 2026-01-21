@@ -79,12 +79,12 @@ export function analyzePhysicsConsistency(
   const entropy = histogramEntropy(histogram);
 
   const lightInconsistency = clamp01(1 - coherence);
-  if (lightInconsistency > 0.7) {
+  if (lightInconsistency > 0.65) {
     flags.push("light_direction_inconsistent");
   }
 
   const perspectiveChaos = clamp01(entropy);
-  if (perspectiveChaos > 0.7) {
+  if (perspectiveChaos > 0.65) {
     flags.push("perspective_incoherent");
   }
 
@@ -94,9 +94,9 @@ export function analyzePhysicsConsistency(
     const row = y * width;
     for (let x = 1; x < width - 1; x += 1) {
       const idx = row + x;
-      if (gray[idx] > 0.2) continue;
+      if (gray[idx] > 0.22) continue;
       const mag = Math.hypot(gx[idx], gy[idx]);
-      if (mag < 0.1) continue;
+      if (mag < 0.08) continue;
       const angle = Math.atan2(gy[idx], gx[idx]);
       shadowAlignmentScore += Math.abs(Math.cos(angle));
       shadowCount += 1;
@@ -104,12 +104,12 @@ export function analyzePhysicsConsistency(
   }
   const shadowAlignment = shadowCount > 0 ? shadowAlignmentScore / shadowCount : 0;
   const shadowMisalignment = clamp01(1 - shadowAlignment);
-  if (shadowMisalignment > 0.6) {
+  if (shadowMisalignment > 0.55) {
     flags.push("shadow_misalignment");
   }
 
   const physicsScore = clamp01(
-    0.4 * lightInconsistency + 0.3 * shadowMisalignment + 0.3 * perspectiveChaos
+    0.35 * lightInconsistency + 0.35 * shadowMisalignment + 0.3 * perspectiveChaos
   );
 
   return {

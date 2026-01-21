@@ -96,7 +96,7 @@ export default function ConfidenceDisplay({
         </motion.div>
       )}
 
-      <div className="mt-1 h-2 w-full max-w-xs overflow-hidden rounded-full bg-white/5">
+      <div className="relative mt-1 h-2 w-full max-w-xs overflow-hidden rounded-full bg-white/5">
         {/* Uncertainty range background */}
         {showInterval && uncertainty > 0 && (
           <div

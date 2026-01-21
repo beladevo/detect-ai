@@ -134,23 +134,23 @@ export function analyzeVisualArtifacts(image: StandardizedImage): VisualArtifact
 
   const globalLaplacianVariance = computeLaplacianVariance(gray, width, height);
   const smoothingScore = skinCount > 0
-    ? clamp01((0.015 - skinVariance) / 0.015)
-    : clamp01((0.01 - globalLaplacianVariance) / 0.01);
-  if (smoothingScore > 0.6) {
+    ? clamp01((0.018 - skinVariance) / 0.018)
+    : clamp01((0.012 - globalLaplacianVariance) / 0.012);
+  if (smoothingScore > 0.55) {
     flags.push("skin_smoothing");
   }
 
   const colorNoiseScore = skinCount > 0
-    ? clamp01((skinChrominanceVariance - 0.0005) / 0.002)
+    ? clamp01((skinChrominanceVariance - 0.0004) / 0.0018)
     : 0;
-  if (colorNoiseScore > 0.5) {
+  if (colorNoiseScore > 0.45) {
     flags.push("skin_color_noise");
   }
 
   const variances = blockVariance(gray, width, height, 8);
-  const lowVar = variances.filter((v) => v < 0.002).length;
+  const lowVar = variances.filter((v) => v < 0.0025).length;
   const textureMeltScore = clamp01(lowVar / Math.max(1, variances.length));
-  if (textureMeltScore > 0.5) {
+  if (textureMeltScore > 0.45) {
     flags.push("texture_melting");
   }
 
@@ -166,16 +166,16 @@ export function analyzeVisualArtifacts(image: StandardizedImage): VisualArtifact
     }
   }
   const avgDiff = symmetryCount > 0 ? symmetryDiff / symmetryCount : 1;
-  const symmetryScore = clamp01((0.15 - avgDiff) / 0.15);
-  if (symmetryScore > 0.7) {
+  const symmetryScore = clamp01((0.18 - avgDiff) / 0.18);
+  if (symmetryScore > 0.65) {
     flags.push("high_symmetry");
   }
 
   const visualScore = clamp01(
-    0.3 * smoothingScore +
-      0.25 * textureMeltScore +
-      0.2 * symmetryScore +
-      0.25 * colorNoiseScore
+    0.35 * smoothingScore +
+      0.3 * textureMeltScore +
+      0.15 * symmetryScore +
+      0.2 * colorNoiseScore
   );
 
   return {
