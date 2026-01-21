@@ -24,6 +24,7 @@ export type VisualArtifactsResult = {
   visual_artifacts_score: number;
   flags: string[];
   details: Record<string, number>;
+  disabled?: boolean;
 };
 
 export type MetadataForensicsResult = {
@@ -31,18 +32,21 @@ export type MetadataForensicsResult = {
   exif_present: boolean;
   flags: string[];
   tags: Record<string, string | number | boolean>;
+  disabled?: boolean;
 };
 
 export type PhysicsConsistencyResult = {
   physics_score: number;
   flags: string[];
   details: Record<string, number>;
+  disabled?: boolean;
 };
 
 export type FrequencyForensicsResult = {
   frequency_score: number;
   flags: string[];
   details: Record<string, number>;
+  disabled?: boolean;
 };
 
 export type MlEnsembleResult = {
@@ -54,6 +58,7 @@ export type MlEnsembleResult = {
     variance: number;
     spread: number;
   };
+  disabled?: boolean;
 };
 
 export type ProvenanceResult = {
@@ -62,6 +67,7 @@ export type ProvenanceResult = {
   signature_valid: boolean;
   flags: string[];
   details: Record<string, string | boolean>;
+  disabled?: boolean;
 };
 
 export type FusionResult = {

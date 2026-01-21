@@ -47,8 +47,35 @@ export function fuseEvidence(input: {
     weights.frequency *= 0.7;
   }
 
+  // Handle disabled modules
+  if (visual.disabled) weights.visual = 0;
+  if (metadata.disabled) weights.metadata = 0;
+  if (physics.disabled) weights.physics = 0;
+  if (frequency.disabled) weights.frequency = 0;
+  if (ml.disabled) weights.ml = 0;
+
   const weightSum =
     weights.visual + weights.metadata + weights.physics + weights.frequency + weights.ml;
+  
+  // If no modules are enabled, avoid division by zero
+  if (weightSum === 0) {
+    return {
+      confidence: 0.5,
+      weights: { visual: 0, metadata: 0, physics: 0, frequency: 0, ml: 0 },
+      raw_weights: weights,
+      contradiction_penalty: 0,
+      uncertainty: 0,
+      weighted_scores: { visual: 0, metadata: 0, physics: 0, frequency: 0, ml: 0 },
+      module_scores: {
+        visual: visual.visual_artifacts_score,
+        metadata: metadata.metadata_score,
+        physics: physics.physics_score,
+        frequency: frequency.frequency_score,
+        ml: ml.ml_score,
+      },
+    };
+  }
+
   const normalized = {
     visual: weights.visual / weightSum,
     metadata: weights.metadata / weightSum,
