@@ -1,18 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Space_Grotesk, Syne } from "next/font/google";
+import { Bricolage_Grotesque, IBM_Plex_Sans } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import HotjarProvider from "@/src/components/HotjarProvider";
 import ClientLogger from "@/src/components/ClientLogger";
+import { ToastProvider } from "@/src/context/ToastContext";
+import { AuthProvider } from "@/src/context/AuthContext";
+import { ThemeProvider } from "@/src/components/ThemeProvider";
 
-const displayFont = Syne({
+const displayFont = Bricolage_Grotesque({
   variable: "--font-display",
   subsets: ["latin"],
+  weight: ["200", "300", "400", "500", "600", "700", "800"],
 });
 
-const bodyFont = Space_Grotesk({
+const bodyFont = IBM_Plex_Sans({
   variable: "--font-body",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://imagion.vercel.app";
@@ -126,7 +131,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -147,10 +152,19 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className={`${displayFont.variable} ${bodyFont.variable} antialiased`}>
-        <HotjarProvider />
-        <ClientLogger />
-        {children}
+      <body
+        className={`${displayFont.variable} ${bodyFont.variable} antialiased`}
+        suppressHydrationWarning
+      >
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <AuthProvider>
+            <ToastProvider>
+              <HotjarProvider />
+              <ClientLogger />
+              {children}
+            </ToastProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

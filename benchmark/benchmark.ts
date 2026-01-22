@@ -7,6 +7,8 @@
  *   npx tsx benchmark/benchmark.ts
  *   npx tsx benchmark/benchmark.ts --models model_q4.onnx,nyuad.onnx
  *   npx tsx benchmark/benchmark.ts --threshold 60
+ *   npx tsx benchmark/benchmark.ts --verbose  # Enable detailed logging
+ *   npx tsx benchmark/benchmark.ts --show-misses  # Show misclassified image paths
  */
 
 import fs from "node:fs";
@@ -77,6 +79,7 @@ type InputMetadata = {
 const BENCHMARK_DIR = path.join(process.cwd(), "benchmark");
 const TEST_ASSETS_DIR = path.join(BENCHMARK_DIR, "test-assets");
 const RESULTS_DIR = path.join(BENCHMARK_DIR, "results");
+const LOGS_DIR = path.join(BENCHMARK_DIR, "logs");
 const MODELS_DIR = path.join(process.cwd(), "public", "models", "onnx");
 
 const DEFAULT_SIZE = 224;
@@ -88,18 +91,109 @@ const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"];
 
 // Model-specific AI index configuration (which output index represents AI)
 const MODEL_AI_INDEX: Record<string, number> = {
-  "model_q4.onnx": 0,
-  // Default for others is 1
+  // 2-class models: [AI, Real] - AI at index 0
+  "sdxl-detector.onnx": 0,
+  "model.onnx": 0,
+
+  // 2-class models: [Real, AI] - AI at index 1
+  "model_q4.onnx": 1,
+
+  // 3-class models: [class0, AI, class2] - AI at index 1
+  "nyuad.onnx": 1,
+  "smogy.onnx": 1,
 };
+
+// Models to skip (embedding models, not classifiers)
+const SKIP_MODELS: string[] = [
+  "e5-small-lora-ai.onnx", // Embedding model with 768 outputs, not a classifier
+];
+
+// Default AI index for unconfigured models
+const DEFAULT_AI_INDEX = 0;
+
+// ============================================================================
+// Logger Class
+// ============================================================================
+
+type InferenceLogEntry = {
+  timestamp: string;
+  model: string;
+  file: string;
+  input: {
+    originalWidth: number;
+    originalHeight: number;
+    channels: number;
+    targetWidth: number;
+    targetHeight: number;
+    layout: "NCHW" | "NHWC";
+    tensorShape: number[];
+    // Sample of normalized pixel values (first 10 values)
+    tensorSample: number[];
+  };
+  output: {
+    rawValues: number[];
+    probabilities: number[];
+    aiIndex: number;
+    confidence: number;
+    score: number;
+  };
+  inferenceTimeMs: number;
+};
+
+class BenchmarkLogger {
+  private logFile: string;
+  private stream: fs.WriteStream | null = null;
+  private enabled: boolean;
+
+  constructor(enabled: boolean) {
+    this.enabled = enabled;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    this.logFile = path.join(LOGS_DIR, `benchmark-log-${timestamp}.jsonl`);
+  }
+
+  init() {
+    if (!this.enabled) return;
+
+    // Ensure logs directory exists
+    if (!fs.existsSync(LOGS_DIR)) {
+      fs.mkdirSync(LOGS_DIR, { recursive: true });
+    }
+
+    this.stream = fs.createWriteStream(this.logFile, { flags: "a" });
+    console.log(`Detailed logging enabled: ${this.logFile}\n`);
+  }
+
+  log(entry: InferenceLogEntry) {
+    if (!this.enabled || !this.stream) return;
+    this.stream.write(JSON.stringify(entry) + "\n");
+  }
+
+  close() {
+    if (this.stream) {
+      this.stream.end();
+    }
+  }
+
+  getLogFile(): string | null {
+    return this.enabled ? this.logFile : null;
+  }
+}
 
 // ============================================================================
 // CLI Argument Parsing
 // ============================================================================
 
-function parseArgs(): { models: string[]; threshold: number } {
+function parseArgs(): {
+  models: string[];
+  threshold: number;
+  verbose: boolean;
+  showMisses: boolean;
+} {
   const args = process.argv.slice(2);
   let models: string[] = [];
   let threshold = 50;
+  let verbose = false;
+  let showMisses = false;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--models" && args[i + 1]) {
@@ -108,10 +202,14 @@ function parseArgs(): { models: string[]; threshold: number } {
     } else if (args[i] === "--threshold" && args[i + 1]) {
       threshold = parseInt(args[i + 1], 10);
       i++;
+    } else if (args[i] === "--verbose" || args[i] === "-v") {
+      verbose = true;
+    } else if (args[i] === "--show-misses") {
+      showMisses = true;
     }
   }
 
-  return { models, threshold };
+  return { models, threshold, verbose, showMisses };
 }
 
 // ============================================================================
@@ -131,9 +229,14 @@ function discoverModels(specificModels: string[]): string[] {
     });
   }
 
-  // Auto-discover all .onnx files (exclude .data files)
+  // Auto-discover all .onnx files (exclude .data files and skip models)
   const files = fs.readdirSync(MODELS_DIR);
-  return files.filter((f) => f.endsWith(".onnx") && !f.endsWith(".onnx.data"));
+  return files.filter(
+    (f) =>
+      f.endsWith(".onnx") &&
+      !f.endsWith(".onnx.data") &&
+      !SKIP_MODELS.includes(f)
+  );
 }
 
 function discoverTestImages(): { real: string[]; fake: string[] } {
@@ -279,35 +382,17 @@ function softmax(values: Float32Array | number[]): Float32Array {
   return out;
 }
 
-function probabilityFromOutput(output: ort.Tensor, aiIndex: number): number {
-  const data = output.data as Float32Array | number[];
-  if (!data || data.length === 0) {
-    throw new Error("Model returned no data");
-  }
-  if (data.length === 1) {
-    const value = data[0];
-    if (value >= 0 && value <= 1) {
-      return value;
-    }
-    return 1 / (1 + Math.exp(-value));
-  }
-  let sum = 0;
-  let inRange = true;
-  for (const v of data) {
-    sum += v;
-    if (v < 0 || v > 1) inRange = false;
-  }
-  const probs =
-    inRange && Math.abs(sum - 1) < 0.01 ? new Float32Array(data) : softmax(data);
-  const index = probs.length > 1 ? aiIndex : 0;
-  return probs[index];
-}
+type InferenceResult = {
+  score: number;
+  timeMs: number;
+  logEntry: Omit<InferenceLogEntry, "timestamp" | "model" | "file">;
+};
 
 async function runInference(
   session: SessionState,
   imagePath: string,
   aiIndex: number
-): Promise<{ score: number; timeMs: number }> {
+): Promise<InferenceResult> {
   const buffer = fs.readFileSync(imagePath);
   const image = sharp(buffer, { failOn: "none" }).ensureAlpha();
   const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
@@ -329,16 +414,69 @@ async function runInference(
   const startTime = performance.now();
   const results = await session.session.run({ [session.inputName]: tensor });
   const endTime = performance.now();
+  const inferenceTimeMs = endTime - startTime;
 
   const output = results[session.outputName];
   if (!output) {
     throw new Error("Model output missing");
   }
 
-  const confidence = probabilityFromOutput(output, aiIndex);
+  // Get raw output values
+  const rawData = output.data as Float32Array | number[];
+  const rawValues = Array.from(rawData).map((v) => Number(v));
+
+  // Calculate probabilities
+  let probabilities: number[];
+  if (rawValues.length === 1) {
+    const value = rawValues[0];
+    const prob = value >= 0 && value <= 1 ? value : 1 / (1 + Math.exp(-value));
+    probabilities = [prob];
+  } else {
+    let sum = 0;
+    let inRange = true;
+    for (const v of rawValues) {
+      sum += v;
+      if (v < 0 || v > 1) inRange = false;
+    }
+    if (inRange && Math.abs(sum - 1) < 0.01) {
+      probabilities = rawValues;
+    } else {
+      const softmaxProbs = softmax(rawValues);
+      probabilities = Array.from(softmaxProbs);
+    }
+  }
+
+  const confidence = probabilities.length > 1 ? probabilities[aiIndex] : probabilities[0];
   const score = Math.round(Math.min(1, Math.max(0, confidence)) * 100);
 
-  return { score, timeMs: endTime - startTime };
+  // Get tensor sample (first 10 values)
+  const tensorData = tensor.data as Float32Array;
+  const tensorSample = Array.from(tensorData.slice(0, 10)).map((v) => Number(v.toFixed(6)));
+
+  return {
+    score,
+    timeMs: inferenceTimeMs,
+    logEntry: {
+      input: {
+        originalWidth: info.width,
+        originalHeight: info.height,
+        channels: info.channels,
+        targetWidth: session.width,
+        targetHeight: session.height,
+        layout: session.layout,
+        tensorShape: tensor.dims as number[],
+        tensorSample,
+      },
+      output: {
+        rawValues: rawValues.map((v) => Number(v.toFixed(6))),
+        probabilities: probabilities.map((v) => Number(v.toFixed(6))),
+        aiIndex,
+        confidence: Number(confidence.toFixed(6)),
+        score,
+      },
+      inferenceTimeMs: Number(inferenceTimeMs.toFixed(2)),
+    },
+  };
 }
 
 // ============================================================================
@@ -415,7 +553,10 @@ function printProgress(current: number, total: number, width = 40) {
   const percent = current / total;
   const filled = Math.round(width * percent);
   const bar = "█".repeat(filled) + "░".repeat(width - filled);
-  process.stdout.write(`\rProgress: [${bar}] ${current}/${total}`);
+  // Skip progress bar during build
+  if (typeof process !== 'undefined' && process.stdout && 'write' in process.stdout) {
+    (process.stdout as any).write(`\rProgress: [${bar}] ${current}/${total}`);
+  }
   if (current === total) {
     console.log("");
   }
@@ -439,6 +580,22 @@ function printModelResults(result: ModelResult) {
   console.log(
     `  Actual Fake │ ${result.confusion.falseNegative.toString().padStart(5)}  │ ${result.confusion.truePositive.toString().padStart(5)}`
   );
+}
+
+function printMisclassified(result: ModelResult) {
+  const misses = result.perImageResults.filter((r) => !r.correct);
+  console.log("");
+  console.log("  Misclassified images:");
+  if (misses.length === 0) {
+    console.log("  - None");
+    return;
+  }
+
+  for (const miss of misses) {
+    console.log(
+      `  - ${miss.file} (expected ${miss.expected}, predicted ${miss.predicted}, score ${miss.score}%)`
+    );
+  }
 }
 
 function printFinalRanking(models: ModelResult[]) {
@@ -466,7 +623,11 @@ function printFinalRanking(models: ModelResult[]) {
 // ============================================================================
 
 async function runBenchmark() {
-  const { models: specifiedModels, threshold } = parseArgs();
+  const { models: specifiedModels, threshold, verbose, showMisses } = parseArgs();
+
+  // Initialize logger
+  const logger = new BenchmarkLogger(verbose);
+  logger.init();
 
   // Discover models
   const models = discoverModels(specifiedModels);
@@ -506,22 +667,30 @@ async function runBenchmark() {
       continue;
     }
 
-    const aiIndex = MODEL_AI_INDEX[modelName] ?? 1;
+    const aiIndex = MODEL_AI_INDEX[modelName] ?? DEFAULT_AI_INDEX;
     const imageResults: ImageResult[] = [];
     let processed = 0;
 
     // Process real images
     for (const imagePath of testImages.real) {
       try {
-        const { score, timeMs } = await runInference(session, imagePath, aiIndex);
+        const { score, timeMs, logEntry } = await runInference(session, imagePath, aiIndex);
         const predicted = score >= threshold ? "fake" : "real";
+        const relPath = path.relative(TEST_ASSETS_DIR, imagePath);
         imageResults.push({
-          file: path.relative(TEST_ASSETS_DIR, imagePath),
+          file: relPath,
           expected: "real",
           predicted,
           score,
           timeMs,
           correct: predicted === "real",
+        });
+        // Log detailed inference data
+        logger.log({
+          timestamp: new Date().toISOString(),
+          model: modelName,
+          file: relPath,
+          ...logEntry,
         });
       } catch (err) {
         console.error(`\n  Error processing ${imagePath}: ${err}`);
@@ -533,15 +702,23 @@ async function runBenchmark() {
     // Process fake images
     for (const imagePath of testImages.fake) {
       try {
-        const { score, timeMs } = await runInference(session, imagePath, aiIndex);
+        const { score, timeMs, logEntry } = await runInference(session, imagePath, aiIndex);
         const predicted = score >= threshold ? "fake" : "real";
+        const relPath = path.relative(TEST_ASSETS_DIR, imagePath);
         imageResults.push({
-          file: path.relative(TEST_ASSETS_DIR, imagePath),
+          file: relPath,
           expected: "fake",
           predicted,
           score,
           timeMs,
           correct: predicted === "fake",
+        });
+        // Log detailed inference data
+        logger.log({
+          timestamp: new Date().toISOString(),
+          model: modelName,
+          file: relPath,
+          ...logEntry,
         });
       } catch (err) {
         console.error(`\n  Error processing ${imagePath}: ${err}`);
@@ -560,6 +737,9 @@ async function runBenchmark() {
 
     allResults.push(modelResult);
     printModelResults(modelResult);
+    if (showMisses) {
+      printMisclassified(modelResult);
+    }
   }
 
   // Final ranking
@@ -583,6 +763,13 @@ async function runBenchmark() {
 
   fs.writeFileSync(outputPath, JSON.stringify(output, null, 2));
   console.log(`Results saved to: ${outputPath}`);
+
+  // Close logger and output log file path
+  logger.close();
+  const logFile = logger.getLogFile();
+  if (logFile) {
+    console.log(`Detailed logs saved to: ${logFile}`);
+  }
 }
 
 // ============================================================================

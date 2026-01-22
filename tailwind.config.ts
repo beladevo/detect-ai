@@ -5,10 +5,11 @@ const config = {
       colors: {
         brand: {
           dark: "#05070a",
-          purple: "#8b5cf6",
-          pink: "#ec4899",
+          purple: "#ff7a3d",
+          pink: "#f1b75d",
           cobalt: "#0b1220",
-          mint: "#7cf9c9",
+          mint: "#a4e8cf",
+          cyan: "#2bb6ad",
         },
       },
       fontFamily: {
@@ -26,7 +27,7 @@ const config = {
         },
       },
       boxShadow: {
-        "glow-purple": "0 0 40px rgba(139, 92, 246, 0.25)",
+        "glow-purple": "0 0 40px rgba(255, 122, 61, 0.25)",
       },
     },
   },

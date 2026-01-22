@@ -1,10 +1,21 @@
 import * as ort from "onnxruntime-web";
-import { resolveModelConfig, getModelPath, MODEL_NAME } from "@/src/lib/modelConfigs";
+import { resolveModelConfig, getModelPathFor, MODEL_NAME } from "@/src/lib/modelConfigs";
 import { scoreFromConfidence } from "@/src/lib/scoreUtils";
+import type { PipelineResult } from "@/src/lib/pipeline/types";
+import { getVerdictPresentation } from "@/src/lib/verdictUi";
+import type { VerdictPresentation } from "@/src/lib/verdictUi";
+import { analyzeImagePipelineBrowser } from "@/src/lib/pipeline/analyzeImagePipelineBrowser";
 
 type DetectionResult = {
   isAI: boolean;
   confidence: number;
+  pipeline?: PipelineResult;
+};
+
+export type AnalysisResult = {
+  score: number;
+  pipeline?: PipelineResult;
+  presentation?: VerdictPresentation;
 };
 
 type SessionState = {
@@ -20,18 +31,26 @@ type InputMetadata = {
   dimensions?: Array<number | string | null>;
 };
 
-const MODEL_PATHS = [getModelPath()];
 const ORT_WASM_PATH = "/onnxruntime/";
 const MAX_PIXELS = 4096 * 4096;
 const DEFAULT_SIZE = 224;
 const MEAN = [0.485, 0.456, 0.406];
 const STD = [0.229, 0.224, 0.225];
 
+// Helper to dispatch toast events from non-React code
+function dispatchToast(detail: { title?: string; description: string; variant?: "default" | "success" | "error" | "warning"; duration?: number }) {
+  if (typeof window !== "undefined") {
+    const event = new CustomEvent("dispatch-toast", { detail });
+    window.dispatchEvent(event);
+  }
+}
+
 const sessionCache = new Map<string, Promise<SessionState>>();
 
 
-async function getSession(): Promise<SessionState> {
-  const cacheKey = "default";
+async function getSession(modelName?: string): Promise<SessionState> {
+  const { name } = resolveModelConfig(modelName);
+  const cacheKey = name;
   if (!sessionCache.has(cacheKey)) {
     const sessionPromise = (async () => {
       ort.env.wasm.wasmPaths = ORT_WASM_PATH;
@@ -44,7 +63,7 @@ async function getSession(): Promise<SessionState> {
         threads: cpuThreads,
       });
 
-      const modelPaths = MODEL_PATHS;
+      const modelPaths = [getModelPathFor(name)];
       let lastError: unknown = null;
       for (const modelPath of modelPaths) {
         const executionProviders: Array<"wasm"> = ["wasm"];
@@ -79,7 +98,7 @@ async function getSession(): Promise<SessionState> {
             const { layout, width, height } = resolveInputShape(metadata);
 
             console.info("WASM detector: model ready", {
-              modelName: MODEL_NAME,
+              modelName: name,
               modelPath,
               executionProviders,
               simd: attempt.simd,
@@ -239,6 +258,34 @@ function probabilityFromOutput(output: ort.Tensor, aiIndex = 1): number {
   return probs[index];
 }
 
+/**
+ * Extract crop from image
+ */
+function extractCrop(
+  image: Uint8Array,
+  width: number,
+  height: number,
+  channels: number,
+  x: number,
+  y: number,
+  cropWidth: number,
+  cropHeight: number
+): Uint8Array {
+  const crop = new Uint8Array(cropWidth * cropHeight * channels);
+  for (let cy = 0; cy < cropHeight; cy++) {
+    const srcY = Math.min(height - 1, y + cy);
+    for (let cx = 0; cx < cropWidth; cx++) {
+      const srcX = Math.min(width - 1, x + cx);
+      const srcIdx = (srcY * width + srcX) * channels;
+      const dstIdx = (cy * cropWidth + cx) * channels;
+      for (let c = 0; c < channels; c++) {
+        crop[dstIdx + c] = image[srcIdx + c];
+      }
+    }
+  }
+  return crop;
+}
+
 export async function detectAI(
   image: Uint8Array,
   width: number,
@@ -257,8 +304,81 @@ export async function detectAI(
     throw new Error("Channels must be 3 (RGB) or 4 (RGBA)");
   }
 
-  const { config } = resolveModelConfig();
-  const session = await getSession();
+  const { config } = resolveModelConfig(modelName);
+  const session = await getSession(modelName);
+
+  // Multi-crop analysis for large images (matching server-side nodeDetector.ts)
+  const MIN_CROP_SIZE = 512;
+  const useCrops = width >= MIN_CROP_SIZE && height >= MIN_CROP_SIZE;
+
+  if (useCrops) {
+    const cropSize = 448;
+    const crops: Array<{ x: number; y: number; weight: number }> = [
+      // Center crop (higher weight)
+      {
+        x: Math.floor((width - cropSize) / 2),
+        y: Math.floor((height - cropSize) / 2),
+        weight: 2,
+      },
+      // Corner crops
+      { x: 0, y: 0, weight: 1 },
+      { x: width - cropSize, y: 0, weight: 1 },
+      { x: 0, y: height - cropSize, weight: 1 },
+      { x: width - cropSize, y: height - cropSize, weight: 1 },
+    ];
+
+    let totalWeight = 0;
+    let weightedSum = 0;
+
+    console.debug("WASM detector: multi-crop analysis", { numCrops: crops.length });
+
+    for (const crop of crops) {
+      const cropData = extractCrop(
+        image,
+        width,
+        height,
+        channels,
+        crop.x,
+        crop.y,
+        cropSize,
+        cropSize
+      );
+
+      const tensor = buildInputTensor(
+        cropData,
+        cropSize,
+        cropSize,
+        channels,
+        session.width,
+        session.height,
+        session.layout
+      );
+
+      const results = await session.session.run({ [session.inputName]: tensor });
+      const output = results[session.outputName];
+      if (!output) {
+        throw new Error("Model output missing");
+      }
+
+      const confidence = probabilityFromOutput(output, config.aiIndex);
+      weightedSum += confidence * crop.weight;
+      totalWeight += crop.weight;
+
+      console.debug("WASM detector: crop result", {
+        x: crop.x,
+        y: crop.y,
+        weight: crop.weight,
+        confidence,
+      });
+    }
+
+    const finalConfidence = weightedSum / totalWeight;
+    const clamped = Math.min(1, Math.max(0, finalConfidence));
+    console.debug("WASM detector: multi-crop output", { confidence: clamped });
+    return { isAI: clamped >= 0.5, confidence: clamped };
+  }
+
+  // Single inference for small images
   const tensor = buildInputTensor(
     image,
     width,
@@ -275,43 +395,67 @@ export async function detectAI(
   }
   const confidence = probabilityFromOutput(output, config.aiIndex);
   const clamped = Math.min(1, Math.max(0, confidence));
-  console.debug("WASM detector: output", { confidence: clamped });
+  console.debug("WASM detector: single-crop output", { confidence: clamped });
   return { isAI: clamped >= 0.5, confidence: clamped };
 }
 
 export async function analyzeImageWithWasm(
   file: File,
   modelName?: string
-): Promise<number> {
+): Promise<AnalysisResult> {
   try {
     if (shouldUseApiOnly()) {
-      const apiScore = await analyzeImageWithApi(file);
-      console.info("WASM detector: API-only mode score", { score: apiScore });
-      return apiScore;
+      const apiResult = await analyzeImageWithApi(file, modelName);
+      console.info("WASM detector: API-only mode score", { score: apiResult.score });
+      return apiResult;
+    }
+    if (isHeicLike(file)) {
+      console.info("WASM detector: HEIC/HEIF detected, using API fallback", {
+        name: file.name,
+        type: file.type,
+      });
+      return await analyzeImageWithApi(file, modelName);
     }
     console.info("WASM detector: analyzing file", {
       name: file.name,
       size: file.size,
       type: file.type,
-      model: MODEL_NAME,
+      model: modelName || MODEL_NAME,
     });
     const decoded = await decodeImageToRgba(file);
-    const result = await detectAI(decoded.pixels, decoded.width, decoded.height, 4);
-    const score = scoreFromConfidence(result.confidence);
-    console.info("WASM detector: score", { score });
-    return score;
+    const result = await detectAI(decoded.pixels, decoded.width, decoded.height, 4, modelName);
+    const fileBytes = new Uint8Array(await file.arrayBuffer());
+
+    // Run full pipeline analysis in browser
+    console.info("WASM detector: running forensic pipeline");
+    const pipeline = await analyzeImagePipelineBrowser(
+      decoded.pixels,
+      decoded.width,
+      decoded.height,
+      result.confidence,
+      modelName,
+      fileBytes
+    );
+
+    const score = scoreFromConfidence(pipeline.verdict.confidence);
+    console.info("WASM detector: analysis complete", {
+      score,
+      mlScore: result.confidence,
+      finalConfidence: pipeline.verdict.confidence,
+      uncertainty: pipeline.verdict.uncertainty,
+    });
+
+    return { score, pipeline, presentation: getVerdictPresentation(pipeline.verdict.verdict) };
   } catch (error) {
-    //
-    return -1;
     const details = formatWasmError(error);
     console.error("WASM detector: error", details);
     try {
       console.warn("WASM detector: falling back to API", {
         model: MODEL_NAME,
       });
-      const apiScore = await analyzeImageWithApi(file);
-      console.info("WASM detector: API fallback score", { score: apiScore });
-      return apiScore;
+      const apiResult = await analyzeImageWithApi(file, modelName);
+      console.info("WASM detector: API fallback score", { score: apiResult.score });
+      return apiResult;
     } catch (fallbackError) {
       const fallbackDetails = formatWasmError(fallbackError);
       console.error("WASM detector: API fallback failed", fallbackDetails);
@@ -321,32 +465,45 @@ export async function analyzeImageWithWasm(
 }
 
 export async function detectAIFromEncoded(
-  bytes: Uint8Array
+  bytes: Uint8Array,
+  modelName?: string
 ): Promise<DetectionResult> {
   const safeBytes = new Uint8Array(bytes);
   const blob = new Blob([safeBytes]);
   const decoded = await decodeImageToRgba(blob);
-  return detectAI(decoded.pixels, decoded.width, decoded.height, 4);
+  return detectAI(decoded.pixels, decoded.width, decoded.height, 4, modelName);
 }
+
+import { env } from "@/src/lib/env";
 
 function shouldUseApiOnly(): boolean {
   if (typeof window === "undefined") return true;
-  const globalFlag = (window as Window & { __USE_API_ONLY__?: boolean }).__USE_API_ONLY__;
-  if (typeof globalFlag === "boolean") return globalFlag;
+  // Allow URL override
   try {
     const params = new URLSearchParams(window.location.search);
     if (params.has("useApi")) {
       return params.get("useApi") !== "0";
     }
   } catch {
-    return false;
+    // ignore
   }
-  return false;
+  
+  return env.USE_API_ONLY;
 }
 
-async function analyzeImageWithApi(file: File): Promise<number> {
+function isHeicLike(file: File): boolean {
+  const type = file.type.toLowerCase();
+  if (type === "image/heic" || type === "image/heif") return true;
+  const name = file.name.toLowerCase();
+  return name.endsWith(".heic") || name.endsWith(".heif");
+}
+
+async function analyzeImageWithApi(file: File, modelName?: string): Promise<AnalysisResult> {
   const formData = new FormData();
   formData.append("file", file);
+  if (modelName) {
+    formData.append("model", modelName);
+  }
   const response = await fetch("/api/detect", {
     method: "POST",
     body: formData,
@@ -356,7 +513,26 @@ async function analyzeImageWithApi(file: File): Promise<number> {
     throw new Error(`API error ${response.status}: ${text}`);
   }
   const data = await response.json();
-  return data.score;
+  return {
+    score: data.score,
+    pipeline: {
+      hashes: data.hashes,
+      visual: data.modules.visual,
+      metadata: data.modules.metadata,
+      physics: data.modules.physics,
+      frequency: data.modules.frequency,
+      ml: data.modules.ml,
+      provenance: data.modules.provenance,
+      fusion: data.modules.fusion,
+      verdict: {
+        verdict: data.verdict,
+        confidence: data.confidence,
+        uncertainty: data.uncertainty || 0,
+        explanations: data.explanations,
+      },
+    },
+    presentation: data.presentation ?? getVerdictPresentation(data.verdict),
+  };
 }
 
 export async function decodeImageToRgba(
@@ -436,6 +612,19 @@ function formatWasmError(error: unknown): string {
 async function fetchModelBuffer(modelPath: string): Promise<ArrayBuffer> {
   const response = await fetch(modelPath);
   if (!response.ok) {
+    if (response.status === 403) {
+      dispatchToast({
+        title: "Access Forbidden",
+        description: `Unable to load the AI model (403 Forbidden). Please check your network or contact support. URL: ${modelPath}`,
+        variant: "error",
+      });
+    } else {
+      dispatchToast({
+        title: "Model Loading Error",
+        description: `Failed to load AI model: ${response.status} ${response.statusText}`,
+        variant: "error",
+      });
+    }
     throw new Error(`Failed to fetch model: ${response.status} ${modelPath}`);
   }
   const buffer = await response.arrayBuffer();

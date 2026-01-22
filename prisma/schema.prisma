@@ -1,0 +1,163 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserTier {
+  FREE
+  PREMIUM
+  ENTERPRISE
+}
+
+enum DetectionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  name          String?
+  tier          UserTier  @default(FREE)
+
+  // Email verification
+  emailVerified Boolean   @default(false)
+  emailVerifyToken String? @unique
+
+  // Password reset
+  passwordResetToken   String?   @unique
+  passwordResetExpires DateTime?
+
+  // Stripe integration
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
+  stripePriceId        String?
+  stripeCurrentPeriodEnd DateTime?
+
+  // API access
+  apiKey        String?   @unique
+  apiKeyEnabled Boolean   @default(false)
+
+  // Usage tracking
+  monthlyDetections Int   @default(0)
+  totalDetections   Int   @default(0)
+  lastDetectionAt   DateTime?
+
+  // Metadata
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+
+  // Relations
+  detections    Detection[]
+  usageLogs     UsageLog[]
+  refreshTokens RefreshToken[]
+
+  @@index([email])
+  @@index([apiKey])
+  @@index([stripeCustomerId])
+  @@index([emailVerifyToken])
+  @@index([passwordResetToken])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Detection {
+  id          String          @id @default(uuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Image data
+  fileName    String
+  fileSize    Int
+  fileHash    String          // SHA256
+  blobUrl     String?         // Vercel Blob storage
+
+  // Results
+  score       Float
+  verdict     String
+  confidence  Float
+
+  // Pipeline results (JSONB)
+  pipelineData Json?          // Full pipeline result
+
+  // Metadata
+  status      DetectionStatus @default(PENDING)
+  processingTime Int?         // milliseconds
+  modelUsed   String
+
+  createdAt   DateTime        @default(now())
+
+  @@index([userId, createdAt])
+  @@index([fileHash])
+}
+
+model UsageLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // API tracking
+  endpoint    String
+  method      String
+  statusCode  Int
+
+  // Rate limiting
+  ipAddress   String?
+  userAgent   String?
+
+  // Billing
+  credited    Boolean  @default(false) // Was this billed?
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([ipAddress, createdAt])
+}
+
+model FeatureFlag {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  enabled     Boolean  @default(false)
+  description String?
+
+  // Tier-specific overrides
+  freeEnabled      Boolean @default(false)
+  premiumEnabled   Boolean @default(true)
+  enterpriseEnabled Boolean @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([key])
+}
+
+model Waitlist {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  source    String   @default("unknown")
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([createdAt])
+}

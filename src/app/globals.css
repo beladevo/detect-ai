@@ -1,17 +1,37 @@
 @import "tailwindcss";
 
-:root {
-  --background: #030506;
-  --foreground: #f5f6ff;
-  --panel: rgba(13, 17, 23, 0.78);
-  --panel-border: rgba(255, 255, 255, 0.08);
-}
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-border: var(--border);
   --font-sans: var(--font-body);
   --font-display: var(--font-display);
+}
+
+:root {
+  --background: #f7f3ee;
+  --foreground: #141313;
+  --card: rgba(255, 255, 255, 0.7);
+  --border: rgba(20, 19, 19, 0.08);
+  --panel: rgba(255, 255, 255, 0.86);
+  --panel-border: rgba(20, 19, 19, 0.08);
+
+  --brand-purple: #ff7a3d;
+  --brand-pink: #f1b75d;
+  --brand-cyan: #2bb6ad;
+  --brand-mint: #a4e8cf;
+  --brand-purple-glow: rgba(255, 122, 61, 0.7);
+}
+
+.dark {
+  --background: #0b0f12;
+  --foreground: #f6f2ec;
+  --card: rgba(16, 20, 24, 0.55);
+  --border: rgba(255, 255, 255, 0.08);
+  --panel: rgba(18, 22, 26, 0.78);
+  --panel-border: rgba(255, 255, 255, 0.08);
+  --brand-purple-glow: rgba(255, 122, 61, 0.55);
 }
 
 /* Base body styles */
@@ -20,8 +40,10 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-body), sans-serif;
+  line-height: 1.6;
   overflow-x: hidden;
 }
+
 
 /* Aurora background effect */
 body::before {
@@ -29,12 +51,21 @@ body::before {
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(ellipse 80% 50% at 10% 20%, rgba(139, 92, 246, 0.15), transparent 50%),
-    radial-gradient(ellipse 60% 40% at 90% 10%, rgba(6, 182, 212, 0.12), transparent 45%),
-    radial-gradient(ellipse 70% 50% at 50% 90%, rgba(236, 72, 153, 0.1), transparent 50%),
-    radial-gradient(ellipse 40% 30% at 80% 80%, rgba(124, 249, 201, 0.08), transparent 40%);
+    radial-gradient(ellipse 80% 50% at 8% 18%, rgba(255, 122, 61, 0.12), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 92% 12%, rgba(43, 182, 173, 0.12), transparent 45%),
+    radial-gradient(ellipse 70% 50% at 55% 92%, rgba(241, 183, 93, 0.1), transparent 50%),
+    radial-gradient(ellipse 40% 30% at 75% 75%, rgba(164, 232, 207, 0.1), transparent 40%);
   pointer-events: none;
   z-index: -1;
+  transition: opacity 0.5s ease;
+}
+
+.dark body::before {
+  background:
+    radial-gradient(ellipse 80% 50% at 10% 20%, rgba(255, 122, 61, 0.2), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 90% 10%, rgba(43, 182, 173, 0.18), transparent 45%),
+    radial-gradient(ellipse 70% 50% at 50% 90%, rgba(241, 183, 93, 0.16), transparent 50%),
+    radial-gradient(ellipse 40% 30% at 80% 80%, rgba(164, 232, 207, 0.14), transparent 40%);
 }
 
 /* Noise texture overlay */
@@ -59,17 +90,17 @@ body::after {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.3);
+  background: rgba(255, 122, 61, 0.35);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.5);
+  background: rgba(255, 122, 61, 0.6);
 }
 
 /* Selection color */
 ::selection {
-  background: rgba(139, 92, 246, 0.3);
+  background: rgba(255, 122, 61, 0.35);
   color: #fff;
 }
 
@@ -136,42 +167,42 @@ body::after {
 
 /* Glass morphism utilities */
 .glass {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--card);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
 }
 
 .glass-strong {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--panel);
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--panel-border);
 }
 
 /* Glow effects */
 .glow-purple {
-  box-shadow: 0 0 40px rgba(139, 92, 246, 0.25);
+  box-shadow: 0 0 40px rgba(255, 122, 61, 0.25);
 }
 
 .glow-cyan {
-  box-shadow: 0 0 40px rgba(6, 182, 212, 0.25);
+  box-shadow: 0 0 40px rgba(43, 182, 173, 0.25);
 }
 
 .glow-pink {
-  box-shadow: 0 0 40px rgba(236, 72, 153, 0.25);
+  box-shadow: 0 0 40px rgba(241, 183, 93, 0.25);
 }
 
 /* Text gradient utilities */
 .text-gradient-purple {
-  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  background: linear-gradient(135deg, #ff7a3d, #f1b75d);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .text-gradient-cyan {
-  background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+  background: linear-gradient(135deg, #2bb6ad, #ff7a3d);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -179,7 +210,7 @@ body::after {
 
 /* Focus ring customization */
 *:focus-visible {
-  outline: 2px solid rgba(139, 92, 246, 0.5);
+  outline: 2px solid rgba(255, 122, 61, 0.45);
   outline-offset: 2px;
 }
 

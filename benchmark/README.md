@@ -51,6 +51,11 @@ npx tsx benchmark/benchmark.ts --threshold 60
 npx tsx benchmark/benchmark.ts --models model_q4.onnx --threshold 55
 ```
 
+### Show misclassified image paths
+```bash
+npx tsx benchmark/benchmark.ts --show-misses
+```
+
 ## Test Image Guidelines
 
 ### Real Images (`test-assets/real/`)

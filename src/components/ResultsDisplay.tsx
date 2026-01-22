@@ -1,196 +1,390 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { AlertCircle, CheckCircle2, ShieldAlert, Sparkles, RotateCcw } from "lucide-react";
+import {
+  AlertCircle, CheckCircle2, ShieldAlert, RotateCcw,
+  Fingerprint, ScanEye, ArrowRight,
+  Zap, Share2
+} from "lucide-react";
+import React, { useState } from "react";
+import { cn } from "@/src/lib/utils";
+import Modal from "./ui/Modal";
+import GlassCard from "./ui/GlassCard";
 import GlowButton from "./ui/GlowButton";
+import type { PipelineResult } from "@/src/lib/pipeline/types";
+import type { VerdictPresentation, UiVerdict } from "@/src/lib/verdictUi";
+import DetailCard from "./ui/DetailCard";
+import ShareModal from "./ShareModal";
+import DetectionVisualization from "./ui/DetectionVisualization";
+import ExplanationList from "./ui/ExplanationList";
+import ExportButton from "./ui/ExportButton";
+import NumberTicker from "./ui/NumberTicker";
+import { BorderBeam } from "./ui/BorderBeam";
+import MLModelsCard from "./ui/MLModelsCard"; // Moved here for modal
+import FusionBreakdown from "./ui/FusionBreakdown"; // Moved here for modal
+import ModuleBreakdown from "./ui/ModuleBreakdown"; // Moved here for modal
+import PremiumOverlay from "./ui/PremiumOverlay";
+
 
 type ResultsDisplayProps = {
   score: number;
-  verdict?: "ai" | "real" | "uncertain";
-  confidenceLabel: string;
+  verdict?: UiVerdict;
+  presentation?: VerdictPresentation;
   onReset: () => void;
+  pipeline?: PipelineResult;
+  imageUrl?: string;
 };
 
 export default function ResultsDisplay({
   score,
   verdict,
-  confidenceLabel,
+  presentation,
   onReset,
+  pipeline,
+  imageUrl,
 }: ResultsDisplayProps) {
+  const [showModal, setShowModal] = useState(false);
+  const [showShare, setShowShare] = useState(false);
 
-  const config = {
+  const config: Record<UiVerdict, {
+    gradient: string;
+    iconBg: string;
+    iconColor: string;
+    borderColor: string;
+    glowColor: string;
+    Icon: typeof AlertCircle;
+  }> = {
     ai: {
-      gradient: "from-purple-500 via-pink-500 to-rose-500",
-      iconBg: "from-purple-500/20 to-pink-500/20",
-      iconColor: "text-purple-400",
-      borderColor: "border-purple-500/30",
-      glowColor: "rgba(139,92,246,0.2)",
+      gradient: "from-rose-500 via-orange-400 to-amber-400",
+      iconBg: "from-rose-500/20 to-amber-500/20",
+      iconColor: "text-rose-400",
+      borderColor: "border-rose-500/30",
+      glowColor: "rgba(244,63,94,0.18)",
       Icon: ShieldAlert,
-      title: "AI-Generated Detected",
-      message: "Detected signatures consistent with AI-generated imagery.",
     },
     real: {
-      gradient: "from-emerald-400 to-cyan-400",
-      iconBg: "from-emerald-500/20 to-cyan-500/20",
+      gradient: "from-emerald-400 to-teal-400",
+      iconBg: "from-emerald-500/20 to-teal-500/20",
       iconColor: "text-emerald-400",
       borderColor: "border-emerald-500/30",
-      glowColor: "rgba(52,211,153,0.2)",
+      glowColor: "rgba(16,185,129,0.18)",
       Icon: CheckCircle2,
-      title: "Authentic Image",
-      message: "The system identifies the image as authentic.",
     },
     uncertain: {
       gradient: "from-amber-400 to-orange-400",
       iconBg: "from-amber-500/20 to-orange-500/20",
       iconColor: "text-amber-400",
       borderColor: "border-amber-500/30",
-      glowColor: "rgba(245,158,11,0.2)",
+      glowColor: "rgba(245,158,11,0.18)",
       Icon: AlertCircle,
-      title: "Inconclusive Result",
-      message: "The result is inconclusive. Consider a secondary check.",
     },
   };
 
-  const current = config[verdict || "uncertain"];
+  const uiVerdict: UiVerdict = presentation?.uiVerdict || verdict || "uncertain";
+  const current = config[uiVerdict];
   const Icon = current.Icon;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="relative mt-10 overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-white/[0.08] via-white/[0.04] to-transparent p-8 backdrop-blur-xl"
-      style={{
-        boxShadow: `0 0 60px ${current.glowColor}`,
-      }}
-    >
-      {/* Glass shine effect */}
-      <div
-        className="pointer-events-none absolute inset-0 rounded-3xl"
-        style={{
-          background: "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%)",
-        }}
-      />
-
-      {/* Animated background glow */}
+    <>
       <motion.div
-        className="pointer-events-none absolute -inset-20 opacity-30"
-        style={{
-          background: `radial-gradient(circle at 50% 50%, ${current.glowColor}, transparent 70%)`,
-        }}
-        animate={{
-          scale: [1, 1.2, 1],
-          opacity: [0.2, 0.4, 0.2],
-        }}
-        transition={{
-          duration: 4,
-          repeat: Infinity,
-          repeatType: "reverse",
-        }}
+        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+        className="relative mt-10"
+      >
+        <GlassCard
+          hover={false}
+          variant="glowing"
+          glow={uiVerdict === "ai" ? "purple" : uiVerdict === "real" ? "emerald" : "pink"}
+          className="p-6 md:p-8 relative"
+        >
+          {uiVerdict === "ai" && <BorderBeam size={300} duration={12} delay={9} />}
+          {/* Glass shine effect */}
+          <div
+            className="pointer-events-none absolute inset-0 rounded-3xl opacity-20 dark:opacity-100"
+            style={{
+              background: "linear-gradient(135deg, var(--border) 0%, transparent 50%)",
+            }}
+          />
+
+          {/* Animated background glow */}
+          <motion.div
+            className="pointer-events-none absolute -inset-24 opacity-20"
+            style={{
+              background: `radial-gradient(circle at 50% 50%, ${current.glowColor}, transparent 70%)`,
+            }}
+            animate={{
+              scale: [1, 1.15, 1],
+              opacity: [0.1, 0.25, 0.1],
+            }}
+            transition={{
+              duration: 6,
+              repeat: Infinity,
+              repeatType: "reverse",
+            }}
+          />
+
+          <div className="relative z-10 space-y-6">
+            <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card/30 p-5 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-4">
+                <motion.div
+                  className={`relative flex h-12 w-12 items-center justify-center rounded-2xl border ${current.borderColor} bg-gradient-to-br ${current.iconBg}`}
+                  initial={{ scale: 0.8, rotate: -6 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ duration: 0.5, type: "spring", stiffness: 200 }}
+                >
+                  <div className="absolute inset-0 rounded-2xl bg-white/10" />
+                  <Icon className={`h-6 w-6 ${current.iconColor}`} />
+                </motion.div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.35em] text-foreground/50">Result</p>
+                  <h2 className="mt-1 text-2xl font-semibold text-foreground font-display">
+                    {presentation?.title ?? "Inconclusive Result"}
+                  </h2>
+                  <p className="mt-1 text-sm text-foreground/60">{presentation?.message ?? "The result is inconclusive. Consider a secondary check."}</p>
+                </div>
+              </div>
+              <div className={`inline-flex items-center gap-2 rounded-full border ${current.borderColor} bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.3em] ${current.iconColor}`}>
+                <Icon className="h-3.5 w-3.5" />
+                <span>{presentation?.label ?? "INCONCLUSIVE"}</span>
+              </div>
+            </div>
+
+            <div className="grid gap-4">
+              <motion.div
+                className="rounded-2xl border border-border bg-card/40 p-6"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-foreground/45">
+                  <span>AI Score</span>
+                  <span className="text-foreground/35">0-100</span>
+                </div>
+                <div className="mt-4 flex items-baseline gap-2">
+                  <span className={`text-6xl font-black font-display bg-gradient-to-r ${current.gradient} bg-clip-text text-transparent`}>
+                    <NumberTicker value={score} />
+                  </span>
+                  <span className="text-2xl font-semibold text-foreground/40">%</span>
+                </div>
+                <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-foreground/10">
+                  <div
+                    className={`h-full rounded-full bg-gradient-to-r ${current.gradient} transition-[width] duration-1000 ease-out`}
+                    style={{ width: `${score}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex justify-between text-[10px] text-foreground/40">
+                  <span>Low</span>
+                  <span>Neutral</span>
+                  <span>High</span>
+                </div>
+              </motion.div>
+            </div>
+
+            {pipeline && (
+              <motion.div
+                className="flex justify-end"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+              >
+                <GlowButton
+                  onClick={() => setShowModal(true)}
+                  variant="secondary"
+                  className="group"
+                >
+                  <span>View Detailed Analysis</span>
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </GlowButton>
+              </motion.div>
+            )}
+
+            {/* Key Findings - Show top explanations */}
+            {pipeline?.verdict && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="mt-2"
+              >
+                <div className="mb-3 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.25em] text-foreground/50">
+                  <span>Key Findings</span>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+                <PremiumOverlay className="rounded-2xl">
+                  <ExplanationList
+                    flags={{
+                      visual: pipeline.visual.flags,
+                      metadata: pipeline.metadata.flags,
+                      physics: pipeline.physics.flags,
+                      frequency: pipeline.frequency.flags,
+                      provenance: pipeline.provenance.flags,
+                    }}
+                    maxDisplay={3}
+                  />
+                </PremiumOverlay>
+              </motion.div>
+            )}
+
+            <motion.div
+              className="text-center text-[10px] uppercase tracking-[0.3em] text-foreground/45"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+            >
+              Analysis based on multi-stage forensic trace
+            </motion.div>
+
+            {/* Action buttons */}
+            <motion.div
+              className="flex flex-col sm:flex-row items-center justify-center gap-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.55 }}
+            >
+              <GlowButton onClick={onReset} size="lg" className="w-full sm:w-auto">
+                <RotateCcw className="h-4 w-4" />
+                <span>Analyze Another</span>
+              </GlowButton>
+
+              <button
+                onClick={() => setShowShare(true)}
+                className="w-full sm:w-auto px-8 py-3.5 rounded-2xl border border-border bg-card/20 hover:bg-card/40 transition-all text-foreground font-medium flex items-center justify-center gap-2"
+              >
+                <Share2 className="h-4 w-4" />
+                <span>Share Result</span>
+              </button>
+            </motion.div>
+          </div>
+        </GlassCard>
+      </motion.div>
+
+      <ShareModal
+        isOpen={showShare}
+        onClose={() => setShowShare(false)}
+        result={{ score, verdict: verdict || "uncertain" }}
       />
 
-      <div className="relative z-10">
-        {/* Header with icon */}
-        <div className="flex flex-col items-center text-center">
-          <motion.div
-            className={`relative flex h-20 w-20 items-center justify-center rounded-2xl border ${current.borderColor} bg-gradient-to-br ${current.iconBg}`}
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ duration: 0.6, type: "spring", stiffness: 200 }}
-          >
-            <div className="absolute inset-0 rounded-2xl bg-white/5" />
-            <Icon className={`h-10 w-10 ${current.iconColor}`} />
-          </motion.div>
-
-          <motion.h2
-            className="mt-6 text-2xl font-bold text-white"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            {current.title}
-          </motion.h2>
-
-          {/* Score display */}
-          <motion.div
-            className="mt-4"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
-          >
-            <div className="flex items-baseline justify-center gap-1">
-              <span className={`text-7xl font-black bg-gradient-to-r ${current.gradient} bg-clip-text text-transparent`}>
-                {score}
-              </span>
-              <span className="text-3xl font-bold text-gray-400">%</span>
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title="Comprehensive Analysis"
+      >
+        {pipeline && (
+          <div className="space-y-12 py-4">
+            {/* Finding Summaries */}
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="mb-4 flex items-center gap-2">
+                <div className="h-1 w-8 rounded-full bg-brand-purple/50" />
+                <h3 className="text-lg font-bold text-foreground font-display">Key Forensic Findings</h3>
+              </div>
+              <PremiumOverlay className="rounded-2xl">
+                <ExplanationList
+                  flags={{
+                    visual: pipeline.visual.flags,
+                    metadata: pipeline.metadata.flags,
+                    physics: pipeline.physics.flags,
+                    frequency: pipeline.frequency.flags,
+                    provenance: pipeline.provenance.flags,
+                  }}
+                />
+              </PremiumOverlay>
             </div>
-            <p className="mt-1 text-sm text-gray-500">AI Detection Score</p>
-          </motion.div>
 
-          {/* Disclaimer */}
-          <motion.p
-            className="mt-4 max-w-sm text-xs text-gray-500"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-          >
-            AI detection can be imperfect, especially with heavily edited, compressed, or blurred content.
-          </motion.p>
-        </div>
+            {/* Visual Evidence (The Hero) */}
+            {imageUrl && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 delay-200 duration-700">
+                <div className="mb-4 flex items-center gap-2">
+                  <div className="h-1 w-8 rounded-full bg-brand-cyan/50" />
+                  <h3 className="text-lg font-bold text-foreground font-display">Spatial Analysis Overlay</h3>
+                </div>
+                <PremiumOverlay className="rounded-2xl overflow-hidden">
+                  <div className="rounded-2xl border border-border bg-card/20 p-1">
+                    <DetectionVisualization pipeline={pipeline} imageUrl={imageUrl} />
+                  </div>
+                </PremiumOverlay>
+              </div>
+            )}
 
-        {/* Confidence meter */}
-        <motion.div
-          className="mt-8 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent p-5"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-400">Confidence Level</span>
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-purple-400" />
-              <span className="font-medium text-white">{confidenceLabel}</span>
+            {/* Technical Metrics */}
+            <div className="animate-in fade-in slide-in-from-bottom-4 delay-300 duration-700">
+              <div className="mb-6 flex items-center gap-2">
+                <div className="h-1 w-8 rounded-full bg-brand-mint/50" />
+                <h3 className="text-lg font-bold text-foreground font-display">Technical Signature</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <MLModelsCard ml={pipeline.ml} finalVerdict={pipeline.verdict.verdict} />
+                <PremiumOverlay className="rounded-2xl">
+                  <ModuleBreakdown
+                    weights={pipeline.fusion.weights}
+                    scores={pipeline.fusion.module_scores}
+                    finalConfidence={pipeline.fusion.confidence}
+                  />
+                </PremiumOverlay>
+              </div>
+            </div>
+
+            {/* Forensic Details Grid */}
+            <div className="animate-in fade-in slide-in-from-bottom-4 delay-400 duration-700">
+              <div className="mb-6 flex items-center gap-2">
+                <div className="h-1 w-8 rounded-full bg-brand-pink/50" />
+                <h3 className="text-lg font-bold text-foreground font-display">Deep Scan Report</h3>
+              </div>
+              <div className="grid gap-6 md:grid-cols-3">
+                <PremiumOverlay className="rounded-2xl">
+                  <DetailCard
+                    title="Digital Forensics"
+                    icon={Fingerprint}
+                    color="cyan"
+                    score={pipeline.metadata.metadata_score * 100}
+                    metrics={[
+                      { label: "Metadata Risk", value: pipeline.metadata.metadata_score, threshold: 0.3 },
+                      { label: "Frequency Anomalies", value: pipeline.frequency.frequency_score, threshold: 0.5 },
+                    ]}
+                    flags={[...pipeline.metadata.flags, ...pipeline.provenance.flags]}
+                  />
+                </PremiumOverlay>
+
+                <PremiumOverlay className="rounded-2xl">
+                  <DetailCard
+                    title="Visual Artifacts"
+                    icon={ScanEye}
+                    color="purple"
+                    score={pipeline.visual.visual_artifacts_score * 100}
+                    metrics={[
+                      { label: "Skin Smoothing", value: pipeline.visual.details.smoothingScore, threshold: 0.6 },
+                      { label: "Texture Consistency", value: pipeline.visual.details.textureMeltScore, threshold: 0.5 },
+                    ]}
+                    flags={pipeline.visual.flags}
+                  />
+                </PremiumOverlay>
+
+                <PremiumOverlay className="rounded-2xl">
+                  <DetailCard
+                    title="Physics & Light"
+                    icon={Zap}
+                    color="pink"
+                    score={100 - pipeline.physics.physics_score * 100}
+                    scoreLabel="Consistency"
+                    metrics={[
+                      { label: "Lighting Coherence", value: 1 - pipeline.physics.details.lightInconsistency, threshold: 0.3, invertColor: true },
+                      { label: "Shadow Alignment", value: 1 - pipeline.physics.details.shadowMisalignment, threshold: 0.4, invertColor: true },
+                    ]}
+                    flags={pipeline.physics.flags}
+                  />
+                </PremiumOverlay>
+              </div>
+            </div>
+
+            {/* Export Section */}
+            <div className="flex justify-center border-t border-white/10 pt-8 mt-12 pb-8">
+              <PremiumOverlay className="inline-flex rounded-2xl">
+                <ExportButton pipeline={pipeline} />
+              </PremiumOverlay>
             </div>
           </div>
-
-          <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-white/10">
-            <div
-              className={`h-full rounded-full bg-gradient-to-r ${current.gradient} transition-[width] duration-1000 ease-out`}
-              style={{ width: `${score}%` }}
-            />
-          </div>
-
-          <div className="mt-3 flex justify-between text-xs text-gray-500">
-            <span>0%</span>
-            <span>50%</span>
-            <span>100%</span>
-          </div>
-        </motion.div>
-
-        {/* Verdict badge */}
-        <motion.div
-          className={`mt-6 flex items-center justify-center gap-3 rounded-full border ${current.borderColor} bg-gradient-to-r from-transparent via-white/5 to-transparent px-6 py-3`}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-        >
-          <Icon className={`h-5 w-5 ${current.iconColor}`} />
-          <span className="text-sm font-medium text-white">{current.message}</span>
-        </motion.div>
-
-        {/* Reset button */}
-        <motion.div
-          className="mt-8 flex justify-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.7 }}
-        >
-          <GlowButton onClick={onReset} size="lg">
-            <RotateCcw className="h-4 w-4" />
-            <span>Analyze Another Image</span>
-          </GlowButton>
-        </motion.div>
-      </div>
-    </motion.div>
+        )}
+      </Modal>
+    </>
   );
 }
