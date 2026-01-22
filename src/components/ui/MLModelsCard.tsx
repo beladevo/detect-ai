@@ -3,24 +3,42 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Brain, CheckCircle2, XCircle, BarChart3, TrendingUp } from "lucide-react";
-import type { MlEnsembleResult } from "@/src/lib/pipeline/types";
+import type { MlEnsembleResult, VerdictResult } from "@/src/lib/pipeline/types";
+import { uiVerdictFromPipeline } from "@/src/lib/verdictUi";
 
 interface MLModelsCardProps {
   ml: MlEnsembleResult;
+  finalVerdict?: VerdictResult["verdict"];
 }
 
-export default function MLModelsCard({ ml }: MLModelsCardProps) {
+export default function MLModelsCard({ ml, finalVerdict }: MLModelsCardProps) {
+  const uiVerdict = finalVerdict ? uiVerdictFromPipeline(finalVerdict) : undefined;
+  const verdictLabel = finalVerdict?.replace(/_/g, " ");
+  const verdictStyles =
+    uiVerdict === "ai"
+      ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
+      : uiVerdict === "real"
+      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+      : "border-amber-500/30 bg-amber-500/10 text-amber-300";
+
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/20 p-2">
-          <Brain className="h-5 w-5 text-purple-400" />
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/20 p-2">
+            <Brain className="h-5 w-5 text-purple-400" />
+          </div>
+          <div>
+            <h4 className="font-semibold text-gray-100">AI Model Predictions</h4>
+            <p className="text-xs text-gray-500">Individual model scores and ensemble statistics</p>
+          </div>
         </div>
-        <div>
-          <h4 className="font-semibold text-gray-100">AI Model Predictions</h4>
-          <p className="text-xs text-gray-500">Individual model scores and ensemble statistics</p>
-        </div>
+        {verdictLabel && (
+          <div className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] ${verdictStyles}`}>
+            {verdictLabel}
+          </div>
+        )}
       </div>
 
       {/* Individual Model Votes */}
@@ -40,14 +58,14 @@ export default function MLModelsCard({ ml }: MLModelsCardProps) {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">
                   {isAI ? (
-                    <XCircle className="h-4 w-4 text-red-400" />
+                    <XCircle className="h-4 w-4 text-foreground/60" />
                   ) : (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    <CheckCircle2 className="h-4 w-4 text-foreground/60" />
                   )}
                   <div>
                     <div className="text-sm font-medium text-white">{vote.model}</div>
                     <div className="text-xs text-gray-500">
-                      Prediction: <span className={isAI ? "text-red-300" : "text-emerald-300"}>{vote.prediction}</span>
+                      Model vote: <span className="text-gray-300">{vote.prediction}</span>
                     </div>
                   </div>
                 </div>
@@ -63,7 +81,7 @@ export default function MLModelsCard({ ml }: MLModelsCardProps) {
                   initial={{ width: 0 }}
                   animate={{ width: `${confidencePercent}%` }}
                   transition={{ duration: 0.8, delay: idx * 0.1 + 0.2 }}
-                  className={`h-full ${isAI ? "bg-gradient-to-r from-red-500 to-pink-500" : "bg-gradient-to-r from-emerald-500 to-cyan-500"}`}
+                  className="h-full bg-gradient-to-r from-foreground/15 via-foreground/30 to-foreground/45"
                 />
               </div>
             </motion.div>

@@ -23,6 +23,7 @@ const ComparisonTool = dynamic(() => import("@/src/components/ComparisonTool"), 
 import { DotPattern } from "@/src/components/ui/DotPattern";
 import { cn } from "@/src/lib/utils";
 import { getConfiguredModelName } from "@/src/lib/models";
+import { uiVerdictFromPipeline, uiVerdictFromScore } from "@/src/lib/verdictUi";
 
 
 import type { PipelineResult } from "@/src/lib/pipeline/types";
@@ -106,11 +107,11 @@ export default function AIDetectorPage() {
   }, []);
 
   const verdict = useMemo(() => {
-    if (result.score === null) return undefined;
-    if (result.score >= 70) return "ai";
-    if (result.score <= 20) return "real";
-    return "uncertain";
-  }, [result.score]);
+    if (result.pipeline?.verdict) {
+      return uiVerdictFromPipeline(result.pipeline.verdict.verdict);
+    }
+    return uiVerdictFromScore(result.score);
+  }, [result.pipeline?.verdict, result.score]);
 
   const pushHistory = useCallback(
     (item: HistoryItem) => {

@@ -311,7 +311,7 @@ export default function ResultsDisplay({
                 <h3 className="text-lg font-bold text-foreground font-display">Technical Signature</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <MLModelsCard ml={pipeline.ml} />
+                <MLModelsCard ml={pipeline.ml} finalVerdict={pipeline.verdict.verdict} />
                 <PremiumOverlay className="rounded-2xl">
                   <ModuleBreakdown
                     weights={pipeline.fusion.weights}
