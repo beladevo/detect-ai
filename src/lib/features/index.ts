@@ -1,5 +1,5 @@
 import { prisma } from '@/src/lib/prisma'
-import type { User } from '@prisma/client'
+import type { SessionUser } from '@/src/lib/auth'
 
 export type FeatureKey =
   | 'multiple_models'
@@ -10,7 +10,7 @@ export type FeatureKey =
 
 const GLOBAL_PREMIUM_ENABLED = process.env.NEXT_PUBLIC_PREMIUM_FEATURES_ENABLED === 'true'
 
-export async function hasFeature(user: User | null, feature: FeatureKey): Promise<boolean> {
+export async function hasFeature(user: SessionUser | null, feature: FeatureKey): Promise<boolean> {
   // If global premium is enabled, everyone gets all features
   if (GLOBAL_PREMIUM_ENABLED) {
     return true

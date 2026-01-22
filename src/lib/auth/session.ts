@@ -27,8 +27,8 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 
 async function getUserById(userId: string): Promise<SessionUser | null> {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
+    const user = await prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
       select: {
         id: true,
         email: true,
@@ -43,8 +43,9 @@ async function getUserById(userId: string): Promise<SessionUser | null> {
         apiKeyEnabled: true,
         monthlyDetections: true,
         totalDetections: true,
-        lastDetectionAt: true,
-        createdAt: true,
+      lastDetectionAt: true,
+      deletedAt: true,
+      createdAt: true,
         updatedAt: true,
         lastLoginAt: true,
       },
@@ -81,7 +82,7 @@ async function refreshSession(refreshToken: string): Promise<{ user: SessionUser
   const newAccessToken = await createAccessToken({ userId: user.id, email: user.email })
   const newRefreshToken = await createRefreshToken({ userId: user.id, email: user.email })
 
-  await prisma.refreshToken.delete({ where: { id: storedToken.id } })
+  await prisma.refreshToken.deleteMany({ where: { id: storedToken.id } })
   await prisma.refreshToken.create({
     data: {
       token: newRefreshToken,

@@ -44,6 +44,38 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
     if (!heroRef.current) return;
 
     const ctx = gsap.context(() => {
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        gsap.to("[data-gsap='hero-float']", {
+          y: -12,
+          duration: 6,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut",
+          stagger: 0.4,
+        });
+        gsap.to("[data-gsap='hero-orbit']", {
+          rotate: 360,
+          transformOrigin: "50% 50%",
+          duration: 30,
+          repeat: -1,
+          ease: "none",
+        });
+        gsap.to("[data-gsap='hero-trace']", {
+          strokeDashoffset: -240,
+          duration: 12,
+          repeat: -1,
+          ease: "none",
+        });
+        gsap.to("[data-gsap='hero-pulse']", {
+          scale: 1.1,
+          opacity: 0.7,
+          duration: 3.5,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut",
+        });
+      }
+
       // Parallax effect for the hero section
       gsap.to(heroRef.current, {
         y: -40,
@@ -130,7 +162,41 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
         />
       </div>
 
-      <GlassCard hover={false} className="p-8 sm:p-12">
+      <GlassCard hover={false} className="relative overflow-hidden p-8 sm:p-12">
+        <div className="pointer-events-none absolute inset-0">
+          <div
+            data-gsap="hero-float"
+            className="absolute left-[-6%] top-[20%] hidden h-24 w-24 opacity-70 md:block"
+          >
+            <svg viewBox="0 0 120 120" className="h-full w-full" fill="none">
+              <circle cx="60" cy="60" r="44" stroke="rgba(56,189,248,0.25)" strokeWidth="1.5" />
+              <path
+                d="M24 70c14-20 34-30 56-30 10 0 20 2 30 6"
+                stroke="rgba(14,165,233,0.6)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeDasharray="6 9"
+                data-gsap="hero-trace"
+              />
+              <circle cx="34" cy="34" r="5" fill="rgba(56,189,248,0.6)" />
+            </svg>
+          </div>
+          <div
+            data-gsap="hero-orbit"
+            className="absolute right-[-8%] top-[8%] hidden h-40 w-40 opacity-70 lg:block"
+          >
+            <svg viewBox="0 0 160 160" className="h-full w-full" fill="none">
+              <circle cx="80" cy="80" r="58" stroke="rgba(168,85,247,0.25)" strokeWidth="1.5" />
+              <circle cx="80" cy="80" r="38" stroke="rgba(236,72,153,0.2)" strokeWidth="1.5" />
+              <circle cx="80" cy="22" r="6" fill="rgba(168,85,247,0.6)" />
+              <circle cx="122" cy="112" r="6" fill="rgba(236,72,153,0.6)" />
+            </svg>
+          </div>
+          <div
+            data-gsap="hero-pulse"
+            className="absolute bottom-[-10%] left-[20%] hidden h-20 w-20 rounded-full border border-brand-purple/30 bg-brand-purple/10 md:block"
+          />
+        </div>
         <div className="flex flex-col gap-10 lg:flex-row lg:items-center lg:justify-between">
           {/* Left Content */}
           <motion.div

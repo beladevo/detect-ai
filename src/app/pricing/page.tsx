@@ -158,6 +158,10 @@ export default function PricingPage() {
               </li>
               <li className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-amber-300" />
+                Multiple model voting for higher confidence
+              </li>
+              <li className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-amber-300" />
                 Priority multi-model ensemble
               </li>
               <li className="flex items-center gap-2">

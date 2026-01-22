@@ -1,6 +1,14 @@
 import ExifReader from "exifreader";
 import { MetadataForensicsResult } from "@/src/lib/pipeline/types";
 
+function toBuffer(input: Uint8Array | ArrayBuffer): ArrayBuffer | Buffer {
+  if (input instanceof ArrayBuffer) {
+    return input;
+  }
+
+  return Buffer.from(input.buffer, input.byteOffset, input.byteLength);
+}
+
 const KNOWN_GENERATORS = [
   "midjourney",
   "stable diffusion",
@@ -85,7 +93,7 @@ export function analyzeMetadata(exif?: Uint8Array | ArrayBuffer): MetadataForens
   }
 
   try {
-    const data = ExifReader.load(exif);
+    const data = ExifReader.load(toBuffer(exif));
     exifPresent = true;
 
     // Configurable access to common tags

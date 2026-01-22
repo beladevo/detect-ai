@@ -16,6 +16,7 @@ export type AnalysisResult = {
   score: number;
   pipeline?: PipelineResult;
   presentation?: VerdictPresentation;
+  source?: "local" | "api";
 };
 
 type SessionState = {
@@ -407,14 +408,14 @@ export async function analyzeImageWithWasm(
     if (shouldUseApiOnly()) {
       const apiResult = await analyzeImageWithApi(file, modelName);
       console.info("WASM detector: API-only mode score", { score: apiResult.score });
-      return apiResult;
+      return { ...apiResult, source: "api" };
     }
     if (isHeicLike(file)) {
       console.info("WASM detector: HEIC/HEIF detected, using API fallback", {
         name: file.name,
         type: file.type,
       });
-      return await analyzeImageWithApi(file, modelName);
+      return { ...(await analyzeImageWithApi(file, modelName)), source: "api" };
     }
     console.info("WASM detector: analyzing file", {
       name: file.name,
@@ -445,7 +446,12 @@ export async function analyzeImageWithWasm(
       uncertainty: pipeline.verdict.uncertainty,
     });
 
-    return { score, pipeline, presentation: getVerdictPresentation(pipeline.verdict.verdict) };
+    return {
+      score,
+      pipeline,
+      presentation: getVerdictPresentation(pipeline.verdict.verdict),
+      source: "local",
+    };
   } catch (error) {
     const details = formatWasmError(error);
     console.error("WASM detector: error", details);
@@ -455,7 +461,7 @@ export async function analyzeImageWithWasm(
       });
       const apiResult = await analyzeImageWithApi(file, modelName);
       console.info("WASM detector: API fallback score", { score: apiResult.score });
-      return apiResult;
+      return { ...apiResult, source: "api" };
     } catch (fallbackError) {
       const fallbackDetails = formatWasmError(fallbackError);
       console.error("WASM detector: API fallback failed", fallbackDetails);

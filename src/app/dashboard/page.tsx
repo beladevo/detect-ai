@@ -4,8 +4,9 @@ import { useAuth } from '@/src/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import GlowButton from '@/src/components/ui/GlowButton'
+import Modal from '@/src/components/ui/Modal'
 import { PremiumBadge } from '@/src/components/ui/PremiumBadge'
-import { LogOut, Crown, Activity, Image as ImageIcon, BarChart3, Clock } from 'lucide-react'
+import { LogOut, Crown, Activity, Image as ImageIcon, BarChart3, Clock, Trash2 } from 'lucide-react'
 import { hasFeatureSync } from '@/src/lib/features'
 
 type DashboardSummary = {
@@ -36,6 +37,12 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
+  const [billingMessage, setBillingMessage] = useState<string | null>(null)
+  const [billingError, setBillingError] = useState<string | null>(null)
+  const [billingLoading, setBillingLoading] = useState(false)
+  const [accountLoading, setAccountLoading] = useState(false)
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const canViewAnalytics = hasFeatureSync(user?.tier ?? null, 'advanced_analytics')
   const isPremium = user?.tier === 'PREMIUM' || user?.tier === 'ENTERPRISE'
 
@@ -94,6 +101,43 @@ export default function DashboardPage() {
   async function handleSignOut() {
     await signOut()
     router.push('/')
+  }
+
+  async function handleCancelPlan() {
+    setBillingMessage(null)
+    setBillingError(null)
+    setBillingLoading(true)
+    try {
+      const response = await fetch('/api/billing/cancel', { method: 'POST' })
+      if (!response.ok) {
+        throw new Error('Cancel failed')
+      }
+      setBillingMessage('Plan cancelled. Your account is now Free.')
+    } catch (error) {
+      console.error('Cancel plan failed:', error)
+      setBillingError('Unable to cancel plan right now.')
+    } finally {
+      setBillingLoading(false)
+    }
+  }
+
+  async function handleDeleteAccount() {
+    setBillingMessage(null)
+    setBillingError(null)
+    setAccountLoading(true)
+    try {
+      const response = await fetch('/api/account/delete', { method: 'POST' })
+      if (!response.ok) {
+        throw new Error('Delete failed')
+      }
+      await signOut()
+      router.push('/')
+    } catch (error) {
+      console.error('Delete account failed:', error)
+      setBillingError('Unable to delete account right now.')
+    } finally {
+      setAccountLoading(false)
+    }
   }
 
   const formatLimit = (value: number | null) =>
@@ -383,7 +427,109 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* Plan & Account */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+          <h2 className="text-xl font-semibold text-white">Plan & Account</h2>
+          <p className="mt-2 text-sm text-gray-400">
+            Manage your subscription and account settings.
+          </p>
+          {billingMessage && (
+            <div className="mt-4 rounded-xl border border-emerald-400/40 bg-emerald-500/10 p-3 text-sm text-emerald-100">
+              {billingMessage}
+            </div>
+          )}
+          {billingError && (
+            <div className="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-200">
+              {billingError}
+            </div>
+          )}
+          <div className="mt-5 flex flex-wrap gap-3">
+            {isPremium ? (
+              <GlowButton
+                variant="secondary"
+                onClick={() => setShowCancelDialog(true)}
+                disabled={billingLoading}
+              >
+                {billingLoading ? 'Cancelling...' : 'Cancel Plan'}
+              </GlowButton>
+            ) : (
+              <GlowButton variant="secondary" onClick={() => router.push('/pricing')}>
+                <Crown className="h-4 w-4" />
+                <span>View Premium Plans</span>
+              </GlowButton>
+            )}
+            <GlowButton
+              variant="ghost"
+              onClick={() => setShowDeleteDialog(true)}
+              disabled={accountLoading}
+              className="border border-rose-500/30 text-rose-200 hover:bg-rose-500/10"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>{accountLoading ? 'Deleting...' : 'Delete Account'}</span>
+            </GlowButton>
+          </div>
+        </div>
       </div>
+      <Modal
+        isOpen={showCancelDialog}
+        onClose={() => setShowCancelDialog(false)}
+        title="Cancel Premium"
+      >
+        <div className="space-y-4 text-sm text-gray-300">
+          <p>
+            Cancel your premium plan now? Your account will be downgraded to Free
+            immediately.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <GlowButton
+              variant="secondary"
+              onClick={async () => {
+                await handleCancelPlan()
+                setShowCancelDialog(false)
+              }}
+              disabled={billingLoading}
+            >
+              {billingLoading ? 'Cancelling...' : 'Confirm Cancel'}
+            </GlowButton>
+            <GlowButton variant="ghost" onClick={() => setShowCancelDialog(false)}>
+              Keep Premium
+            </GlowButton>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        title="Delete Account"
+      >
+        <div className="space-y-4 text-sm text-gray-300">
+          <p>
+            This will permanently disable your account and remove access to all
+            detection history. This action cannot be undone.
+          </p>
+          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
+            You will be signed out and lose access immediately.
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <GlowButton
+              variant="ghost"
+              className="border border-rose-500/30 text-rose-200 hover:bg-rose-500/10"
+              onClick={async () => {
+                await handleDeleteAccount()
+                setShowDeleteDialog(false)
+              }}
+              disabled={accountLoading}
+            >
+              {accountLoading ? 'Deleting...' : 'Delete Account'}
+            </GlowButton>
+            <GlowButton variant="secondary" onClick={() => setShowDeleteDialog(false)}>
+              Keep Account
+            </GlowButton>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -15,7 +15,8 @@ export default function NumberTicker({
     className?: string;
 }) {
     const ref = useRef<HTMLSpanElement>(null);
-    const motionValue = useMotionValue(direction === "down" ? value : 0);
+    const startValue = direction === "down" ? value : 0;
+    const motionValue = useMotionValue(startValue);
     const springValue = useSpring(motionValue, {
         damping: 60,
         stiffness: 100,
@@ -29,6 +30,14 @@ export default function NumberTicker({
             }, delay * 1000);
         }
     }, [motionValue, isInView, delay, value, direction]);
+
+    useEffect(() => {
+        if (ref.current) {
+            ref.current.textContent = Intl.NumberFormat("en-US").format(
+                Number(startValue.toFixed(0))
+            );
+        }
+    }, [startValue]);
 
     useEffect(
         () =>

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, Menu, X, LogIn } from "lucide-react";
+import { Bot, Menu, X, LogIn, Sparkles } from "lucide-react";
 import GlowButton from "./ui/GlowButton";
 import { useAuth } from "@/src/context/AuthContext";
 import { ThemeToggle } from "./ThemeToggle";
@@ -28,10 +28,12 @@ export default function Navbar({ onActionClick }: NavbarProps) {
 
   const navLinks = [
     { href: "#upload", label: "Detection" },
-    { href: "#features", label: "Features" },
-    { href: "#waitlist", label: "Coming Soon" },
-    { href: "#privacy", label: "Privacy" },
+    { href: "#features", label: "Capabilities" },
+    { href: "/pricing", label: "Pricing", isExternal: false },
   ];
+  const hasPremiumAccess = Boolean(user && user.tier !== "FREE");
+  const showUpgradeButton = !loading && !hasPremiumAccess;
+  const showDashboardShortcut = !loading && Boolean(user);
 
   return (
     <>
@@ -98,28 +100,48 @@ export default function Navbar({ onActionClick }: NavbarProps) {
 
               {/* Desktop Navigation */}
               <div className="hidden items-center gap-1 md:flex">
-                {navLinks.map((link) => (
-                  <motion.a
-                    key={link.href}
-                    href={link.href}
-                    className="group relative px-4 py-2 text-sm text-gray-400 transition-colors hover:text-white"
-                    whileHover={{ y: -1 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                  >
-                    <span className="relative z-10">{link.label}</span>
-                    <motion.div
-                      className="absolute inset-0 rounded-lg bg-white/[0.05]"
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      whileHover={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.2 }}
-                    />
-                    <motion.div
-                      className="absolute bottom-1 left-1/2 h-px w-0 -translate-x-1/2 bg-gradient-to-r from-transparent via-purple-400 to-transparent"
-                      whileHover={{ width: "60%" }}
-                      transition={{ duration: 0.2 }}
-                    />
-                  </motion.a>
-                ))}
+                {navLinks.map((link) => {
+                  const content = (
+                    <>
+                      <span className="relative z-10">{link.label}</span>
+                      <motion.div
+                        className="absolute inset-0 rounded-lg bg-white/[0.05]"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        whileHover={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.2 }}
+                      />
+                      <motion.div
+                        className="absolute bottom-1 left-1/2 h-px w-0 -translate-x-1/2 bg-gradient-to-r from-transparent via-purple-400 to-transparent"
+                        whileHover={{ width: "60%" }}
+                        transition={{ duration: 0.2 }}
+                      />
+                    </>
+                  );
+
+                  if (link.href.startsWith("/")) {
+                    return (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        className="group relative px-4 py-2 text-sm text-gray-400 transition-colors hover:text-white"
+                      >
+                        {content}
+                      </Link>
+                    );
+                  }
+
+                  return (
+                    <motion.a
+                      key={link.href}
+                      href={link.href}
+                      className="group relative px-4 py-2 text-sm text-gray-400 transition-colors hover:text-white"
+                      whileHover={{ y: -1 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                    >
+                      {content}
+                    </motion.a>
+                  );
+                })}
               </div>
 
               {/* CTA Buttons */}
@@ -133,16 +155,16 @@ export default function Navbar({ onActionClick }: NavbarProps) {
                   </Link>
                 )}
 
-                {!loading && user && (
-                  <Link href="/dashboard" className="hidden md:block">
-                    <button className="flex items-center gap-2 rounded-lg border border-purple-500/30 bg-purple-500/10 px-4 py-2 text-sm font-medium text-purple-300 transition-colors hover:bg-purple-500/20">
-                      <Bot className="h-4 w-4" />
-                      <span>Dashboard</span>
+                <ThemeToggle />
+
+                {showUpgradeButton && (
+                  <Link href="/pricing" className="hidden md:block">
+                    <button className="flex items-center gap-2 rounded-lg border border-purple-500/30 bg-purple-500/10 px-4 py-2 text-sm font-medium text-purple-200 transition-colors hover:bg-purple-500/20">
+                      <Sparkles className="h-4 w-4" />
+                      <span>Upgrade</span>
                     </button>
                   </Link>
                 )}
-
-                <ThemeToggle />
 
                 <GlowButton
                   onClick={onActionClick}
@@ -177,31 +199,41 @@ export default function Navbar({ onActionClick }: NavbarProps) {
           >
             <div className="overflow-hidden rounded-2xl border border-border bg-background/90 p-4 backdrop-blur-xl dark:bg-black/80">
               <div className="flex flex-col gap-2">
-                {navLinks.map((link) => (
-                  <a
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="rounded-lg px-4 py-3 text-sm text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
-                  >
-                    {link.label}
-                  </a>
-                ))}
+                {navLinks.map((link) =>
+                  link.href.startsWith("/") ? (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="rounded-lg px-4 py-3 text-sm text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+                    >
+                      {link.label}
+                    </Link>
+                  ) : (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="rounded-lg px-4 py-3 text-sm text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+                    >
+                      {link.label}
+                    </a>
+                  )
+                )}
                 <div className="mt-2 border-t border-white/10 pt-4 space-y-2">
+                  {showUpgradeButton && (
+                    <Link href="/pricing" onClick={() => setMobileMenuOpen(false)}>
+                      <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-sm font-medium text-purple-200 transition-colors hover:bg-purple-500/20">
+                        <Sparkles className="h-4 w-4" />
+                        <span>Upgrade to Premium</span>
+                      </button>
+                    </Link>
+                  )}
                   {!loading && !user && (
                     <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
                       <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white transition-colors hover:border-purple-500/30 hover:bg-purple-500/10">
                         <LogIn className="h-4 w-4" />
                         <span>Sign In</span>
-                      </button>
-                    </Link>
-                  )}
-
-                  {!loading && user && (
-                    <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>
-                      <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-sm font-medium text-purple-300 transition-colors hover:bg-purple-500/20">
-                        <Bot className="h-4 w-4" />
-                        <span>Dashboard</span>
                       </button>
                     </Link>
                   )}
@@ -215,6 +247,15 @@ export default function Navbar({ onActionClick }: NavbarProps) {
           </motion.div>
         )}
       </AnimatePresence>
+      {showDashboardShortcut && (
+        <Link
+          href="/dashboard"
+          className="pointer-events-auto fixed right-4 top-20 z-50 flex items-center gap-2 rounded-full border border-purple-500/40 bg-background/80 px-3 py-2 text-xs font-semibold text-purple-200 shadow-lg shadow-purple-500/20 backdrop-blur transition hover:-translate-y-0.5 hover:border-purple-500/60 hover:bg-purple-500/20 sm:right-5 sm:top-[72px] sm:px-4 sm:py-2 sm:text-sm"
+        >
+          <Bot className="h-4 w-4 text-purple-300" />
+          <span>Dashboard</span>
+        </Link>
+      )}
     </>
   );
 }

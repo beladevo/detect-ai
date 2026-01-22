@@ -1,13 +1,15 @@
 ﻿"use client";
 
 import React from "react";
-import { Brain, Check } from "lucide-react";
+import { Brain, Check, Lock } from "lucide-react";
 import {
   DEFAULT_MODEL_NAME,
   ENSEMBLE_PRESETS,
+  EnsemblePreset,
   getModelByName,
   getSelectableModels,
 } from "@/src/lib/models";
+import { useAuth } from "@/src/context/AuthContext";
 
 interface ModelSelectorProps {
   currentModel?: string;
@@ -30,15 +32,36 @@ export default function ModelSelector({
     accuracy: "high",
   };
   const availableModels = selectableModels.length > 0 ? selectableModels : [fallbackModel];
-  const defaultPreset = ENSEMBLE_PRESETS[0]?.name ?? "fast";
-  const [selectedPreset, setSelectedPreset] = React.useState(defaultPreset);
+  const defaultPreset: EnsemblePreset = ENSEMBLE_PRESETS[0]?.name ?? "fast";
+  const [selectedPreset, setSelectedPreset] = React.useState<EnsemblePreset>(
+    defaultPreset,
+  );
+  const { user } = useAuth();
+  const premiumEnabled =
+    // process.env.NEXT_PUBLIC_PREMIUM_FEATURES_ENABLED === "true" ||
+    user?.tier === "PREMIUM" ||
+    user?.tier === "ENTERPRISE";
+
+  const isModelLocked = React.useCallback(
+    (modelName: string) => {
+      const model = getModelByName(modelName);
+      return Boolean(model?.requiresPremium && !premiumEnabled);
+    },
+    [premiumEnabled],
+  );
+
+  React.useEffect(() => {
+    if (isModelLocked(currentModel)) {
+      onModelChange?.(DEFAULT_MODEL_NAME);
+    }
+  }, [currentModel, isModelLocked, onModelChange]);
 
   const handleSelectModel = (modelName: string) => {
     onModelChange?.(modelName);
     setIsOpen(false);
   };
 
-  const handleSelectPreset = (presetName: string) => {
+  const handleSelectPreset = (presetName: EnsemblePreset) => {
     const preset = ENSEMBLE_PRESETS.find((p) => p.name === presetName);
     if (preset) {
       setSelectedPreset(presetName);
@@ -85,35 +108,50 @@ export default function ModelSelector({
                 </p>
               </div>
 
-              {ENSEMBLE_PRESETS.map((preset) => (
-                <button
-                  key={preset.name}
-                  onClick={() => handleSelectPreset(preset.name)}
-                  className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-card/40"
-                >
-                  <div className="mt-0.5">
-                    {selectedPreset === preset.name ? (
-                      <Check className="h-4 w-4 text-brand-cyan" />
-                    ) : (
-                      <div className="h-4 w-4" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium text-foreground">{preset.displayName}</div>
-                    <div className="text-xs text-foreground/50">{preset.description}</div>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {preset.models.map((model) => (
-                        <span
-                          key={model}
-                          className="rounded bg-brand-cyan/10 px-1.5 py-0.5 text-[10px] text-brand-cyan"
-                        >
-                          {model.replace(".onnx", "")}
-                        </span>
-                      ))}
+              {ENSEMBLE_PRESETS.map((preset) => {
+                const isLocked = preset.models.some((model) => isModelLocked(model));
+                return (
+                  <button
+                    key={preset.name}
+                    onClick={() => {
+                      if (isLocked) return;
+                      handleSelectPreset(preset.name);
+                    }}
+                    aria-disabled={isLocked}
+                    className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-card/40 ${isLocked ? "cursor-not-allowed opacity-60" : ""}`}
+                  >
+                    <div className="mt-0.5">
+                      {selectedPreset === preset.name ? (
+                        <Check className="h-4 w-4 text-brand-cyan" />
+                      ) : (
+                        <div className="h-4 w-4" />
+                      )}
                     </div>
-                  </div>
-                </button>
-              ))}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 font-medium text-foreground">
+                        {preset.displayName}
+                        {isLocked ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-brand-pink/30 bg-brand-pink/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-brand-pink">
+                            <Lock className="h-3 w-3" />
+                            Premium
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="text-xs text-foreground/50">{preset.description}</div>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {preset.models.map((model) => (
+                          <span
+                            key={model}
+                            className="rounded bg-brand-cyan/10 px-1.5 py-0.5 text-[10px] text-brand-cyan"
+                          >
+                            {model.replace(".onnx", "")}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </>
         )}
@@ -143,34 +181,49 @@ export default function ModelSelector({
               <p className="text-xs text-foreground/50">Choose detection model</p>
             </div>
 
-            {availableModels.map((model) => (
-              <button
-                key={model.name}
-                onClick={() => handleSelectModel(model.name)}
-                className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-card/40"
-              >
-                <div className="mt-0.5">
-                  {currentModel === model.name ? (
-                    <Check className="h-4 w-4 text-brand-cyan" />
-                  ) : (
-                    <div className="h-4 w-4" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className="font-medium text-foreground">{model.displayName}</div>
-                  <div className="text-xs text-foreground/50">{model.description}</div>
-                  <div className="mt-1 flex items-center gap-2 text-[10px]">
-                    <span className={getSpeedColor(model.speed)}>
-                      Speed: {model.speed}
-                    </span>
-                    <span className="text-foreground/30">|</span>
-                    <span className="text-brand-purple">
-                      Accuracy: {model.accuracy}
-                    </span>
+            {availableModels.map((model) => {
+              const isLocked = isModelLocked(model.name);
+              return (
+                <button
+                  key={model.name}
+                  onClick={() => {
+                    if (isLocked) return;
+                    handleSelectModel(model.name);
+                  }}
+                  aria-disabled={isLocked}
+                  className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-card/40 ${isLocked ? "cursor-not-allowed opacity-60" : ""}`}
+                >
+                  <div className="mt-0.5">
+                    {currentModel === model.name ? (
+                      <Check className="h-4 w-4 text-brand-cyan" />
+                    ) : (
+                      <div className="h-4 w-4" />
+                    )}
                   </div>
-                </div>
-              </button>
-            ))}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 font-medium text-foreground">
+                      {model.displayName}
+                      {isLocked ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-brand-pink/30 bg-brand-pink/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-brand-pink">
+                          <Lock className="h-3 w-3" />
+                          Premium
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="text-xs text-foreground/50">{model.description}</div>
+                    <div className="mt-1 flex items-center gap-2 text-[10px]">
+                      <span className={getSpeedColor(model.speed)}>
+                        Speed: {model.speed}
+                      </span>
+                      <span className="text-foreground/30">|</span>
+                      <span className="text-brand-purple">
+                        Accuracy: {model.accuracy}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </>
       )}

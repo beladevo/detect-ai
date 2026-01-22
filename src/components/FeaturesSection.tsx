@@ -150,6 +150,27 @@ export default function FeaturesSection() {
         <div className="pointer-events-none absolute inset-0">
           <div
             data-gsap="float"
+            className="absolute left-[-4%] top-[-6%] hidden h-32 w-32 opacity-70 md:block"
+          >
+            <svg viewBox="0 0 160 160" className="h-full w-full" fill="none">
+              <path
+                d="M18 80c0-34 28-62 62-62s62 28 62 62-28 62-62 62-62-28-62-62Z"
+                stroke="rgba(99,102,241,0.25)"
+                strokeWidth="1.6"
+              />
+              <path
+                d="M38 96c14-26 36-42 62-42 14 0 27 3 40 9"
+                stroke="rgba(129,140,248,0.55)"
+                strokeWidth="2"
+                strokeDasharray="7 9"
+                strokeLinecap="round"
+                data-gsap="trace"
+              />
+              <circle cx="48" cy="44" r="5" fill="rgba(167,139,250,0.6)" />
+            </svg>
+          </div>
+          <div
+            data-gsap="float"
             className="absolute right-[-6%] top-[-12%] hidden h-48 w-48 opacity-70 md:block"
           >
             <svg viewBox="0 0 200 200" className="h-full w-full" fill="none">
@@ -172,6 +193,10 @@ export default function FeaturesSection() {
           <div
             data-gsap="pulse"
             className="absolute left-6 top-24 hidden h-20 w-20 rounded-full border border-brand-cyan/40 bg-brand-cyan/10 blur-[0.5px] md:block"
+          />
+          <div
+            data-gsap="pulse"
+            className="absolute left-1/2 top-16 hidden h-14 w-14 -translate-x-1/2 rounded-full border border-brand-purple/40 bg-brand-purple/10 blur-[0.5px] md:block"
           />
           <div
             data-gsap="float"
@@ -201,6 +226,23 @@ export default function FeaturesSection() {
             transition={{ duration: 0.6 }}
             className="mb-10"
           >
+            <div
+              data-gsap="float"
+              className="pointer-events-none absolute right-8 top-8 hidden h-24 w-24 opacity-50 lg:block"
+            >
+              <svg viewBox="0 0 120 120" className="h-full w-full" fill="none">
+                <rect x="10" y="10" width="100" height="100" rx="20" stroke="rgba(45,212,191,0.35)" />
+                <path
+                  d="M24 70c14-18 30-28 52-28 10 0 20 2 30 6"
+                  stroke="rgba(45,212,191,0.7)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeDasharray="5 8"
+                  data-gsap="trace"
+                />
+                <circle cx="84" cy="40" r="6" fill="rgba(56,189,248,0.7)" />
+              </svg>
+            </div>
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-gradient-to-r from-brand-cyan/10 to-brand-mint/20 px-4 py-2 backdrop-blur-sm dark:from-brand-cyan/10 dark:to-brand-mint/20">
               <Sparkles className="h-4 w-4 text-brand-cyan" />
               <span className="text-xs font-medium uppercase tracking-[0.25em] text-foreground/60">
@@ -324,6 +366,27 @@ export default function FeaturesSection() {
               <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-brand-cyan/20 via-transparent to-brand-purple/20 blur-xl" />
 
               <div className="relative overflow-hidden bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-xl">
+                <div
+                  data-gsap="float"
+                  className="pointer-events-none absolute left-6 top-6 hidden h-16 w-16 rounded-full border border-brand-cyan/30 bg-brand-cyan/10 opacity-70 md:block"
+                />
+                <div
+                  data-gsap="float"
+                  className="pointer-events-none absolute right-8 bottom-10 hidden h-20 w-20 md:block"
+                >
+                  <svg viewBox="0 0 140 140" className="h-full w-full" fill="none">
+                    <circle cx="70" cy="70" r="54" stroke="rgba(244,114,182,0.25)" />
+                    <path
+                      d="M30 82c16-18 34-28 56-28 12 0 24 2 36 7"
+                      stroke="rgba(244,114,182,0.6)"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeDasharray="6 9"
+                      data-gsap="trace"
+                    />
+                    <circle cx="40" cy="48" r="5" fill="rgba(248,113,113,0.6)" />
+                  </svg>
+                </div>
                 <Image
                   src="/AI-human.png"
                   alt="AI and human signal nexus illustration"
