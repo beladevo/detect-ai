@@ -112,13 +112,6 @@ export default function AIDetectorPage() {
     return "uncertain";
   }, [result.score]);
 
-  const confidenceLabel = useMemo(() => {
-    if (result.score === null) return "";
-    if (result.score >= 85 || result.score <= 10) return "High";
-    if (result.score >= 60 || result.score <= 30) return "Medium";
-    return "Low";
-  }, [result.score]);
-
   const pushHistory = useCallback(
     (item: HistoryItem) => {
       setHistory((prev) => {
@@ -214,7 +207,6 @@ export default function AIDetectorPage() {
               <ResultsDisplay
                 score={result.score}
                 verdict={verdict}
-                confidenceLabel={confidenceLabel}
                 onReset={handleReset}
                 pipeline={result.pipeline}
                 imageUrl={previewUrl || undefined}

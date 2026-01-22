@@ -44,6 +44,7 @@ body {
   overflow-x: hidden;
 }
 
+
 /* Aurora background effect */
 body::before {
   content: "";

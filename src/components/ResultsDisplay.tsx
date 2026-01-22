@@ -2,9 +2,9 @@
 
 import { motion } from "framer-motion";
 import {
-  AlertCircle, CheckCircle2, ShieldAlert, Sparkles, RotateCcw,
-  Fingerprint, Aperture, BarChart3, ScanEye, ArrowRight, Eye,
-  Zap, Brain, Share2
+  AlertCircle, CheckCircle2, ShieldAlert, RotateCcw,
+  Fingerprint, ScanEye, ArrowRight,
+  Zap, Share2
 } from "lucide-react";
 import React, { useState } from "react";
 import { cn } from "@/src/lib/utils";
@@ -16,7 +16,6 @@ import DetailCard from "./ui/DetailCard";
 import ShareModal from "./ShareModal";
 import DetectionVisualization from "./ui/DetectionVisualization";
 import ExplanationList from "./ui/ExplanationList";
-import ConfidenceDisplay from "./ui/ConfidenceDisplay";
 import ExportButton from "./ui/ExportButton";
 import NumberTicker from "./ui/NumberTicker";
 import { BorderBeam } from "./ui/BorderBeam";
@@ -29,7 +28,6 @@ import PremiumOverlay from "./ui/PremiumOverlay";
 type ResultsDisplayProps = {
   score: number;
   verdict?: "ai" | "real" | "uncertain";
-  confidenceLabel: string;
   onReset: () => void;
   pipeline?: PipelineResult;
   imageUrl?: string;
@@ -38,7 +36,6 @@ type ResultsDisplayProps = {
 export default function ResultsDisplay({
   score,
   verdict,
-  confidenceLabel,
   onReset,
   pipeline,
   imageUrl,
@@ -151,7 +148,7 @@ export default function ResultsDisplay({
               </div>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="grid gap-4">
               <motion.div
                 className="rounded-2xl border border-border bg-card/40 p-6"
                 initial={{ opacity: 0, y: 10 }}
@@ -180,62 +177,25 @@ export default function ResultsDisplay({
                   <span>High</span>
                 </div>
               </motion.div>
+            </div>
 
+            {pipeline && (
               <motion.div
-                className="rounded-2xl border border-border bg-card/30 p-6"
+                className="flex justify-end"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25 }}
               >
-                <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-foreground/45">
-                  <span>Confidence</span>
-                  {!pipeline && (
-                    <span className={`rounded-full border ${current.borderColor} px-2 py-0.5 text-[10px] ${current.iconColor}`}>
-                      {confidenceLabel}
-                    </span>
-                  )}
-                </div>
-
-                {pipeline?.verdict ? (
-                  <div className="mt-4">
-                    <ConfidenceDisplay
-                      confidence={pipeline.verdict.confidence}
-                      uncertainty={pipeline.verdict.uncertainty}
-                      verdict={pipeline.verdict.verdict}
-                    />
-                  </div>
-                ) : (
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between text-xs text-foreground/60">
-                      <span>Confidence Level</span>
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="h-3.5 w-3.5 text-brand-purple" />
-                        <span className="font-medium text-foreground">{confidenceLabel}</span>
-                      </div>
-                    </div>
-                    <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-foreground/10">
-                      <div
-                        className={`h-full rounded-full bg-gradient-to-r ${current.gradient} transition-[width] duration-1000 ease-out`}
-                        style={{ width: `${score}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {pipeline && (
-                  <div className="mt-5">
-                    <GlowButton
-                      onClick={() => setShowModal(true)}
-                      variant="secondary"
-                      className="group w-full justify-center"
-                    >
-                      <span>View Detailed Analysis</span>
-                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </GlowButton>
-                  </div>
-                )}
+                <GlowButton
+                  onClick={() => setShowModal(true)}
+                  variant="secondary"
+                  className="group"
+                >
+                  <span>View Detailed Analysis</span>
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </GlowButton>
               </motion.div>
-            </div>
+            )}
 
             {/* Key Findings - Show top explanations */}
             {pipeline?.verdict && (

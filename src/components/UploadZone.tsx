@@ -144,7 +144,7 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
         setIsDragging(false);
         handleFile(e.dataTransfer.files);
       }}
-      className="group relative flex h-64 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl bg-card/40 backdrop-blur-2xl transition-colors duration-500 hover:bg-card/60"
+      className="group relative flex h-64 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-b from-foreground/5 via-foreground/6 to-foreground/8 backdrop-blur-2xl transition-colors duration-500 hover:from-foreground/10 hover:via-foreground/12 hover:to-foreground/14 dark:bg-card/40 dark:bg-none dark:hover:bg-card/60"
     >
       <div
         className="absolute inset-0 rounded-2xl p-[2px]"
@@ -197,8 +197,8 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
           <div className="flex flex-col items-center">
             <div className="relative mb-4">
               <div className="absolute inset-0 animate-pulse rounded-full bg-brand-purple/20 blur-xl" />
-              <div className="relative flex h-14 w-14 items-center justify-center rounded-xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-md transition-transform duration-300 group-hover:scale-110">
-                <Upload className="h-6 w-6 text-white transition-colors group-hover:text-brand-cyan" />
+              <div className="relative flex h-14 w-14 items-center justify-center rounded-xl border border-foreground/10 bg-foreground/15 shadow-2xl backdrop-blur-md transition-transform duration-300 group-hover:scale-110 dark:border-white/10 dark:bg-white/5">
+                <Upload className="h-6 w-6 text-foreground transition-colors group-hover:text-brand-cyan dark:text-white" />
               </div>
 
               <div className="absolute -right-3 -top-3 rounded-full border border-white/10 bg-black/60 px-1.5 py-0.5 backdrop-blur-md">

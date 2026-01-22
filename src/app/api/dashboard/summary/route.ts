@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
-import { getRateLimits } from "@/src/lib/features";
+import { getRateLimits, hasFeature } from "@/src/lib/features";
 
 type TrendPoint = {
   date: string;
@@ -18,6 +18,14 @@ export async function GET() {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const hasAnalytics = await hasFeature(user, "advanced_analytics");
+    if (!hasAnalytics) {
+      return NextResponse.json(
+        { error: "Premium feature required" },
+        { status: 403 }
+      );
     }
 
     const now = new Date();

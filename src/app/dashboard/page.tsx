@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import GlowButton from '@/src/components/ui/GlowButton'
 import { PremiumBadge } from '@/src/components/ui/PremiumBadge'
 import { LogOut, Crown, Activity, Image as ImageIcon, BarChart3, Clock } from 'lucide-react'
+import { hasFeatureSync } from '@/src/lib/features'
 
 type DashboardSummary = {
   usage: {
@@ -35,6 +36,8 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
+  const canViewAnalytics = hasFeatureSync(user?.tier ?? null, 'advanced_analytics')
+  const isPremium = user?.tier === 'PREMIUM' || user?.tier === 'ENTERPRISE'
 
   useEffect(() => {
     if (!loading && !user) {
@@ -43,7 +46,7 @@ export default function DashboardPage() {
   }, [user, loading, router])
 
   useEffect(() => {
-    if (!user) return
+    if (!user || !canViewAnalytics) return
 
     let isMounted = true
     const loadSummary = async () => {
@@ -74,7 +77,7 @@ export default function DashboardPage() {
     return () => {
       isMounted = false
     }
-  }, [user])
+  }, [user, canViewAnalytics])
 
   if (loading) {
     return (
@@ -153,8 +156,12 @@ export default function DashboardPage() {
               <ImageIcon className="h-8 w-8 text-purple-400" />
             </div>
             <h3 className="text-sm font-medium text-gray-400">Total Detections</h3>
-            <p className="mt-2 text-3xl font-bold text-white">{user.totalDetections}</p>
-            <p className="mt-2 text-xs text-gray-500">All-time count</p>
+            <p className="mt-2 text-3xl font-bold text-white">
+              {canViewAnalytics ? user.totalDetections : '--'}
+            </p>
+            <p className="mt-2 text-xs text-gray-500">
+              {canViewAnalytics ? 'All-time count' : 'Premium analytics'}
+            </p>
           </div>
 
           {/* Monthly Usage */}
@@ -163,8 +170,12 @@ export default function DashboardPage() {
               <Activity className="h-8 w-8 text-cyan-400" />
             </div>
             <h3 className="text-sm font-medium text-gray-400">Monthly Usage</h3>
-            <p className="mt-2 text-3xl font-bold text-white">{user.monthlyDetections}</p>
-            <p className="mt-2 text-xs text-gray-500">This month</p>
+            <p className="mt-2 text-3xl font-bold text-white">
+              {canViewAnalytics ? user.monthlyDetections : '--'}
+            </p>
+            <p className="mt-2 text-xs text-gray-500">
+              {canViewAnalytics ? 'This month' : 'Premium analytics'}
+            </p>
           </div>
         </div>
 
@@ -178,7 +189,11 @@ export default function DashboardPage() {
               </div>
               <span className="text-xs text-gray-400">Last 7 days</span>
             </div>
-            {summaryLoading ? (
+            {!canViewAnalytics ? (
+              <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-4 text-sm text-purple-200">
+                Upgrade to Premium to unlock activity trends and analytics.
+              </div>
+            ) : summaryLoading ? (
               <div className="text-sm text-gray-500">Loading activity insights...</div>
             ) : summaryError ? (
               <div className="text-sm text-rose-300">{summaryError}</div>
@@ -213,7 +228,11 @@ export default function DashboardPage() {
               <Clock className="h-6 w-6 text-cyan-300" />
               <h2 className="text-lg font-semibold text-white">Usage Overview</h2>
             </div>
-            {summaryLoading ? (
+            {!canViewAnalytics ? (
+              <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-4 text-sm text-purple-200">
+                Premium plans include usage insights and API analytics.
+              </div>
+            ) : summaryLoading ? (
               <div className="text-sm text-gray-500">Loading usage...</div>
             ) : summary ? (
               <div className="space-y-5 text-sm">
@@ -279,7 +298,11 @@ export default function DashboardPage() {
             </div>
             <span className="text-xs text-gray-400">Latest 5</span>
           </div>
-          {summaryLoading ? (
+          {!canViewAnalytics ? (
+            <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-4 text-sm text-purple-200">
+              Detection history is available on Premium plans.
+            </div>
+          ) : summaryLoading ? (
             <div className="text-sm text-gray-500">Loading detection history...</div>
           ) : summary && summary.recentDetections.length > 0 ? (
             <div className="space-y-3">
@@ -352,7 +375,7 @@ export default function DashboardPage() {
             <GlowButton onClick={() => router.push('/')}>
               Go to Detection
             </GlowButton>
-            {user.tier === 'FREE' && (
+            {!isPremium && (
               <GlowButton variant="secondary" onClick={() => router.push('/pricing')}>
                 <Crown className="h-4 w-4" />
                 <span>Upgrade to Premium</span>
