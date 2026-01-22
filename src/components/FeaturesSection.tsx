@@ -10,40 +10,45 @@ const features = [
     icon: Cpu,
     title: "Local model execution",
     description: "Runs on your device for fast, private AI detection with zero data transmission.",
-    gradient: "from-orange-500/20 to-amber-500/10",
-    iconColor: "text-orange-400",
+    gradient: "from-orange-500/35 via-rose-500/15 to-transparent",
+    iconColor: "text-orange-300",
+    ring: "ring-orange-400/30",
     size: "large",
   },
   {
     icon: ScanSearch,
     title: "Forensic confidence score",
     description: "Breaks down signal strength with calibrated certainty levels.",
-    gradient: "from-teal-500/20 to-emerald-500/10",
-    iconColor: "text-teal-400",
+    gradient: "from-teal-500/30 via-emerald-500/15 to-transparent",
+    iconColor: "text-teal-300",
+    ring: "ring-teal-400/30",
     size: "small",
   },
   {
     icon: Layers,
     title: "Heatmap overlays",
     description: "Visualize where synthetic artifacts concentrate in the frame.",
-    gradient: "from-amber-500/20 to-orange-500/10",
-    iconColor: "text-amber-400",
+    gradient: "from-amber-500/30 via-orange-500/20 to-transparent",
+    iconColor: "text-amber-300",
+    ring: "ring-amber-400/30",
     size: "small",
   },
   {
     icon: ShieldCheck,
     title: "Zero retention",
     description: "Images stay local and are never uploaded to any server.",
-    gradient: "from-emerald-500/20 to-teal-500/10",
-    iconColor: "text-emerald-400",
+    gradient: "from-emerald-500/30 via-cyan-500/15 to-transparent",
+    iconColor: "text-emerald-300",
+    ring: "ring-emerald-400/30",
     size: "medium",
   },
   {
     icon: Cloud,
     title: "Server API",
     description: "Send images to our servers and get a clear score back fast.",
-    gradient: "from-teal-500/20 to-orange-500/10",
-    iconColor: "text-teal-400",
+    gradient: "from-sky-500/30 via-teal-500/15 to-transparent",
+    iconColor: "text-sky-300",
+    ring: "ring-sky-400/30",
     badge: "Coming Soon",
     size: "medium",
   },
@@ -51,16 +56,18 @@ const features = [
     icon: Zap,
     title: "Realtime analysis",
     description: "Average response stays under two seconds for most images.",
-    gradient: "from-amber-500/20 to-orange-500/10",
-    iconColor: "text-amber-400",
+    gradient: "from-orange-500/30 via-amber-500/15 to-transparent",
+    iconColor: "text-orange-300",
+    ring: "ring-orange-400/30",
     size: "small",
   },
   {
     icon: Sparkles,
     title: "Free to use",
     description: "Unlimited scans while we prepare the production launch.",
-    gradient: "from-orange-500/20 to-amber-500/10",
-    iconColor: "text-orange-400",
+    gradient: "from-rose-500/30 via-amber-500/15 to-transparent",
+    iconColor: "text-rose-300",
+    ring: "ring-rose-400/30",
     size: "small",
   },
 ];
@@ -111,7 +118,7 @@ export default function FeaturesSection() {
           </div>
           <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
             <span className="text-foreground">Detection built for </span>
-            <span className="bg-gradient-to-r from-brand-cyan to-brand-mint bg-clip-text text-transparent">
+            <span className="text-gradient-cyan">
               creators, teams, and investigators
             </span>
           </h2>
@@ -150,8 +157,8 @@ export default function FeaturesSection() {
                     bg-gradient-to-br ${feature.gradient}
                     p-6 backdrop-blur-sm
                     transition-all duration-500
-                    hover:border-border/60
-                    hover:shadow-[0_0_40px_rgba(255,122,61,0.12)]
+                    hover:border-border/70
+                    hover:shadow-[0_0_50px_rgba(255,122,61,0.18)]
                   `}
                   whileHover={{ y: -4, scale: 1.01 }}
                   transition={{ type: "spring", stiffness: 300, damping: 20 }}
@@ -165,12 +172,10 @@ export default function FeaturesSection() {
                   />
 
                   {/* Animated glow on hover */}
-                  <div
-                    className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 blur transition-opacity duration-500 group-hover:opacity-100"
-                    style={{
-                      background: `linear-gradient(135deg, ${feature.iconColor.replace("text-", "rgba(").replace("-400", ", 0.2)")}, transparent)`,
-                    }}
-                  />
+                  <div className={`pointer-events-none absolute inset-0 rounded-2xl ring-1 ${feature.ring} opacity-0 transition-opacity duration-500 group-hover:opacity-100`} />
+                  <div className="pointer-events-none absolute -inset-8 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
+                    <div className={`h-full w-full rounded-[28px] bg-gradient-to-br ${feature.gradient} blur-2xl`} />
+                  </div>
 
                   <div className="relative z-10 flex h-full flex-col">
                     {/* Icon */}
