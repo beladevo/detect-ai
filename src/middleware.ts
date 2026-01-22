@@ -1,46 +1,45 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { jwtVerify } from 'jose'
+
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is not set')
+  }
+  return new TextEncoder().encode(secret)
+}
+
+async function verifyAccessToken(token: string): Promise<boolean> {
+  try {
+    await jwtVerify(token, getJwtSecret())
+    return true
+  } catch {
+    return false
+  }
+}
 
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
+  const accessToken = request.cookies.get('access_token')?.value
+  const refreshToken = request.cookies.get('refresh_token')?.value
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          )
-          supabaseResponse = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
+  const hasValidSession = accessToken ? await verifyAccessToken(accessToken) : false
+  const hasRefreshToken = !!refreshToken
+
+  if (request.nextUrl.pathname.startsWith('/dashboard')) {
+    if (!hasValidSession && !hasRefreshToken) {
+      return NextResponse.redirect(new URL('/login', request.url))
     }
-  )
-
-  const { data: { user } } = await supabase.auth.getUser()
-
-  // Protect premium routes
-  if (request.nextUrl.pathname.startsWith('/dashboard') && !user) {
-    return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Protect API routes (unless premium features are globally enabled)
-  if (request.nextUrl.pathname.startsWith('/api/premium/') && !user) {
+  if (request.nextUrl.pathname.startsWith('/api/premium/')) {
     const globalPremium = process.env.NEXT_PUBLIC_PREMIUM_FEATURES_ENABLED === 'true'
-    if (!globalPremium) {
+
+    if (!hasValidSession && !hasRefreshToken && !globalPremium) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
   }
 
-  return supabaseResponse
+  return NextResponse.next()
 }
 
 export const config = {

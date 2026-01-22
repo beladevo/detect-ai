@@ -1,76 +1,76 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from 'react'
-import { createClient } from '@/src/lib/supabase/client'
-import type { User as SupabaseUser } from '@supabase/supabase-js'
-import type { User as PrismaUser } from '@prisma/client'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+
+export type AuthUser = {
+  id: string
+  email: string
+  name: string | null
+  tier: 'FREE' | 'PREMIUM' | 'ENTERPRISE'
+  emailVerified: boolean
+  apiKey: string | null
+  apiKeyEnabled: boolean
+  monthlyDetections: number
+  totalDetections: number
+  lastDetectionAt: string | null
+  createdAt: string
+  lastLoginAt: string | null
+}
 
 type AuthContextType = {
-  supabaseUser: SupabaseUser | null
-  user: PrismaUser | null
+  user: AuthUser | null
   loading: boolean
   signOut: () => Promise<void>
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({
-  supabaseUser: null,
   user: null,
   loading: true,
   signOut: async () => {},
+  refreshUser: async () => {},
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null)
-  const [user, setUser] = useState<PrismaUser | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
-  useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSupabaseUser(session?.user ?? null)
-      if (session?.user) {
-        fetchUserData(session.user.email!)
-      } else {
-        setLoading(false)
-      }
-    })
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSupabaseUser(session?.user ?? null)
-      if (session?.user) {
-        fetchUserData(session.user.email!)
+  const fetchSession = useCallback(async () => {
+    try {
+      const response = await fetch('/api/auth/session')
+      if (response.ok) {
+        const data = await response.json()
+        setUser(data.user)
       } else {
         setUser(null)
-        setLoading(false)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  async function fetchUserData(email: string) {
-    try {
-      const response = await fetch(`/api/users/me`)
-      if (response.ok) {
-        const userData = await response.json()
-        setUser(userData)
       }
     } catch (error) {
-      console.error('Failed to fetch user data:', error)
+      console.error('Failed to fetch session:', error)
+      setUser(null)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  async function signOut() {
-    await supabase.auth.signOut()
-    setUser(null)
-  }
+  useEffect(() => {
+    fetchSession()
+  }, [fetchSession])
+
+  const signOut = useCallback(async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+      setUser(null)
+    } catch (error) {
+      console.error('Logout failed:', error)
+    }
+  }, [])
+
+  const refreshUser = useCallback(async () => {
+    await fetchSession()
+  }, [fetchSession])
 
   return (
-    <AuthContext.Provider value={{ supabaseUser, user, loading, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signOut, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

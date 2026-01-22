@@ -1,11 +1,10 @@
-import { createServerSupabaseClient } from '@/src/lib/supabase/server'
 import { prisma } from '@/src/lib/prisma'
 import { NextRequest } from 'next/server'
 import type { User } from '@prisma/client'
 import { getRateLimits } from '@/src/lib/features'
+import { verifyToken } from './jwt'
 
 export async function authenticateRequest(request: NextRequest): Promise<User | null> {
-  // Check for API key first
   const apiKey = request.headers.get('x-api-key')
   if (apiKey) {
     try {
@@ -18,20 +17,37 @@ export async function authenticateRequest(request: NextRequest): Promise<User | 
     }
   }
 
-  // Check for Supabase session
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { user: supabaseUser } } = await supabase.auth.getUser()
+    const accessToken = request.cookies.get('access_token')?.value
+    const refreshToken = request.cookies.get('refresh_token')?.value
 
-    if (!supabaseUser) {
-      return null
+    if (accessToken) {
+      const payload = await verifyToken(accessToken)
+      if (payload) {
+        const user = await prisma.user.findUnique({
+          where: { id: payload.userId }
+        })
+        return user
+      }
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: supabaseUser.email! }
-    })
+    if (refreshToken) {
+      const payload = await verifyToken(refreshToken)
+      if (payload) {
+        const storedToken = await prisma.refreshToken.findUnique({
+          where: { token: refreshToken },
+        })
 
-    return user
+        if (storedToken && storedToken.expiresAt > new Date()) {
+          const user = await prisma.user.findUnique({
+            where: { id: payload.userId }
+          })
+          return user
+        }
+      }
+    }
+
+    return null
   } catch (error) {
     console.error('Session auth failed:', error)
     return null
@@ -41,7 +57,6 @@ export async function authenticateRequest(request: NextRequest): Promise<User | 
 export async function checkRateLimit(user: User | null, ipAddress: string): Promise<boolean> {
   const limits = getRateLimits(user?.tier ?? 'FREE')
 
-  // Check daily limit
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -56,7 +71,6 @@ export async function checkRateLimit(user: User | null, ipAddress: string): Prom
     return count < limits.daily
   } catch (error) {
     console.error('Rate limit check failed:', error)
-    // If database fails, allow the request
     return true
   }
 }

@@ -1,11 +1,11 @@
 "use client"
 
 import { useState } from 'react'
-import { createClient } from '@/src/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import GlowButton from '@/src/components/ui/GlowButton'
 import { LogIn, Mail, Lock, CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react'
+import { useAuth } from '@/src/context/AuthContext'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -14,28 +14,37 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
+  const { refreshUser } = useAuth()
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
 
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-    } else {
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || 'Login failed')
+        setLoading(false)
+        return
+      }
+
       setSuccess(true)
       setLoading(false)
-      // Redirect after a short delay to show success message
+      await refreshUser()
       setTimeout(() => {
         router.push('/dashboard')
       }, 1000)
+    } catch {
+      setError('An unexpected error occurred')
+      setLoading(false)
     }
   }
 
@@ -127,7 +136,7 @@ export default function LoginPage() {
                 <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                 <input
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full rounded-lg border border-white/10 bg-white/5 py-3 pl-10 pr-4 text-white placeholder:text-gray-500 transition-colors focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
@@ -198,4 +207,3 @@ export default function LoginPage() {
     </div>
   )
 }
-

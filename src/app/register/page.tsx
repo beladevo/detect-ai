@@ -1,11 +1,11 @@
 "use client"
 
 import { useState } from 'react'
-import { createClient } from '@/src/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import GlowButton from '@/src/components/ui/GlowButton'
 import { UserPlus, Mail, Lock, User, CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react'
+import { useAuth } from '@/src/context/AuthContext'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -15,54 +15,53 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
+  const { refreshUser } = useAuth()
 
-  // Password strength validation
-  const passwordStrength = password.length >= 8 ? 'strong' : password.length >= 6 ? 'medium' : 'weak'
+  const getPasswordStrength = () => {
+    if (password.length === 0) return null
+    let score = 0
+    if (password.length >= 8) score++
+    if (/[A-Z]/.test(password)) score++
+    if (/[a-z]/.test(password)) score++
+    if (/[0-9]/.test(password)) score++
+    if (/[^A-Za-z0-9]/.test(password)) score++
+
+    if (score <= 2) return 'weak'
+    if (score <= 3) return 'medium'
+    return 'strong'
+  }
+
+  const passwordStrength = getPasswordStrength()
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`,
-        data: {
-          name,
-        },
-      },
-    })
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name }),
+      })
 
-    if (error) {
-      // Provide more helpful error messages
-      if (error.message.includes('email_address_invalid') || error.code === 'email_address_invalid') {
-        setError('Email registration is currently being configured. Please contact support or try again later.')
-      } else if (error.message.includes('User already registered')) {
-        setError('This email is already registered. Please sign in instead.')
-      } else {
-        setError(error.message)
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || 'Registration failed')
+        setLoading(false)
+        return
       }
-      setLoading(false)
-    } else {
+
       setSuccess(true)
       setLoading(false)
-
-      // Check if email confirmation is required
-      if (data?.user && !data.session) {
-        // Email confirmation required
-        setError('Please check your email to confirm your account before signing in.')
-        setTimeout(() => {
-          router.push('/login')
-        }, 3000)
-      } else {
-        // Auto-login successful
-        setTimeout(() => {
-          router.push('/dashboard')
-        }, 1500)
-      }
+      await refreshUser()
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 1500)
+    } catch {
+      setError('An unexpected error occurred')
+      setLoading(false)
     }
   }
 
@@ -162,17 +161,17 @@ export default function RegisterPage() {
                 <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                 <input
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="Create a strong password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full rounded-lg border border-white/10 bg-white/5 py-3 pl-10 pr-4 text-white placeholder:text-gray-500 transition-colors focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
                   required
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
 
               {/* Password strength indicator */}
-              {password && (
+              {passwordStrength && (
                 <div className="mt-2">
                   <div className="flex gap-1">
                     <div className={`h-1 flex-1 rounded ${passwordStrength === 'weak' ? 'bg-red-500' : passwordStrength === 'medium' ? 'bg-yellow-500' : 'bg-green-500'}`} />
@@ -180,13 +179,15 @@ export default function RegisterPage() {
                     <div className={`h-1 flex-1 rounded ${passwordStrength === 'strong' ? 'bg-green-500' : 'bg-gray-600'}`} />
                   </div>
                   <p className="mt-1 text-xs text-gray-400">
-                    {passwordStrength === 'weak' && 'Weak password'}
-                    {passwordStrength === 'medium' && 'Medium password'}
+                    {passwordStrength === 'weak' && 'Weak - Add uppercase, numbers, special chars'}
+                    {passwordStrength === 'medium' && 'Medium - Getting stronger'}
                     {passwordStrength === 'strong' && 'Strong password'}
-                    {password.length < 6 && ' - Must be at least 6 characters'}
                   </p>
                 </div>
               )}
+              <p className="mt-1 text-xs text-gray-500">
+                Must be at least 8 characters with uppercase, lowercase, and a number
+              </p>
             </div>
           </div>
 
@@ -242,4 +243,3 @@ export default function RegisterPage() {
     </div>
   )
 }
-

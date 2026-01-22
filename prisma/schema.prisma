@@ -1,6 +1,6 @@
 datasource db {
   provider = "postgresql"
-  url      = env("SUPABASE_DB_URL")
+  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -23,8 +23,17 @@ enum DetectionStatus {
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
+  passwordHash  String
   name          String?
   tier          UserTier  @default(FREE)
+
+  // Email verification
+  emailVerified Boolean   @default(false)
+  emailVerifyToken String? @unique
+
+  // Password reset
+  passwordResetToken   String?   @unique
+  passwordResetExpires DateTime?
 
   // Stripe integration
   stripeCustomerId     String?   @unique
@@ -49,10 +58,26 @@ model User {
   // Relations
   detections    Detection[]
   usageLogs     UsageLog[]
+  refreshTokens RefreshToken[]
 
   @@index([email])
   @@index([apiKey])
   @@index([stripeCustomerId])
+  @@index([emailVerifyToken])
+  @@index([passwordResetToken])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Detection {
@@ -123,4 +148,16 @@ model FeatureFlag {
   updatedAt   DateTime @updatedAt
 
   @@index([key])
+}
+
+model Waitlist {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  source    String   @default("unknown")
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([createdAt])
 }
