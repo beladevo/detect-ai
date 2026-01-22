@@ -1,9 +1,54 @@
-import { FrequencyForensicsResult, StandardizedImage } from "@/src/lib/pipeline/types";
+import { FrequencyForensicsResult, StandardizedImage, SpatialMap } from "@/src/lib/pipeline/types";
 
 function clamp01(value: number): number {
   if (value <= 0) return 0;
   if (value >= 1) return 1;
   return value;
+}
+
+function generateFrequencySpatialMap(
+  gray: Float32Array,
+  width: number,
+  height: number
+): SpatialMap {
+  const mapSize = 64;
+  const blockSize = 8;
+  const data = new Float32Array(mapSize * mapSize);
+
+  // For each block in the output map, compute local DCT energy ratio
+  for (let my = 0; my < mapSize; my++) {
+    for (let mx = 0; mx < mapSize; mx++) {
+      const startX = Math.floor((mx / mapSize) * (width - blockSize));
+      const startY = Math.floor((my / mapSize) * (height - blockSize));
+
+      // Extract 8x8 block
+      const block = new Float32Array(64);
+      for (let y = 0; y < blockSize; y++) {
+        for (let x = 0; x < blockSize; x++) {
+          const srcIdx = (startY + y) * width + (startX + x);
+          block[y * blockSize + x] = gray[srcIdx] ?? 0;
+        }
+      }
+
+      // Compute DCT energy distribution
+      const dct = dct8x8(block);
+      let highEnergy = 0;
+      let totalEnergy = 0;
+      for (let i = 1; i < dct.length; i++) {
+        const v = Math.abs(dct[i]);
+        totalEnergy += v;
+        if (i > 10) highEnergy += v;
+      }
+
+      // Low high-frequency energy = smoother = potentially AI
+      const energyRatio = totalEnergy > 0 ? highEnergy / totalEnergy : 0;
+      const anomalyScore = clamp01((0.42 - energyRatio) / 0.42);
+
+      data[my * mapSize + mx] = anomalyScore;
+    }
+  }
+
+  return { width: mapSize, height: mapSize, data };
 }
 
 function fft1d(re: Float64Array, im: Float64Array): void {
@@ -258,6 +303,9 @@ export function analyzeFrequencyForensics(image: StandardizedImage): FrequencyFo
       0.3 * dctScore
   );
 
+  // Generate spatial map
+  const spatialMap = generateFrequencySpatialMap(gray, width, height);
+
   return {
     frequency_score: frequencyScore,
     flags,
@@ -268,5 +316,6 @@ export function analyzeFrequencyForensics(image: StandardizedImage): FrequencyFo
       noiseCorr,
       dctEnergyRatio,
     },
+    spatialMap,
   };
 }

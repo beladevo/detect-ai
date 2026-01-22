@@ -1,4 +1,4 @@
-import { StandardizedImage, VisualArtifactsResult } from "@/src/lib/pipeline/types";
+import { StandardizedImage, VisualArtifactsResult, SpatialMap } from "@/src/lib/pipeline/types";
 
 function clamp01(value: number): number {
   if (value <= 0) return 0;
@@ -37,8 +37,10 @@ function computeLaplacianVariance(gray: Float32Array, width: number, height: num
   return Math.max(0, sumSq / count - mean * mean);
 }
 
-function blockVariance(gray: Float32Array, width: number, height: number, block: number): number[] {
+function blockVariance(gray: Float32Array, width: number, height: number, block: number): { variances: number[]; gridWidth: number; gridHeight: number } {
   const variances: number[] = [];
+  const gridWidth = Math.floor(width / block);
+  const gridHeight = Math.floor(height / block);
   for (let by = 0; by + block <= height; by += block) {
     for (let bx = 0; bx + block <= width; bx += block) {
       let sum = 0;
@@ -57,13 +59,61 @@ function blockVariance(gray: Float32Array, width: number, height: number, block:
       variances.push(Math.max(0, sumSq / count - mean * mean));
     }
   }
-  return variances;
+  return { variances, gridWidth, gridHeight };
+}
+
+function generateSpatialMap(
+  variances: number[],
+  gridWidth: number,
+  gridHeight: number,
+  skinMask: Float32Array,
+  width: number,
+  height: number,
+  smoothingScore: number
+): SpatialMap {
+  const mapWidth = 64;
+  const mapHeight = 64;
+  const data = new Float32Array(mapWidth * mapHeight);
+
+  const varianceThreshold = 0.0025;
+  const maxVariance = Math.max(...variances, 0.01);
+
+  for (let my = 0; my < mapHeight; my++) {
+    for (let mx = 0; mx < mapWidth; mx++) {
+      const srcX = Math.floor((mx / mapWidth) * width);
+      const srcY = Math.floor((my / mapHeight) * height);
+
+      const gridX = Math.min(Math.floor((mx / mapWidth) * gridWidth), gridWidth - 1);
+      const gridY = Math.min(Math.floor((my / mapHeight) * gridHeight), gridHeight - 1);
+      const gridIdx = gridY * gridWidth + gridX;
+
+      const variance = variances[gridIdx] ?? maxVariance;
+      const lowVarianceScore = variance < varianceThreshold
+        ? clamp01((varianceThreshold - variance) / varianceThreshold)
+        : 0;
+
+      const skinIdx = srcY * width + srcX;
+      const skinValue = skinMask[skinIdx] ?? 0;
+
+      const combinedScore = clamp01(
+        lowVarianceScore * 0.6 +
+        skinValue * smoothingScore * 0.4
+      );
+
+      data[my * mapWidth + mx] = combinedScore;
+    }
+  }
+
+  return { width: mapWidth, height: mapHeight, data };
 }
 
 export function analyzeVisualArtifacts(image: StandardizedImage): VisualArtifactsResult {
   const { resized } = image;
   const { rgb, gray, width, height } = resized;
   const flags: string[] = [];
+
+  // Create skin mask for spatial mapping
+  const skinMask = new Float32Array(width * height);
 
   let skinCount = 0;
   let skinLaplacianSum = 0;
@@ -91,6 +141,7 @@ export function analyzeVisualArtifacts(image: StandardizedImage): VisualArtifact
         cr >= 133 &&
         cr <= 173;
       if (isSkin) {
+        skinMask[idx] = 1;
         skinCount += 1;
         skinCbSum += cb;
         skinCbSumSq += cb * cb;
@@ -147,7 +198,7 @@ export function analyzeVisualArtifacts(image: StandardizedImage): VisualArtifact
     flags.push("skin_color_noise");
   }
 
-  const variances = blockVariance(gray, width, height, 8);
+  const { variances, gridWidth, gridHeight } = blockVariance(gray, width, height, 8);
   const lowVar = variances.filter((v) => v < 0.0025).length;
   const textureMeltScore = clamp01(lowVar / Math.max(1, variances.length));
   if (textureMeltScore > 0.45) {
@@ -178,6 +229,17 @@ export function analyzeVisualArtifacts(image: StandardizedImage): VisualArtifact
       0.2 * colorNoiseScore
   );
 
+  // Generate spatial map
+  const spatialMap = generateSpatialMap(
+    variances,
+    gridWidth,
+    gridHeight,
+    skinMask,
+    width,
+    height,
+    smoothingScore
+  );
+
   return {
     visual_artifacts_score: visualScore,
     flags,
@@ -190,5 +252,6 @@ export function analyzeVisualArtifacts(image: StandardizedImage): VisualArtifact
       globalLaplacianVariance,
       skinChrominanceVariance,
     },
+    spatialMap,
   };
 }

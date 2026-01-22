@@ -108,7 +108,8 @@ export async function analyzeImagePipelineBrowser(
   width: number,
   height: number,
   mlConfidence: number,
-  modelName?: string
+  modelName?: string,
+  fileBytes?: Uint8Array
 ): Promise<PipelineResult> {
   // Create standardized image from browser-decoded data
   const standardized = createStandardizedImage(pixels, width, height, mlConfidence);
@@ -119,7 +120,7 @@ export async function analyzeImagePipelineBrowser(
     : { visual_artifacts_score: 0, flags: [], details: {}, disabled: true };
 
   const metadata = env.PIPELINE_METADATA_ENABLED
-    ? analyzeMetadata(undefined)
+    ? analyzeMetadata(fileBytes)
     : { metadata_score: 0, exif_present: false, flags: [], tags: {}, disabled: true };
 
   const physics = env.PIPELINE_PHYSICS_ENABLED
@@ -145,16 +146,9 @@ export async function analyzeImagePipelineBrowser(
       }
     : { ml_score: 0, model_votes: [], flags: [], disabled: true };
 
-  // Provenance check (basic buffer check, no actual file)
-  const provenance = env.PIPELINE_PROVENANCE_ENABLED
-    ? {
-        provenance_score: 0,
-        c2pa_present: false,
-        signature_valid: false,
-        flags: [] as string[],
-        details: {},
-      }
-    : { provenance_score: 0, c2pa_present: false, signature_valid: false, flags: [], details: {}, disabled: true };
+  const provenance = env.PIPELINE_PROVENANCE_ENABLED && fileBytes
+    ? analyzeProvenance(fileBytes)
+    : { provenance_score: 0, c2pa_present: false, signature_valid: false, flags: [], details: {}, disabled: !env.PIPELINE_PROVENANCE_ENABLED || !fileBytes };
 
   // Fuse evidence
   const fusion = fuseEvidence({

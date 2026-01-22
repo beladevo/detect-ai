@@ -91,16 +91,19 @@ export function fuseEvidence(input: {
     normalized.frequency * frequency.frequency_score +
     normalized.ml * ml.ml_score;
 
-  const scores = [
-    visual.visual_artifacts_score,
-    metadata.metadata_score,
-    physics.physics_score,
-    frequency.frequency_score,
-    ml.ml_score,
-  ];
-  const mean = scores.reduce((acc, v) => acc + v, 0) / scores.length;
-  const variance =
-    scores.reduce((acc, v) => acc + (v - mean) ** 2, 0) / scores.length;
+  const scores: number[] = [];
+  if (!visual.disabled) scores.push(visual.visual_artifacts_score);
+  if (!metadata.disabled) scores.push(metadata.metadata_score);
+  if (!physics.disabled) scores.push(physics.physics_score);
+  if (!frequency.disabled) scores.push(frequency.frequency_score);
+  if (!ml.disabled) scores.push(ml.ml_score);
+
+  const mean = scores.length > 0
+    ? scores.reduce((acc, v) => acc + v, 0) / scores.length
+    : 0.5;
+  const variance = scores.length > 0
+    ? scores.reduce((acc, v) => acc + (v - mean) ** 2, 0) / scores.length
+    : 0;
   const spread = Math.sqrt(variance);
 
   const mlDiff = Math.abs(ml.ml_score - mean);

@@ -8,7 +8,14 @@ function clamp01(value: number): number {
   return value;
 }
 
-function resolveModelList(): string[] {
+function resolveModelList(override?: string | string[]): string[] {
+  if (override) {
+    const list = Array.isArray(override) ? override : [override];
+    const cleaned = list.map((name) => name.trim()).filter((name) => name.length > 0);
+    if (cleaned.length > 0) {
+      return cleaned;
+    }
+  }
   const env = process.env.AI_ENSEMBLE_MODELS;
   if (env) {
     return env
@@ -21,9 +28,10 @@ function resolveModelList(): string[] {
 
 export async function runMlEnsemble(
   buffer: Buffer,
-  fileName?: string
+  fileName?: string,
+  modelOverride?: string | string[]
 ): Promise<MlEnsembleResult> {
-  const models = resolveModelList();
+  const models = resolveModelList(modelOverride);
   const votes = await Promise.all(
     models.map(async (model) => {
       const result = await detectAIFromBuffer(buffer, model);

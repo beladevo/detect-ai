@@ -23,14 +23,7 @@ export const BLOB_BASE_URL = process.env.NEXT_PUBLIC_BLOB_BASE_URL || "";
 
 // Get full model path (local or remote)
 export function getModelPath(): string {
-  const isDev = process.env.NODE_ENV !== "production";
-  if (isDev) {
-    return `/models/onnx/${MODEL_NAME}`;
-  }
-
-  return BLOB_BASE_URL
-    ? `${BLOB_BASE_URL}/models/onnx/${MODEL_NAME}`
-    : `/models/onnx/${MODEL_NAME}`;
+  return getModelPathFor(MODEL_NAME);
 }
 
 export function resolveModelConfig(modelName?: string): {
@@ -43,4 +36,16 @@ export function resolveModelConfig(modelName?: string): {
     name,
     config: MODEL_CONFIGS[name] ?? { aiIndex: 1 },
   };
+}
+
+export function getModelPathFor(modelName?: string): string {
+  const { name } = resolveModelConfig(modelName);
+  const isDev = process.env.NODE_ENV !== "production";
+  if (isDev) {
+    return `/models/onnx/${name}`;
+  }
+
+  return BLOB_BASE_URL
+    ? `${BLOB_BASE_URL}/models/onnx/${name}`
+    : `/models/onnx/${name}`;
 }

@@ -137,7 +137,7 @@ export default function AIDetectorPage() {
 
     try {
       const { analyzeImageWithWasm } = await import("@/src/lib/wasmDetector");
-      const result = await analyzeImageWithWasm(file);
+      const result = await analyzeImageWithWasm(file, selectedModel);
       setResult({ score: result.score, pipeline: result.pipeline });
       pushHistory({
         id: crypto.randomUUID(),
@@ -153,7 +153,7 @@ export default function AIDetectorPage() {
     } finally {
       setIsUploading(false);
     }
-  }, [pushHistory]);
+  }, [pushHistory, selectedModel]);
 
   const handleReset = () => {
     setResult({ score: null });
@@ -186,23 +186,23 @@ export default function AIDetectorPage() {
         <section
           id="upload"
           ref={uploadRef}
-          className="relative z-10 mx-auto grid w-full max-w-6xl grid-cols-1 gap-10 px-6 pb-16 pt-6 lg:grid-cols-[1.1fr_0.9fr]"
+          className="relative z-10 mx-auto grid w-full max-w-5xl grid-cols-1 gap-4 px-4 pb-12 pt-4 md:gap-6 md:px-6 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_360px]"
         >
           <div
             ref={uploadCardRef}
-            className="rounded-3xl border border-border bg-card/60 p-8 shadow-2xl backdrop-blur-xl dark:bg-panel"
+            className="min-w-0 rounded-2xl border border-border bg-card/60 p-4 md:p-6 shadow-2xl backdrop-blur-xl dark:bg-panel"
           >
             <UploadZone isUploading={isUploading} onFileSelected={handleFileSelected} />
 
             {error ? (
-              <div className="mt-6 flex items-center justify-between rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              <div className="mt-4 flex items-center justify-between rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
                 <div className="flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
+                  <AlertCircle className="h-3.5 w-3.5" />
                   {error}
                 </div>
                 <button
                   onClick={handleReset}
-                  className="rounded-full border border-red-200/40 px-4 py-1 text-xs uppercase tracking-widest"
+                  className="rounded-full border border-red-200/40 px-3 py-1 text-[10px] uppercase tracking-widest"
                 >
                   Reset
                 </button>
@@ -219,43 +219,43 @@ export default function AIDetectorPage() {
                 imageUrl={previewUrl || undefined}
               />
             ) : (
-              <div className="mt-10 grid gap-4 text-sm text-foreground/50">
-                <div className="flex items-center gap-3 rounded-2xl border border-border bg-card/40 px-4 py-3">
-                  <Sparkles className="h-4 w-4 text-brand-purple" />
+              <div className="mt-6 grid gap-2 text-xs text-foreground/50">
+                <div className="flex items-center gap-2 rounded-xl border border-border bg-card/40 px-3 py-2">
+                  <Sparkles className="h-3.5 w-3.5 text-brand-purple shrink-0" />
                   <span>Deep pixel analysis with advanced model signatures.</span>
                 </div>
-                <div className="flex items-center gap-3 rounded-2xl border border-border bg-card/40 px-4 py-3">
-                  <ShieldCheck className="h-4 w-4 text-brand-emerald-500" />
+                <div className="flex items-center gap-2 rounded-xl border border-border bg-card/40 px-3 py-2">
+                  <ShieldCheck className="h-3.5 w-3.5 text-brand-emerald-500 shrink-0" />
                   <span>Full privacy mode with local-only processing.</span>
                 </div>
               </div>
             )}
           </div>
 
-          <div className="space-y-8">
+          <div className="min-w-0 space-y-4 overflow-hidden">
             <div
               ref={statusCardRef}
-              className="rounded-3xl border border-border bg-gradient-to-br from-card/40 via-card/20 to-brand-purple/10 p-6 shadow-glow-purple"
+              className="rounded-2xl border border-border bg-gradient-to-br from-card/40 via-card/20 to-brand-purple/10 p-4 shadow-glow-purple overflow-visible"
             >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-foreground">Detection engine status</h3>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <h3 className="text-sm font-semibold text-foreground truncate">Detection engine status</h3>
                 <ModelSelector
                   currentModel={selectedModel}
                   onModelChange={setSelectedModel}
                   variant="single"
                 />
               </div>
-              <p className="mt-2 text-sm text-foreground/60">
-                Model: {selectedModel} | Estimated time: {estimatedTime} | Accuracy: 96.2%
+              <p className="text-[10px] text-foreground/60 truncate">
+                {estimatedTime} | Accuracy: 96.2%
               </p>
-              <div className="mt-5 grid grid-cols-2 gap-4 text-sm text-foreground/80">
-                <div className="rounded-2xl border border-border bg-card/40 px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.2em] text-foreground/40">Realtime</p>
-                  <p className="mt-1 text-lg font-semibold text-brand-emerald-600 dark:text-emerald-200">Live</p>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-foreground/80">
+                <div className="rounded-lg border border-border bg-card/40 px-2.5 py-2">
+                  <p className="text-[9px] uppercase tracking-[0.15em] text-foreground/40">Realtime</p>
+                  <p className="text-sm font-semibold text-brand-emerald-600 dark:text-emerald-200">Live</p>
                 </div>
-                <div className="rounded-2xl border border-border bg-card/40 px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.2em] text-foreground/40">Threat Index</p>
-                  <p className="mt-1 text-lg font-semibold text-brand-purple">Low</p>
+                <div className="rounded-lg border border-border bg-card/40 px-2.5 py-2">
+                  <p className="text-[9px] uppercase tracking-[0.15em] text-foreground/40">Threat Index</p>
+                  <p className="text-sm font-semibold text-brand-purple">Low</p>
                 </div>
               </div>
             </div>

@@ -23,6 +23,7 @@ import { BorderBeam } from "./ui/BorderBeam";
 import MLModelsCard from "./ui/MLModelsCard"; // Moved here for modal
 import FusionBreakdown from "./ui/FusionBreakdown"; // Moved here for modal
 import ModuleBreakdown from "./ui/ModuleBreakdown"; // Moved here for modal
+import PremiumOverlay from "./ui/PremiumOverlay";
 
 
 type ResultsDisplayProps = {
@@ -269,16 +270,18 @@ export default function ResultsDisplay({
                 transition={{ delay: 0.65 }}
                 className="mt-6"
               >
-                <ExplanationList
-                  flags={{
-                    visual: pipeline.visual.flags,
-                    metadata: pipeline.metadata.flags,
-                    physics: pipeline.physics.flags,
-                    frequency: pipeline.frequency.flags,
-                    provenance: pipeline.provenance.flags,
-                  }}
-                  maxDisplay={3}
-                />
+                <PremiumOverlay className="rounded-2xl">
+                  <ExplanationList
+                    flags={{
+                      visual: pipeline.visual.flags,
+                      metadata: pipeline.metadata.flags,
+                      physics: pipeline.physics.flags,
+                      frequency: pipeline.frequency.flags,
+                      provenance: pipeline.provenance.flags,
+                    }}
+                    maxDisplay={3}
+                  />
+                </PremiumOverlay>
               </motion.div>
             )}
 
@@ -325,15 +328,17 @@ export default function ResultsDisplay({
                 <div className="h-1 w-8 rounded-full bg-brand-purple/50" />
                 <h3 className="text-lg font-bold text-foreground font-display">Key Forensic Findings</h3>
               </div>
-              <ExplanationList
-                flags={{
-                  visual: pipeline.visual.flags,
-                  metadata: pipeline.metadata.flags,
-                  physics: pipeline.physics.flags,
-                  frequency: pipeline.frequency.flags,
-                  provenance: pipeline.provenance.flags,
-                }}
-              />
+              <PremiumOverlay className="rounded-2xl">
+                <ExplanationList
+                  flags={{
+                    visual: pipeline.visual.flags,
+                    metadata: pipeline.metadata.flags,
+                    physics: pipeline.physics.flags,
+                    frequency: pipeline.frequency.flags,
+                    provenance: pipeline.provenance.flags,
+                  }}
+                />
+              </PremiumOverlay>
             </div>
 
             {/* Visual Evidence (The Hero) */}
@@ -343,9 +348,11 @@ export default function ResultsDisplay({
                   <div className="h-1 w-8 rounded-full bg-brand-cyan/50" />
                   <h3 className="text-lg font-bold text-foreground font-display">Spatial Analysis Overlay</h3>
                 </div>
-                <div className="rounded-2xl border border-border bg-card/20 p-1 overflow-hidden">
-                  <DetectionVisualization pipeline={pipeline} imageUrl={imageUrl} />
-                </div>
+                <PremiumOverlay className="rounded-2xl overflow-hidden">
+                  <div className="rounded-2xl border border-border bg-card/20 p-1">
+                    <DetectionVisualization pipeline={pipeline} imageUrl={imageUrl} />
+                  </div>
+                </PremiumOverlay>
               </div>
             )}
 
@@ -357,11 +364,13 @@ export default function ResultsDisplay({
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <MLModelsCard ml={pipeline.ml} />
-                <ModuleBreakdown
-                  weights={pipeline.fusion.weights}
-                  scores={pipeline.fusion.module_scores}
-                  finalConfidence={pipeline.fusion.confidence}
-                />
+                <PremiumOverlay className="rounded-2xl">
+                  <ModuleBreakdown
+                    weights={pipeline.fusion.weights}
+                    scores={pipeline.fusion.module_scores}
+                    finalConfidence={pipeline.fusion.confidence}
+                  />
+                </PremiumOverlay>
               </div>
             </div>
 
@@ -372,48 +381,56 @@ export default function ResultsDisplay({
                 <h3 className="text-lg font-bold text-foreground font-display">Deep Scan Report</h3>
               </div>
               <div className="grid gap-6 md:grid-cols-3">
-                <DetailCard
-                  title="Digital Forensics"
-                  icon={Fingerprint}
-                  color="cyan"
-                  score={pipeline.metadata.metadata_score * 100}
-                  metrics={[
-                    { label: "Metadata Risk", value: pipeline.metadata.metadata_score, threshold: 0.3 },
-                    { label: "Frequency Anomalies", value: pipeline.frequency.frequency_score, threshold: 0.5 },
-                  ]}
-                  flags={[...pipeline.metadata.flags, ...pipeline.provenance.flags]}
-                />
+                <PremiumOverlay className="rounded-2xl">
+                  <DetailCard
+                    title="Digital Forensics"
+                    icon={Fingerprint}
+                    color="cyan"
+                    score={pipeline.metadata.metadata_score * 100}
+                    metrics={[
+                      { label: "Metadata Risk", value: pipeline.metadata.metadata_score, threshold: 0.3 },
+                      { label: "Frequency Anomalies", value: pipeline.frequency.frequency_score, threshold: 0.5 },
+                    ]}
+                    flags={[...pipeline.metadata.flags, ...pipeline.provenance.flags]}
+                  />
+                </PremiumOverlay>
 
-                <DetailCard
-                  title="Visual Artifacts"
-                  icon={ScanEye}
-                  color="purple"
-                  score={pipeline.visual.visual_artifacts_score * 100}
-                  metrics={[
-                    { label: "Skin Smoothing", value: pipeline.visual.details.smoothingScore, threshold: 0.6 },
-                    { label: "Texture Consistency", value: pipeline.visual.details.textureMeltScore, threshold: 0.5 },
-                  ]}
-                  flags={pipeline.visual.flags}
-                />
+                <PremiumOverlay className="rounded-2xl">
+                  <DetailCard
+                    title="Visual Artifacts"
+                    icon={ScanEye}
+                    color="purple"
+                    score={pipeline.visual.visual_artifacts_score * 100}
+                    metrics={[
+                      { label: "Skin Smoothing", value: pipeline.visual.details.smoothingScore, threshold: 0.6 },
+                      { label: "Texture Consistency", value: pipeline.visual.details.textureMeltScore, threshold: 0.5 },
+                    ]}
+                    flags={pipeline.visual.flags}
+                  />
+                </PremiumOverlay>
 
-                <DetailCard
-                  title="Physics & Light"
-                  icon={Zap}
-                  color="pink"
-                  score={100 - pipeline.physics.physics_score * 100}
-                  scoreLabel="Consistency"
-                  metrics={[
-                    { label: "Lighting Coherence", value: 1 - pipeline.physics.details.lightInconsistency, threshold: 0.3, invertColor: true },
-                    { label: "Shadow Alignment", value: 1 - pipeline.physics.details.shadowMisalignment, threshold: 0.4, invertColor: true },
-                  ]}
-                  flags={pipeline.physics.flags}
-                />
+                <PremiumOverlay className="rounded-2xl">
+                  <DetailCard
+                    title="Physics & Light"
+                    icon={Zap}
+                    color="pink"
+                    score={100 - pipeline.physics.physics_score * 100}
+                    scoreLabel="Consistency"
+                    metrics={[
+                      { label: "Lighting Coherence", value: 1 - pipeline.physics.details.lightInconsistency, threshold: 0.3, invertColor: true },
+                      { label: "Shadow Alignment", value: 1 - pipeline.physics.details.shadowMisalignment, threshold: 0.4, invertColor: true },
+                    ]}
+                    flags={pipeline.physics.flags}
+                  />
+                </PremiumOverlay>
               </div>
             </div>
 
             {/* Export Section */}
             <div className="flex justify-center border-t border-white/10 pt-8 mt-12 pb-8">
-              <ExportButton pipeline={pipeline} />
+              <PremiumOverlay className="inline-flex rounded-2xl">
+                <ExportButton pipeline={pipeline} />
+              </PremiumOverlay>
             </div>
           </div>
         )}

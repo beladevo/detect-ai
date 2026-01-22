@@ -15,15 +15,22 @@ export type StandardizedImage = {
   };
   metadata: {
     format?: string;
-    exif?: Buffer;
-    icc?: Buffer;
+    exif?: Uint8Array;
+    icc?: Uint8Array;
   };
+};
+
+export type SpatialMap = {
+  width: number;
+  height: number;
+  data: Float32Array; // 0-1 values, row-major order
 };
 
 export type VisualArtifactsResult = {
   visual_artifacts_score: number;
   flags: string[];
   details: Record<string, number>;
+  spatialMap?: SpatialMap;
   disabled?: boolean;
 };
 
@@ -39,6 +46,7 @@ export type PhysicsConsistencyResult = {
   physics_score: number;
   flags: string[];
   details: Record<string, number>;
+  spatialMap?: SpatialMap;
   disabled?: boolean;
 };
 
@@ -46,6 +54,7 @@ export type FrequencyForensicsResult = {
   frequency_score: number;
   flags: string[];
   details: Record<string, number>;
+  spatialMap?: SpatialMap;
   disabled?: boolean;
 };
 

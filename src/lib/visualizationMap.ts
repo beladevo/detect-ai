@@ -1,9 +1,9 @@
 /**
  * Generate visualization/saliency maps based on forensic analysis
- * This is a simplified alternative to Grad-CAM that doesn't require model internals
+ * Uses actual spatial forensic data from pipeline modules
  */
 
-import type { PipelineResult } from "@/src/lib/pipeline/types";
+import type { PipelineResult, SpatialMap } from "@/src/lib/pipeline/types";
 
 export type HeatmapData = {
   width: number;
@@ -14,69 +14,103 @@ export type HeatmapData = {
 export type VisualizationMode = "combined" | "visual" | "physics" | "frequency";
 
 /**
- * Generate a simple importance map based on module scores
- * This creates a basic visualization showing which modules contributed most
+ * Upsample a spatial map to target dimensions using bilinear interpolation
+ */
+function upsampleMap(map: SpatialMap, targetWidth: number, targetHeight: number): Float32Array {
+  const result = new Float32Array(targetWidth * targetHeight);
+  const scaleX = map.width / targetWidth;
+  const scaleY = map.height / targetHeight;
+
+  for (let y = 0; y < targetHeight; y++) {
+    for (let x = 0; x < targetWidth; x++) {
+      const srcX = x * scaleX;
+      const srcY = y * scaleY;
+
+      const x0 = Math.floor(srcX);
+      const y0 = Math.floor(srcY);
+      const x1 = Math.min(x0 + 1, map.width - 1);
+      const y1 = Math.min(y0 + 1, map.height - 1);
+
+      const xFrac = srcX - x0;
+      const yFrac = srcY - y0;
+
+      const v00 = map.data[y0 * map.width + x0];
+      const v10 = map.data[y0 * map.width + x1];
+      const v01 = map.data[y1 * map.width + x0];
+      const v11 = map.data[y1 * map.width + x1];
+
+      const v0 = v00 * (1 - xFrac) + v10 * xFrac;
+      const v1 = v01 * (1 - xFrac) + v11 * xFrac;
+
+      result[y * targetWidth + x] = v0 * (1 - yFrac) + v1 * yFrac;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Generate importance map from actual forensic spatial data
  */
 export function generateImportanceMap(
   pipeline: PipelineResult,
   mode: VisualizationMode = "combined"
 ): HeatmapData {
-  // For now, create a simple radial gradient based on scores
-  // In future, this could be enhanced with actual region-based analysis
   const width = 256;
   const height = 256;
   const data = new Float32Array(width * height);
 
-  const centerX = width / 2;
-  const centerY = height / 2;
-  const maxRadius = Math.sqrt(centerX * centerX + centerY * centerY);
+  // Get spatial maps from modules (if available)
+  const visualMap = pipeline.visual.spatialMap;
+  const physicsMap = pipeline.physics.spatialMap;
+  const frequencyMap = pipeline.frequency.spatialMap;
 
-  // Get module scores
+  // Upsample maps to target resolution
+  const visualData = visualMap
+    ? upsampleMap(visualMap, width, height)
+    : null;
+  const physicsData = physicsMap
+    ? upsampleMap(physicsMap, width, height)
+    : null;
+  const frequencyData = frequencyMap
+    ? upsampleMap(frequencyMap, width, height)
+    : null;
+
+  // Module scores for weighting
   const scores = {
     visual: pipeline.visual.visual_artifacts_score,
     physics: pipeline.physics.physics_score,
     frequency: pipeline.frequency.frequency_score,
-    ml: pipeline.ml.ml_score,
   };
 
-  // Calculate importance weight based on mode
-  const getImportance = (x: number, y: number): number => {
-    const dx = x - centerX;
-    const dy = y - centerY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const normalizedDistance = distance / maxRadius;
+  // Generate combined or mode-specific heatmap
+  for (let i = 0; i < width * height; i++) {
+    let value = 0;
 
     switch (mode) {
       case "visual":
-        // Visual artifacts often concentrated in center (faces, objects)
-        return scores.visual * (1 - normalizedDistance * 0.5);
+        value = visualData ? visualData[i] * scores.visual : scores.visual * 0.5;
+        break;
 
       case "physics":
-        // Physics issues can be anywhere
-        return scores.physics * (0.7 + Math.random() * 0.3);
+        value = physicsData ? physicsData[i] * scores.physics : scores.physics * 0.5;
+        break;
 
       case "frequency":
-        // Frequency anomalies distributed
-        return scores.frequency * (0.8 + normalizedDistance * 0.2);
+        value = frequencyData ? frequencyData[i] * scores.frequency : scores.frequency * 0.5;
+        break;
 
       case "combined":
       default:
-        // Weighted combination
-        return (
-          scores.visual * (1 - normalizedDistance * 0.5) * 0.3 +
-          scores.physics * 0.25 +
-          scores.frequency * 0.25 +
-          scores.ml * 0.2
-        );
+        // Weighted combination of all available maps
+        const visualContrib = visualData ? visualData[i] * 0.4 : scores.visual * 0.4;
+        const physicsContrib = physicsData ? physicsData[i] * 0.3 : scores.physics * 0.3;
+        const frequencyContrib = frequencyData ? frequencyData[i] * 0.3 : scores.frequency * 0.3;
+        value = visualContrib + physicsContrib + frequencyContrib;
+        break;
     }
-  };
 
-  // Generate heatmap data
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = y * width + x;
-      data[idx] = Math.min(1, Math.max(0, getImportance(x, y)));
-    }
+    data[i] = Math.min(1, Math.max(0, value));
   }
 
   return { width, height, data };

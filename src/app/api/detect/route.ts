@@ -55,6 +55,15 @@ export async function POST(request: Request) {
   });
   const formData = await request.formData();
   const file = formData.get("file");
+  const modelValue = formData.get("model");
+  const requestedModel =
+    typeof modelValue === "string" && modelValue.trim().length > 0
+      ? modelValue.trim()
+      : undefined;
+  const safeModel =
+    requestedModel && !requestedModel.includes("..") && !requestedModel.includes("/") && !requestedModel.includes("\\")
+      ? requestedModel
+      : undefined;
 
   if (!file || !(file instanceof File)) {
     await logServerEvent({
@@ -123,7 +132,7 @@ export async function POST(request: Request) {
       }),
       request,
     });
-    const result = await analyzeImagePipeline(buffer, file.name);
+    const result = await analyzeImagePipeline(buffer, file.name, { model: safeModel });
     const score = scoreFromConfidence(result.verdict.confidence);
     await logServerEvent({
       level: "Info",

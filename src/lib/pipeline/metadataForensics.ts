@@ -68,7 +68,7 @@ function normalizeText(value: unknown): string {
   return String(value).toLowerCase();
 }
 
-export function analyzeMetadata(exif?: Buffer): MetadataForensicsResult {
+export function analyzeMetadata(exif?: Uint8Array | ArrayBuffer): MetadataForensicsResult {
   const flags: string[] = [];
   const tags: Record<string, string | number | boolean> = {};
   let exifPresent = false;

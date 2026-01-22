@@ -13,7 +13,8 @@ import { env } from "@/src/lib/env";
 
 export async function analyzeImagePipeline(
   buffer: Buffer,
-  fileName?: string
+  fileName?: string,
+  options?: { model?: string | string[] }
 ): Promise<PipelineResult> {
   const randomized = process.env.AI_RANDOMIZE_PREPROCESS === "true";
   const standardized = await preprocessImage(buffer, { randomize: randomized });
@@ -35,7 +36,7 @@ export async function analyzeImagePipeline(
     : { frequency_score: 0, flags: [], details: {}, disabled: true };
 
   const ml = env.PIPELINE_ML_ENABLED
-    ? await runMlEnsemble(buffer, fileName)
+    ? await runMlEnsemble(buffer, fileName, options?.model)
     : { ml_score: 0, model_votes: [], flags: [], disabled: true };
 
   const provenance = env.PIPELINE_PROVENANCE_ENABLED

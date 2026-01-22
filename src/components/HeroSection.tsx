@@ -169,10 +169,10 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
                     ease: [0.25, 0.46, 0.45, 0.94],
                   }}
                 >
-                  {word === "AI-generated" || word === "truth." ? (
-                    <span className="bg-gradient-to-r from-brand-purple via-brand-pink to-brand-cyan bg-clip-text text-transparent">
-                      {word}
-                    </span>
+                  {word === "AI-generated" ? (
+                    <span className="text-brand-purple">{word}</span>
+                  ) : word === "truth." ? (
+                    <span className="text-brand-cyan">{word}</span>
                   ) : (
                     <span className="text-foreground">{word}</span>
                   )}

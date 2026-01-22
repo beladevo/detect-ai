@@ -1,5 +1,5 @@
 import * as ort from "onnxruntime-web";
-import { resolveModelConfig, getModelPath, MODEL_NAME } from "@/src/lib/modelConfigs";
+import { resolveModelConfig, getModelPathFor, MODEL_NAME } from "@/src/lib/modelConfigs";
 import { scoreFromConfidence } from "@/src/lib/scoreUtils";
 import type { PipelineResult } from "@/src/lib/pipeline/types";
 import { analyzeImagePipelineBrowser } from "@/src/lib/pipeline/analyzeImagePipelineBrowser";
@@ -28,7 +28,6 @@ type InputMetadata = {
   dimensions?: Array<number | string | null>;
 };
 
-const MODEL_PATHS = [getModelPath()];
 const ORT_WASM_PATH = "/onnxruntime/";
 const MAX_PIXELS = 4096 * 4096;
 const DEFAULT_SIZE = 224;
@@ -46,8 +45,9 @@ function dispatchToast(detail: { title?: string; description: string; variant?: 
 const sessionCache = new Map<string, Promise<SessionState>>();
 
 
-async function getSession(): Promise<SessionState> {
-  const cacheKey = "default";
+async function getSession(modelName?: string): Promise<SessionState> {
+  const { name } = resolveModelConfig(modelName);
+  const cacheKey = name;
   if (!sessionCache.has(cacheKey)) {
     const sessionPromise = (async () => {
       ort.env.wasm.wasmPaths = ORT_WASM_PATH;
@@ -60,7 +60,7 @@ async function getSession(): Promise<SessionState> {
         threads: cpuThreads,
       });
 
-      const modelPaths = MODEL_PATHS;
+      const modelPaths = [getModelPathFor(name)];
       let lastError: unknown = null;
       for (const modelPath of modelPaths) {
         const executionProviders: Array<"wasm"> = ["wasm"];
@@ -95,7 +95,7 @@ async function getSession(): Promise<SessionState> {
             const { layout, width, height } = resolveInputShape(metadata);
 
             console.info("WASM detector: model ready", {
-              modelName: MODEL_NAME,
+              modelName: name,
               modelPath,
               executionProviders,
               simd: attempt.simd,
@@ -301,8 +301,8 @@ export async function detectAI(
     throw new Error("Channels must be 3 (RGB) or 4 (RGBA)");
   }
 
-  const { config } = resolveModelConfig();
-  const session = await getSession();
+  const { config } = resolveModelConfig(modelName);
+  const session = await getSession(modelName);
 
   // Multi-crop analysis for large images (matching server-side nodeDetector.ts)
   const MIN_CROP_SIZE = 512;
@@ -402,7 +402,7 @@ export async function analyzeImageWithWasm(
 ): Promise<AnalysisResult> {
   try {
     if (shouldUseApiOnly()) {
-      const apiResult = await analyzeImageWithApi(file);
+      const apiResult = await analyzeImageWithApi(file, modelName);
       console.info("WASM detector: API-only mode score", { score: apiResult.score });
       return apiResult;
     }
@@ -411,16 +411,17 @@ export async function analyzeImageWithWasm(
         name: file.name,
         type: file.type,
       });
-      return await analyzeImageWithApi(file);
+      return await analyzeImageWithApi(file, modelName);
     }
     console.info("WASM detector: analyzing file", {
       name: file.name,
       size: file.size,
       type: file.type,
-      model: MODEL_NAME,
+      model: modelName || MODEL_NAME,
     });
     const decoded = await decodeImageToRgba(file);
-    const result = await detectAI(decoded.pixels, decoded.width, decoded.height, 4);
+    const result = await detectAI(decoded.pixels, decoded.width, decoded.height, 4, modelName);
+    const fileBytes = new Uint8Array(await file.arrayBuffer());
 
     // Run full pipeline analysis in browser
     console.info("WASM detector: running forensic pipeline");
@@ -429,7 +430,8 @@ export async function analyzeImageWithWasm(
       decoded.width,
       decoded.height,
       result.confidence,
-      modelName
+      modelName,
+      fileBytes
     );
 
     const score = scoreFromConfidence(pipeline.verdict.confidence);
@@ -448,7 +450,7 @@ export async function analyzeImageWithWasm(
       console.warn("WASM detector: falling back to API", {
         model: MODEL_NAME,
       });
-      const apiResult = await analyzeImageWithApi(file);
+      const apiResult = await analyzeImageWithApi(file, modelName);
       console.info("WASM detector: API fallback score", { score: apiResult.score });
       return apiResult;
     } catch (fallbackError) {
@@ -460,12 +462,13 @@ export async function analyzeImageWithWasm(
 }
 
 export async function detectAIFromEncoded(
-  bytes: Uint8Array
+  bytes: Uint8Array,
+  modelName?: string
 ): Promise<DetectionResult> {
   const safeBytes = new Uint8Array(bytes);
   const blob = new Blob([safeBytes]);
   const decoded = await decodeImageToRgba(blob);
-  return detectAI(decoded.pixels, decoded.width, decoded.height, 4);
+  return detectAI(decoded.pixels, decoded.width, decoded.height, 4, modelName);
 }
 
 import { env } from "@/src/lib/env";
@@ -492,9 +495,12 @@ function isHeicLike(file: File): boolean {
   return name.endsWith(".heic") || name.endsWith(".heif");
 }
 
-async function analyzeImageWithApi(file: File): Promise<AnalysisResult> {
+async function analyzeImageWithApi(file: File, modelName?: string): Promise<AnalysisResult> {
   const formData = new FormData();
   formData.append("file", file);
+  if (modelName) {
+    formData.append("model", modelName);
+  }
   const response = await fetch("/api/detect", {
     method: "POST",
     body: formData,

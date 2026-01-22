@@ -144,10 +144,10 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
         setIsDragging(false);
         handleFile(e.dataTransfer.files);
       }}
-      className="group relative flex h-80 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[2rem] bg-card/40 backdrop-blur-2xl transition-colors duration-500 hover:bg-card/60"
+      className="group relative flex h-64 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl bg-card/40 backdrop-blur-2xl transition-colors duration-500 hover:bg-card/60"
     >
       <div
-        className="absolute inset-0 rounded-[2rem] p-[2px]"
+        className="absolute inset-0 rounded-2xl p-[2px]"
         style={{
           background: "linear-gradient(90deg, transparent, var(--brand-purple), transparent)",
           mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
@@ -157,7 +157,7 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
         <div ref={borderRef} className="absolute inset-0 bg-gradient-to-r from-transparent via-brand-purple to-transparent opacity-50 bg-[length:200%_auto]" />
       </div>
 
-      <div ref={contentRef} className="relative z-10 flex flex-col items-center p-10 text-center">
+      <div ref={contentRef} className="relative z-10 flex flex-col items-center p-6 text-center">
 
         <div
           ref={glowRef}
@@ -177,47 +177,46 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
         />
 
         {isUploading ? (
-          <div className="flex flex-col items-center space-y-6">
+          <div className="flex flex-col items-center space-y-4">
             <div className="relative">
-              <div className="h-20 w-20 animate-[spin_3s_linear_infinite] rounded-full border-2 border-brand-purple/30 border-t-brand-purple" />
-              <div className="absolute inset-0 m-auto h-14 w-14 animate-[spin_2s_linear_infinite_reverse] rounded-full border-2 border-brand-cyan/30 border-b-brand-cyan" />
-              <Zap className="absolute inset-0 m-auto h-6 w-6 animate-pulse text-foreground dark:text-white" />
+              <div className="h-16 w-16 animate-[spin_3s_linear_infinite] rounded-full border-2 border-brand-purple/30 border-t-brand-purple" />
+              <div className="absolute inset-0 m-auto h-10 w-10 animate-[spin_2s_linear_infinite_reverse] rounded-full border-2 border-brand-cyan/30 border-b-brand-cyan" />
+              <Zap className="absolute inset-0 m-auto h-5 w-5 animate-pulse text-foreground dark:text-white" />
             </div>
             <div>
-              <h3 className="bg-gradient-to-r from-foreground to-brand-purple bg-clip-text text-xl font-bold text-transparent">
+              <h3 className="bg-gradient-to-r from-foreground to-brand-purple bg-clip-text text-lg font-bold text-transparent">
                 Neural Scan Active
               </h3>
-              <p className="text-sm text-brand-purple/80 animate-pulse mt-1">Processing digital artifacts...</p>
+              <p className="text-xs text-brand-purple/80 animate-pulse mt-1">Processing digital artifacts...</p>
             </div>
-            <div className="h-1.5 w-48 overflow-hidden rounded-full bg-foreground/10">
+            <div className="h-1 w-40 overflow-hidden rounded-full bg-foreground/10">
               <div className="h-full w-full origin-left animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-brand-purple to-transparent" />
             </div>
           </div>
         ) : (
           <div className="flex flex-col items-center">
-            <div className="relative mb-6">
+            <div className="relative mb-4">
               <div className="absolute inset-0 animate-pulse rounded-full bg-purple-500/20 blur-xl" />
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-md transition-transform duration-300 group-hover:scale-110">
-                <Upload className="h-8 w-8 text-white transition-colors group-hover:text-purple-300" />
+              <div className="relative flex h-14 w-14 items-center justify-center rounded-xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-md transition-transform duration-300 group-hover:scale-110">
+                <Upload className="h-6 w-6 text-white transition-colors group-hover:text-purple-300" />
               </div>
 
-              <div className="absolute -right-4 -top-4 rounded-full border border-white/10 bg-black/60 px-2 py-1 backdrop-blur-md">
-                <Sparkles className="h-3 w-3 text-yellow-400" />
+              <div className="absolute -right-3 -top-3 rounded-full border border-white/10 bg-black/60 px-1.5 py-0.5 backdrop-blur-md">
+                <Sparkles className="h-2.5 w-2.5 text-yellow-400" />
               </div>
             </div>
 
-            <h3 className="mb-2 text-2xl font-bold bg-gradient-to-br from-foreground via-foreground to-brand-purple bg-clip-text text-transparent">
+            <h3 className="mb-1 text-xl font-bold bg-gradient-to-br from-foreground via-foreground to-brand-purple bg-clip-text text-transparent">
               Drop Visuals Here
             </h3>
-            <p className="mb-6 max-w-xs text-sm leading-relaxed text-foreground/50">
-              Drag & drop your image or <span className="cursor-pointer text-brand-purple underline decoration-brand-purple/30 underline-offset-4 hover:text-brand-purple/70">browse</span>
-              <br />to initialize analysis.
+            <p className="mb-4 max-w-xs text-xs leading-relaxed text-foreground/50">
+              Drag & drop your image or <span className="cursor-pointer text-brand-purple underline decoration-brand-purple/30 underline-offset-4 hover:text-brand-purple/70">browse</span> to initialize analysis.
             </p>
 
-            <div className="flex items-center gap-3 rounded-full border border-border bg-card/40 px-4 py-1.5 text-xs font-medium text-foreground/50 backdrop-blur-sm">
-              <Shield className="h-3 w-3 text-brand-emerald-500" />
-              <div className="h-3 w-[1px] bg-border" />
-              <span className="tracking-widest uppercase opacity-60">Secure Enclave</span>
+            <div className="flex items-center gap-2 rounded-full border border-border bg-card/40 px-3 py-1 text-[10px] font-medium text-foreground/50 backdrop-blur-sm">
+              <Shield className="h-2.5 w-2.5 text-brand-emerald-500" />
+              <div className="h-2.5 w-[1px] bg-border" />
+              <span className="tracking-widest uppercase opacity-60">Secure</span>
             </div>
           </div>
         )}

@@ -169,13 +169,14 @@ export default function ModelSelector({
     AVAILABLE_MODELS.find((m) => m.name === currentModel) ?? AVAILABLE_MODELS[0];
 
   return (
-    <div className="relative">
+    <div className="relative shrink-0">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-gray-200 transition-all hover:border-white/30 hover:bg-white/10"
+        className="flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-gray-200 transition-all hover:border-white/30 hover:bg-white/10"
       >
-        <Brain className="h-4 w-4" />
-        <span>{activeModel.displayName}</span>
+        <Brain className="h-3.5 w-3.5" />
+        <span className="hidden sm:inline">{activeModel.displayName}</span>
+        <span className="sm:hidden">{activeModel.name.replace('.onnx', '')}</span>
       </button>
 
       {isOpen && (
