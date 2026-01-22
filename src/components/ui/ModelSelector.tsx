@@ -38,7 +38,7 @@ export default function ModelSelector({
   );
   const { user } = useAuth();
   const premiumEnabled =
-    process.env.NEXT_PUBLIC_PREMIUM_FEATURES_ENABLED === "true" ||
+    // process.env.NEXT_PUBLIC_PREMIUM_FEATURES_ENABLED === "true" ||
     user?.tier === "PREMIUM" ||
     user?.tier === "ENTERPRISE";
 

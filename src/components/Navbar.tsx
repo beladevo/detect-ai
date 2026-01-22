@@ -28,12 +28,12 @@ export default function Navbar({ onActionClick }: NavbarProps) {
 
   const navLinks = [
     { href: "#upload", label: "Detection" },
-    { href: "#features", label: "Features" },
+    { href: "#features", label: "Capabilities" },
     { href: "/pricing", label: "Pricing", isExternal: false },
-    { href: "#waitlist", label: "Coming Soon" },
-    { href: "#privacy", label: "Privacy" },
   ];
-  const isPremium = user?.tier === "PREMIUM" || user?.tier === "ENTERPRISE";
+  const hasPremiumAccess = Boolean(user && user.tier !== "FREE");
+  const showUpgradeButton = !loading && !hasPremiumAccess;
+  const showDashboardShortcut = !loading && Boolean(user);
 
   return (
     <>
@@ -155,18 +155,9 @@ export default function Navbar({ onActionClick }: NavbarProps) {
                   </Link>
                 )}
 
-                {!loading && user && (
-                  <Link href="/dashboard" className="hidden md:block">
-                    <button className="flex items-center gap-2 rounded-lg border border-purple-500/30 bg-purple-500/10 px-4 py-2 text-sm font-medium text-purple-300 transition-colors hover:bg-purple-500/20">
-                      <Bot className="h-4 w-4" />
-                      <span>Dashboard</span>
-                    </button>
-                  </Link>
-                )}
-
                 <ThemeToggle />
 
-                {!loading && !isPremium && (
+                {showUpgradeButton && (
                   <Link href="/pricing" className="hidden md:block">
                     <button className="flex items-center gap-2 rounded-lg border border-purple-500/30 bg-purple-500/10 px-4 py-2 text-sm font-medium text-purple-200 transition-colors hover:bg-purple-500/20">
                       <Sparkles className="h-4 w-4" />
@@ -230,7 +221,7 @@ export default function Navbar({ onActionClick }: NavbarProps) {
                   )
                 )}
                 <div className="mt-2 border-t border-white/10 pt-4 space-y-2">
-                  {!loading && !isPremium && (
+                  {showUpgradeButton && (
                     <Link href="/pricing" onClick={() => setMobileMenuOpen(false)}>
                       <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-sm font-medium text-purple-200 transition-colors hover:bg-purple-500/20">
                         <Sparkles className="h-4 w-4" />
@@ -247,15 +238,6 @@ export default function Navbar({ onActionClick }: NavbarProps) {
                     </Link>
                   )}
 
-                  {!loading && user && (
-                    <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>
-                      <button className="flex w-full items-center justify-center gap-2 rounded-lg border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-sm font-medium text-purple-300 transition-colors hover:bg-purple-500/20">
-                        <Bot className="h-4 w-4" />
-                        <span>Dashboard</span>
-                      </button>
-                    </Link>
-                  )}
-
                   <GlowButton onClick={onActionClick} className="w-full">
                     Start Scan
                   </GlowButton>
@@ -265,6 +247,15 @@ export default function Navbar({ onActionClick }: NavbarProps) {
           </motion.div>
         )}
       </AnimatePresence>
+      {showDashboardShortcut && (
+        <Link
+          href="/dashboard"
+          className="pointer-events-auto fixed right-4 top-20 z-50 flex items-center gap-2 rounded-full border border-purple-500/40 bg-background/80 px-3 py-2 text-xs font-semibold text-purple-200 shadow-lg shadow-purple-500/20 backdrop-blur transition hover:-translate-y-0.5 hover:border-purple-500/60 hover:bg-purple-500/20 sm:right-5 sm:top-[72px] sm:px-4 sm:py-2 sm:text-sm"
+        >
+          <Bot className="h-4 w-4 text-purple-300" />
+          <span>Dashboard</span>
+        </Link>
+      )}
     </>
   );
 }
