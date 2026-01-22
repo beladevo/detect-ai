@@ -161,7 +161,7 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
 
         <div
           ref={glowRef}
-          className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-purple-600/20 blur-[80px]"
+          className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-purple/20 blur-[80px]"
         />
 
         <div
@@ -196,13 +196,13 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
         ) : (
           <div className="flex flex-col items-center">
             <div className="relative mb-4">
-              <div className="absolute inset-0 animate-pulse rounded-full bg-purple-500/20 blur-xl" />
+              <div className="absolute inset-0 animate-pulse rounded-full bg-brand-purple/20 blur-xl" />
               <div className="relative flex h-14 w-14 items-center justify-center rounded-xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-md transition-transform duration-300 group-hover:scale-110">
-                <Upload className="h-6 w-6 text-white transition-colors group-hover:text-purple-300" />
+                <Upload className="h-6 w-6 text-white transition-colors group-hover:text-brand-cyan" />
               </div>
 
               <div className="absolute -right-3 -top-3 rounded-full border border-white/10 bg-black/60 px-1.5 py-0.5 backdrop-blur-md">
-                <Sparkles className="h-2.5 w-2.5 text-yellow-400" />
+                <Sparkles className="h-2.5 w-2.5 text-brand-pink" />
               </div>
             </div>
 
@@ -214,7 +214,7 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
             </p>
 
             <div className="flex items-center gap-2 rounded-full border border-border bg-card/40 px-3 py-1 text-[10px] font-medium text-foreground/50 backdrop-blur-sm">
-              <Shield className="h-2.5 w-2.5 text-brand-emerald-500" />
+              <Shield className="h-2.5 w-2.5 text-brand-mint" />
               <div className="h-2.5 w-[1px] bg-border" />
               <span className="tracking-widest uppercase opacity-60">Secure</span>
             </div>
@@ -223,8 +223,8 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
       </div>
 
       <div ref={particlesRef} className="pointer-events-none absolute inset-0 opacity-0 transition-opacity">
-        <div className="absolute left-1/4 top-1/4 h-1 w-1 rounded-full bg-purple-400 shadow-[0_0_10px_currentColor]" />
-        <div className="absolute right-1/4 bottom-1/4 h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_10px_currentColor]" />
+        <div className="absolute left-1/4 top-1/4 h-1 w-1 rounded-full bg-brand-purple shadow-[0_0_10px_currentColor]" />
+        <div className="absolute right-1/4 bottom-1/4 h-1.5 w-1.5 rounded-full bg-brand-cyan shadow-[0_0_10px_currentColor]" />
         <div className="absolute right-1/3 top-1/3 h-1 w-1 rounded-full bg-white shadow-[0_0_10px_currentColor]" />
       </div>
     </label>

@@ -1,9 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { analyzeImagePipeline } from "@/src/lib/pipeline/analyzeImagePipeline";
 import { scoreFromConfidence } from "@/src/lib/scoreUtils";
 import { MODEL_NAME } from "@/src/lib/modelConfigs";
 import { logServerEvent } from "@/src/lib/loggerServer";
-import { checkRateLimit, getClientIP } from "@/src/lib/rateLimit";
+import { checkRateLimit as checkBurstRateLimit, getClientIP } from "@/src/lib/rateLimit";
+import { authenticateRequest, checkRateLimit as checkDailyRateLimit } from "@/src/lib/auth/api";
+import { prisma } from "@/src/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -16,10 +18,64 @@ const RATE_LIMIT = {
   windowMs: 60 * 1000, // 1 minute
 };
 
-export async function POST(request: Request) {
-  // Check rate limit
+async function logUsage({
+  userId,
+  ipAddress,
+  userAgent,
+  statusCode,
+  credited,
+}: {
+  userId: string | null;
+  ipAddress: string;
+  userAgent: string;
+  statusCode: number;
+  credited: boolean;
+}) {
+  try {
+    await prisma.usageLog.create({
+      data: {
+        userId,
+        endpoint: "/api/detect",
+        method: "POST",
+        statusCode,
+        ipAddress: ipAddress || null,
+        userAgent: userAgent || null,
+        credited,
+      },
+    });
+  } catch (error) {
+    console.warn("Usage log write failed:", error);
+  }
+}
+
+export async function POST(request: NextRequest) {
   const clientIP = getClientIP(request);
-  const rateLimit = checkRateLimit(clientIP, RATE_LIMIT);
+  const userAgent = request.headers.get("user-agent") || "";
+  const user = await authenticateRequest(request);
+  const userId = user?.id ?? null;
+
+  const dailyAllowed = await checkDailyRateLimit(user, clientIP);
+  if (!dailyAllowed) {
+    await logServerEvent({
+      level: "Warn",
+      source: "Backend",
+      service: "Detect",
+      message: "Daily rate limit exceeded",
+      additional: JSON.stringify({ ip: clientIP, userId }),
+      request,
+    });
+    await logUsage({ userId, ipAddress: clientIP, userAgent, statusCode: 429, credited: false });
+    const reset = new Date();
+    reset.setHours(24, 0, 0, 0);
+    return NextResponse.json({
+      error: "Daily rate limit exceeded",
+      errorType: "DAILY_RATE_LIMIT_EXCEEDED",
+      message: "You have reached your daily usage limit. Try again tomorrow.",
+      retryAfter: Math.max(0, Math.ceil((reset.getTime() - Date.now()) / 1000)),
+    }, { status: 429 });
+  }
+
+  const rateLimit = checkBurstRateLimit(clientIP, RATE_LIMIT);
 
   if (!rateLimit.allowed) {
     await logServerEvent({
@@ -30,6 +86,7 @@ export async function POST(request: Request) {
       additional: JSON.stringify({ ip: clientIP }),
       request,
     });
+    await logUsage({ userId, ipAddress: clientIP, userAgent, statusCode: 429, credited: false });
     return NextResponse.json({
       error: "Too many requests",
       errorType: "RATE_LIMIT_EXCEEDED",
@@ -73,6 +130,7 @@ export async function POST(request: Request) {
       message: "Missing file",
       request,
     });
+    await logUsage({ userId, ipAddress: clientIP, userAgent, statusCode: 400, credited: false });
     return NextResponse.json({
       error: "No file provided",
       errorType: "MISSING_FILE",
@@ -90,6 +148,7 @@ export async function POST(request: Request) {
       additional: JSON.stringify({ size: file.size, maxSize: MAX_FILE_SIZE }),
       request,
     });
+    await logUsage({ userId, ipAddress: clientIP, userAgent, statusCode: 413, credited: false });
     return NextResponse.json({
       error: "File too large",
       errorType: "FILE_TOO_LARGE",
@@ -109,6 +168,7 @@ export async function POST(request: Request) {
       additional: JSON.stringify({ type: file.type }),
       request,
     });
+    await logUsage({ userId, ipAddress: clientIP, userAgent, statusCode: 415, credited: false });
     return NextResponse.json({
       error: "Unsupported file type",
       errorType: "UNSUPPORTED_TYPE",
@@ -118,6 +178,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const startTime = performance.now();
     const buffer = Buffer.from(await file.arrayBuffer());
     await logServerEvent({
       level: "Info",
@@ -134,6 +195,7 @@ export async function POST(request: Request) {
     });
     const result = await analyzeImagePipeline(buffer, file.name, { model: safeModel });
     const score = scoreFromConfidence(result.verdict.confidence);
+    const processingTimeMs = Math.round(performance.now() - startTime);
     await logServerEvent({
       level: "Info",
       source: "Backend",
@@ -142,6 +204,55 @@ export async function POST(request: Request) {
       additional: JSON.stringify({ score, verdict: result.verdict.verdict }),
       request,
     });
+
+    if (user) {
+      const fileHash = result.hashes?.sha256 || "";
+      const pipelineSummary = {
+        verdict: result.verdict,
+        hashes: result.hashes,
+        fusion: result.fusion,
+        modules: {
+          visual: { score: result.visual.visual_artifacts_score, flags: result.visual.flags },
+          metadata: { score: result.metadata.metadata_score, flags: result.metadata.flags },
+          physics: { score: result.physics.physics_score, flags: result.physics.flags },
+          frequency: { score: result.frequency.frequency_score, flags: result.frequency.flags },
+          ml: { score: result.ml.ml_score, flags: result.ml.flags },
+          provenance: { score: result.provenance.provenance_score, flags: result.provenance.flags },
+        },
+      };
+
+      try {
+        await prisma.$transaction([
+          prisma.detection.create({
+            data: {
+              userId: user.id,
+              fileName: file.name,
+              fileSize: file.size,
+              fileHash,
+              score,
+              verdict: result.verdict.verdict,
+              confidence: result.verdict.confidence,
+              status: "COMPLETED",
+              processingTime: processingTimeMs,
+              modelUsed: safeModel || MODEL_NAME,
+              pipelineData: pipelineSummary,
+            },
+          }),
+          prisma.user.update({
+            where: { id: user.id },
+            data: {
+              totalDetections: { increment: 1 },
+              monthlyDetections: { increment: 1 },
+              lastDetectionAt: new Date(),
+            },
+          }),
+        ]);
+      } catch (error) {
+        console.warn("Detection persistence failed:", error);
+      }
+    }
+
+    await logUsage({ userId, ipAddress: clientIP, userAgent, statusCode: 200, credited: true });
     return NextResponse.json({
       score,
       verdict: result.verdict.verdict,
@@ -175,6 +286,7 @@ export async function POST(request: Request) {
       additional: message,
       request,
     });
+    await logUsage({ userId, ipAddress: clientIP, userAgent, statusCode: 500, credited: false });
 
     // Provide more specific error messages
     let errorType = "PROCESSING_ERROR";

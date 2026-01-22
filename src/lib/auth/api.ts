@@ -64,7 +64,8 @@ export async function checkRateLimit(user: User | null, ipAddress: string): Prom
     const count = await prisma.usageLog.count({
       where: {
         ...(user ? { userId: user.id } : { ipAddress }),
-        createdAt: { gte: today }
+        createdAt: { gte: today },
+        credited: true,
       }
     })
 

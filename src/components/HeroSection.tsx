@@ -170,9 +170,9 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
                   }}
                 >
                   {word === "AI-generated" ? (
-                    <span className="text-brand-purple">{word}</span>
+                    <span style={{ color: "var(--brand-purple)" }}>{word}</span>
                   ) : word === "truth." ? (
-                    <span className="text-brand-cyan">{word}</span>
+                    <span style={{ color: "var(--brand-cyan)" }}>{word}</span>
                   ) : (
                     <span className="text-foreground">{word}</span>
                   )}

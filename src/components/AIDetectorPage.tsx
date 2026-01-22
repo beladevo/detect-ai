@@ -225,7 +225,7 @@ export default function AIDetectorPage() {
                   <span>Deep pixel analysis with advanced model signatures.</span>
                 </div>
                 <div className="flex items-center gap-2 rounded-xl border border-border bg-card/40 px-3 py-2">
-                  <ShieldCheck className="h-3.5 w-3.5 text-brand-emerald-500 shrink-0" />
+                  <ShieldCheck className="h-3.5 w-3.5 text-brand-mint shrink-0" />
                   <span>Full privacy mode with local-only processing.</span>
                 </div>
               </div>
@@ -251,7 +251,7 @@ export default function AIDetectorPage() {
               <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-foreground/80">
                 <div className="rounded-lg border border-border bg-card/40 px-2.5 py-2">
                   <p className="text-[9px] uppercase tracking-[0.15em] text-foreground/40">Realtime</p>
-                  <p className="text-sm font-semibold text-brand-emerald-600 dark:text-emerald-200">Live</p>
+                  <p className="text-sm font-semibold text-brand-cyan">Live</p>
                 </div>
                 <div className="rounded-lg border border-border bg-card/40 px-2.5 py-2">
                   <p className="text-[9px] uppercase tracking-[0.15em] text-foreground/40">Threat Index</p>

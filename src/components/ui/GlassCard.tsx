@@ -21,10 +21,10 @@ export default function GlassCard({
   variant = "default",
 }: GlassCardProps) {
   const glowColors = {
-    purple: "hover:shadow-[0_0_60px_rgba(139,92,246,0.15)]",
-    cyan: "hover:shadow-[0_0_60px_rgba(6,182,212,0.15)]",
-    pink: "hover:shadow-[0_0_60px_rgba(236,72,153,0.15)]",
-    emerald: "hover:shadow-[0_0_60px_rgba(52,211,153,0.15)]",
+    purple: "hover:shadow-[0_0_60px_rgba(255,122,61,0.18)]",
+    cyan: "hover:shadow-[0_0_60px_rgba(43,182,173,0.18)]",
+    pink: "hover:shadow-[0_0_60px_rgba(241,183,93,0.18)]",
+    emerald: "hover:shadow-[0_0_60px_rgba(164,232,207,0.18)]",
     none: "",
   };
 
@@ -46,7 +46,7 @@ export default function GlassCard({
     transition-all duration-500 ease-out
     ${hover ? glowColors[glow] : ""}
     ${hover ? glowBorder[glow] : ""}
-    ${variant === "glowing" ? "shadow-[0_0_50px_rgba(139,92,246,0.1)] border-brand-purple/20" : ""}
+    ${variant === "glowing" ? "shadow-[0_0_50px_rgba(255,122,61,0.12)] border-brand-purple/20" : ""}
   `;
 
   const content = (
