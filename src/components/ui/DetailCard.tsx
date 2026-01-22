@@ -31,36 +31,36 @@ export default function DetailCard({
 }: DetailCardProps) {
     const colors = {
         purple: {
-            text: "text-purple-400",
-            bg: "bg-purple-500",
-            border: "border-purple-500/20",
-            badge: "bg-purple-500/10 text-purple-200",
+            text: "text-brand-purple",
+            bg: "bg-brand-purple",
+            border: "border-brand-purple/20",
+            badge: "bg-brand-purple/10 text-brand-purple dark:text-purple-200",
         },
         cyan: {
-            text: "text-cyan-400",
-            bg: "bg-cyan-500",
-            border: "border-cyan-500/20",
-            badge: "bg-cyan-500/10 text-cyan-200",
+            text: "text-brand-cyan",
+            bg: "bg-brand-cyan",
+            border: "border-brand-cyan/20",
+            badge: "bg-brand-cyan/10 text-brand-cyan dark:text-cyan-200",
         },
         pink: {
-            text: "text-pink-400",
-            bg: "bg-pink-500",
-            border: "border-pink-500/20",
-            badge: "bg-pink-500/10 text-pink-200",
+            text: "text-brand-pink",
+            bg: "bg-brand-pink",
+            border: "border-brand-pink/20",
+            badge: "bg-brand-pink/10 text-brand-pink dark:text-pink-200",
         },
     };
     const theme = colors[color];
 
     return (
         <div
-            className={`group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5 transition-all duration-500 hover:border-white/20 hover:bg-white/[0.07]`}
+            className={`group relative overflow-hidden rounded-2xl border border-border bg-card/40 p-5 transition-all duration-500 hover:border-border/60 hover:bg-card/60`}
         >
             <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <div className={`rounded-lg bg-white/5 p-2 ${theme.text}`}>
+                    <div className={`rounded-lg bg-card/20 p-2 ${theme.text}`}>
                         <Icon className="h-5 w-5" />
                     </div>
-                    <h4 className="font-semibold text-gray-100">{title}</h4>
+                    <h4 className="font-semibold text-foreground">{title}</h4>
                 </div>
                 <div className="text-right">
                     <div className={`text-xl font-bold ${theme.text}`}>
@@ -86,14 +86,14 @@ export default function DetailCard({
                             </span>
                         </div>
                         {!m.isBinary && (
-                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-foreground/10">
                                 <motion.div
                                     initial={{ width: 0 }}
                                     animate={{
                                         width: `${Math.min(100, Math.max(0, m.value * 100))}%`,
                                     }}
                                     transition={{ duration: 1, ease: "easeOut" }}
-                                    className={`h-full rounded-full ${m.invertColor ? "bg-emerald-400" : theme.bg
+                                    className={`h-full rounded-full ${m.invertColor ? "bg-emerald-500" : theme.bg
                                         } opacity-80`}
                                 />
                             </div>

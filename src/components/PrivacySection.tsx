@@ -24,39 +24,39 @@ const highlights = [
 export default function PrivacySection() {
   return (
     <section id="privacy" className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-20">
-      <div className="rounded-[32px] border border-white/10 bg-white/5 p-8 shadow-2xl">
+      <div className="rounded-[32px] border border-border bg-card/60 p-8 shadow-2xl backdrop-blur-xl">
         <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
           <div>
-            <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.3em] text-gray-300">
+            <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-card/40 px-4 py-2 text-xs uppercase tracking-[0.3em] text-foreground/60">
               Privacy
             </p>
-            <h2 className="font-display text-3xl font-semibold text-white sm:text-4xl">
+            <h2 className="font-display text-3xl font-semibold text-foreground sm:text-4xl">
               Your images stay yours.
             </h2>
-            <p className="mt-4 text-sm text-gray-300">
+            <p className="mt-4 text-sm text-foreground/60">
               AI-human detector runs a{" "}
-              <strong className="font-semibold text-white">
+              <strong className="font-semibold text-foreground">
                 local AI detection model
               </strong>{" "}
               so sensitive files never hit a server. We do not store uploads or
               sell any data.
             </p>
           </div>
-          <div className="grid gap-4 text-sm text-gray-300">
+          <div className="grid gap-4 text-sm text-foreground/60">
             {highlights.map((item) => {
               const Icon = item.icon;
               return (
                 <div
                   key={item.title}
-                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3"
+                  className="rounded-2xl border border-border bg-card/20 px-4 py-3"
                 >
-                  <div className="flex items-center gap-3 text-white">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10">
-                      <Icon className="h-4 w-4 text-emerald-200" />
+                  <div className="flex items-center gap-3 text-foreground">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-card/40">
+                      <Icon className="h-4 w-4 text-brand-emerald-500" />
                     </span>
                     <span className="font-semibold">{item.title}</span>
                   </div>
-                  <p className="mt-2 text-xs text-gray-400">{item.description}</p>
+                  <p className="mt-2 text-xs text-foreground/50">{item.description}</p>
                 </div>
               );
             })}

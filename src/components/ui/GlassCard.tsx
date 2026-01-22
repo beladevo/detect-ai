@@ -39,31 +39,31 @@ export default function GlassCard({
   const baseClasses = `
     relative overflow-hidden
     rounded-3xl
-    border border-white/[0.08]
-    bg-gradient-to-br from-white/[0.08] via-white/[0.04] to-transparent
+    border border-border
+    bg-gradient-to-br from-card/80 via-card/40 to-transparent
     backdrop-blur-xl
     shadow-2xl
     transition-all duration-500 ease-out
     ${hover ? glowColors[glow] : ""}
     ${hover ? glowBorder[glow] : ""}
-    ${variant === "glowing" ? "shadow-[0_0_50px_rgba(139,92,246,0.1)] border-white/20" : ""}
+    ${variant === "glowing" ? "shadow-[0_0_50px_rgba(139,92,246,0.1)] border-brand-purple/20" : ""}
   `;
 
   const content = (
     <>
       {/* Glass shine effect */}
       <div
-        className="pointer-events-none absolute inset-0 rounded-3xl"
+        className="pointer-events-none absolute inset-0 rounded-3xl opacity-20 dark:opacity-100"
         style={{
-          background: "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%, transparent 100%)",
+          background: "linear-gradient(135deg, var(--border) 0%, transparent 50%, transparent 100%)",
         }}
       />
 
       {/* Top edge highlight */}
       <div
-        className="pointer-events-none absolute left-[10%] right-[10%] top-0 h-px"
+        className="pointer-events-none absolute left-[10%] right-[10%] top-0 h-px transition-opacity"
         style={{
-          background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)",
+          background: "linear-gradient(90deg, transparent, var(--border), transparent)",
         }}
       />
 

@@ -24,18 +24,18 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
     if (file) onFileSelected(file);
   };
 
-  
+
 
   const handleMouseMove = (e: React.MouseEvent<HTMLLabelElement>) => {
     if (!containerRef.current || !contentRef.current) return;
-    
+
     const rect = containerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
-    
-    const rotateX = ((y - centerY) / centerY) * -5; 
+
+    const rotateX = ((y - centerY) / centerY) * -5;
     const rotateY = ((x - centerX) / centerX) * 5;
 
     gsap.to(contentRef.current, {
@@ -144,29 +144,29 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
         setIsDragging(false);
         handleFile(e.dataTransfer.files);
       }}
-      className="group relative flex h-80 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[2rem] bg-gray-900/40 backdrop-blur-2xl transition-colors duration-500"
+      className="group relative flex h-80 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-[2rem] bg-card/40 backdrop-blur-2xl transition-colors duration-500 hover:bg-card/60"
     >
-      <div 
+      <div
         className="absolute inset-0 rounded-[2rem] p-[2px]"
         style={{
-          background: "linear-gradient(90deg, transparent, rgba(168,85,247,0.5), transparent)",
+          background: "linear-gradient(90deg, transparent, var(--brand-purple), transparent)",
           mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
           maskComposite: "exclude",
         }}
       >
-        <div ref={borderRef} className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500 to-transparent opacity-50 bg-[length:200%_auto]" />
+        <div ref={borderRef} className="absolute inset-0 bg-gradient-to-r from-transparent via-brand-purple to-transparent opacity-50 bg-[length:200%_auto]" />
       </div>
 
       <div ref={contentRef} className="relative z-10 flex flex-col items-center p-10 text-center">
-        
-        <div 
+
+        <div
           ref={glowRef}
-          className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-purple-600/20 blur-[80px]" 
+          className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-purple-600/20 blur-[80px]"
         />
 
-        <div 
+        <div
           ref={scanlineRef}
-          className="pointer-events-none absolute -top-10 left-0 right-0 h-2 bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent blur-md bg-opacity-20"
+          className="pointer-events-none absolute -top-10 left-0 right-0 h-2 bg-gradient-to-r from-transparent via-brand-cyan/50 to-transparent blur-md bg-opacity-20"
         />
 
         <input
@@ -178,45 +178,45 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
 
         {isUploading ? (
           <div className="flex flex-col items-center space-y-6">
-             <div className="relative">
-                <div className="h-20 w-20 animate-[spin_3s_linear_infinite] rounded-full border-2 border-purple-500/30 border-t-purple-400" />
-                <div className="absolute inset-0 m-auto h-14 w-14 animate-[spin_2s_linear_infinite_reverse] rounded-full border-2 border-cyan-500/30 border-b-cyan-400" />
-                <Zap className="absolute inset-0 m-auto h-6 w-6 animate-pulse text-white" />
-             </div>
-             <div>
-                <h3 className="bg-gradient-to-r from-white to-purple-200 bg-clip-text text-xl font-bold text-transparent">
-                  Neural Scan Active
-                </h3>
-                <p className="text-sm text-purple-300/80 animate-pulse mt-1">Processing digital artifacts...</p>
-             </div>
-             <div className="h-1.5 w-48 overflow-hidden rounded-full bg-white/10">
-                <div className="h-full w-full origin-left animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-purple-500 to-transparent" />
-             </div>
+            <div className="relative">
+              <div className="h-20 w-20 animate-[spin_3s_linear_infinite] rounded-full border-2 border-brand-purple/30 border-t-brand-purple" />
+              <div className="absolute inset-0 m-auto h-14 w-14 animate-[spin_2s_linear_infinite_reverse] rounded-full border-2 border-brand-cyan/30 border-b-brand-cyan" />
+              <Zap className="absolute inset-0 m-auto h-6 w-6 animate-pulse text-foreground dark:text-white" />
+            </div>
+            <div>
+              <h3 className="bg-gradient-to-r from-foreground to-brand-purple bg-clip-text text-xl font-bold text-transparent">
+                Neural Scan Active
+              </h3>
+              <p className="text-sm text-brand-purple/80 animate-pulse mt-1">Processing digital artifacts...</p>
+            </div>
+            <div className="h-1.5 w-48 overflow-hidden rounded-full bg-foreground/10">
+              <div className="h-full w-full origin-left animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-brand-purple to-transparent" />
+            </div>
           </div>
         ) : (
           <div className="flex flex-col items-center">
             <div className="relative mb-6">
-               <div className="absolute inset-0 animate-pulse rounded-full bg-purple-500/20 blur-xl" />
-               <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-md transition-transform duration-300 group-hover:scale-110">
-                  <Upload className="h-8 w-8 text-white transition-colors group-hover:text-purple-300" />
-               </div>
-               
-               <div className="absolute -right-4 -top-4 rounded-full border border-white/10 bg-black/60 px-2 py-1 backdrop-blur-md">
-                  <Sparkles className="h-3 w-3 text-yellow-400" />
-               </div>
+              <div className="absolute inset-0 animate-pulse rounded-full bg-purple-500/20 blur-xl" />
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-md transition-transform duration-300 group-hover:scale-110">
+                <Upload className="h-8 w-8 text-white transition-colors group-hover:text-purple-300" />
+              </div>
+
+              <div className="absolute -right-4 -top-4 rounded-full border border-white/10 bg-black/60 px-2 py-1 backdrop-blur-md">
+                <Sparkles className="h-3 w-3 text-yellow-400" />
+              </div>
             </div>
 
-            <h3 className="mb-2 text-2xl font-bold bg-gradient-to-br from-white via-white to-purple-200 bg-clip-text text-transparent">
-               Drop Visuals Here
+            <h3 className="mb-2 text-2xl font-bold bg-gradient-to-br from-foreground via-foreground to-brand-purple bg-clip-text text-transparent">
+              Drop Visuals Here
             </h3>
-            <p className="mb-6 max-w-xs text-sm leading-relaxed text-gray-400">
-              Drag & drop your image or <span className="cursor-pointer text-purple-400 underline decoration-purple-400/30 underline-offset-4 hover:text-purple-300">browse</span>
+            <p className="mb-6 max-w-xs text-sm leading-relaxed text-foreground/50">
+              Drag & drop your image or <span className="cursor-pointer text-brand-purple underline decoration-brand-purple/30 underline-offset-4 hover:text-brand-purple/70">browse</span>
               <br />to initialize analysis.
             </p>
 
-            <div className="flex items-center gap-3 rounded-full border border-white/5 bg-white/5 px-4 py-1.5 text-xs font-medium text-gray-500 backdrop-blur-sm">
-              <Shield className="h-3 w-3 text-emerald-500/80" />
-              <div className="h-3 w-[1px] bg-white/10" />
+            <div className="flex items-center gap-3 rounded-full border border-border bg-card/40 px-4 py-1.5 text-xs font-medium text-foreground/50 backdrop-blur-sm">
+              <Shield className="h-3 w-3 text-brand-emerald-500" />
+              <div className="h-3 w-[1px] bg-border" />
               <span className="tracking-widest uppercase opacity-60">Secure Enclave</span>
             </div>
           </div>
@@ -224,9 +224,9 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
       </div>
 
       <div ref={particlesRef} className="pointer-events-none absolute inset-0 opacity-0 transition-opacity">
-         <div className="absolute left-1/4 top-1/4 h-1 w-1 rounded-full bg-purple-400 shadow-[0_0_10px_currentColor]" />
-         <div className="absolute right-1/4 bottom-1/4 h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_10px_currentColor]" />
-         <div className="absolute right-1/3 top-1/3 h-1 w-1 rounded-full bg-white shadow-[0_0_10px_currentColor]" />
+        <div className="absolute left-1/4 top-1/4 h-1 w-1 rounded-full bg-purple-400 shadow-[0_0_10px_currentColor]" />
+        <div className="absolute right-1/4 bottom-1/4 h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_10px_currentColor]" />
+        <div className="absolute right-1/3 top-1/3 h-1 w-1 rounded-full bg-white shadow-[0_0_10px_currentColor]" />
       </div>
     </label>
   );

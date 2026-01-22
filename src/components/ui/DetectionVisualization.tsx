@@ -71,24 +71,24 @@ export default function DetectionVisualization({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <Eye className="h-5 w-5 text-purple-400" />
-          <h3 className="text-sm font-semibold text-gray-200">Detection Visualization</h3>
+          <div className="p-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20">
+            <Eye className="h-4 w-4 text-purple-400" />
+          </div>
+          <h3 className="text-sm font-bold text-gray-200 uppercase tracking-widest">Spatial Analysis Overlay</h3>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-white/5 border border-white/10">
           {modes.map((m) => (
             <button
               key={m.value}
               onClick={() => setMode(m.value)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
-                mode === m.value
-                  ? "bg-purple-500/20 text-purple-300 ring-1 ring-purple-500/50"
-                  : "text-gray-400 hover:bg-white/5 hover:text-gray-300"
-              }`}
+              className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all ${mode === m.value
+                  ? "bg-white/10 text-white shadow-sm"
+                  : "text-gray-500 hover:text-gray-300"
+                }`}
             >
-              <span className="mr-1">{m.icon}</span>
               {m.label}
             </button>
           ))}

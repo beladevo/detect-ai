@@ -12,15 +12,18 @@ import Modal from "./ui/Modal";
 import GlassCard from "./ui/GlassCard";
 import GlowButton from "./ui/GlowButton";
 import type { PipelineResult } from "@/src/lib/pipeline/types";
-import MLModelsCard from "./ui/MLModelsCard";
-import FusionBreakdown from "./ui/FusionBreakdown";
 import DetailCard from "./ui/DetailCard";
 import ShareModal from "./ShareModal";
 import DetectionVisualization from "./ui/DetectionVisualization";
-import ModuleBreakdown from "./ui/ModuleBreakdown";
 import ExplanationList from "./ui/ExplanationList";
 import ConfidenceDisplay from "./ui/ConfidenceDisplay";
 import ExportButton from "./ui/ExportButton";
+import NumberTicker from "./ui/NumberTicker";
+import { BorderBeam } from "./ui/BorderBeam";
+import MLModelsCard from "./ui/MLModelsCard"; // Moved here for modal
+import FusionBreakdown from "./ui/FusionBreakdown"; // Moved here for modal
+import ModuleBreakdown from "./ui/ModuleBreakdown"; // Moved here for modal
+
 
 type ResultsDisplayProps = {
   score: number;
@@ -41,28 +44,6 @@ export default function ResultsDisplay({
 }: ResultsDisplayProps) {
   const [showModal, setShowModal] = useState(false);
   const [showShare, setShowShare] = useState(false);
-  const [displayScore, setDisplayScore] = React.useState(0);
-
-  React.useEffect(() => {
-    let start = 0;
-    const end = score;
-    if (start === end) return;
-
-    const duration = 1000;
-    const increment = end / (duration / 16);
-
-    const timer = setInterval(() => {
-      start += increment;
-      if (start >= end) {
-        setDisplayScore(end);
-        clearInterval(timer);
-      } else {
-        setDisplayScore(Math.floor(start));
-      }
-    }, 16);
-
-    return () => clearInterval(timer);
-  }, [score]);
 
   const config = {
     ai: {
@@ -74,6 +55,7 @@ export default function ResultsDisplay({
       Icon: ShieldAlert,
       title: "AI-Generated Detected",
       message: "Detected signatures consistent with AI-generated imagery.",
+      label: "AI-GENERATED",
     },
     real: {
       gradient: "from-emerald-400 to-cyan-400",
@@ -84,6 +66,7 @@ export default function ResultsDisplay({
       Icon: CheckCircle2,
       title: "Authentic Image",
       message: "The system identifies the image as authentic.",
+      label: "AUTHENTIC",
     },
     uncertain: {
       gradient: "from-amber-400 to-orange-400",
@@ -94,6 +77,7 @@ export default function ResultsDisplay({
       Icon: AlertCircle,
       title: "Inconclusive Result",
       message: "The result is inconclusive. Consider a secondary check.",
+      label: "INCONCLUSIVE",
     },
   };
 
@@ -112,13 +96,14 @@ export default function ResultsDisplay({
           hover={false}
           variant="glowing"
           glow={verdict === "ai" ? "purple" : verdict === "real" ? "emerald" : "pink"}
-          className="p-8"
+          className="p-8 relative"
         >
+          {verdict === "ai" && <BorderBeam size={300} duration={12} delay={9} />}
           {/* Glass shine effect */}
           <div
-            className="pointer-events-none absolute inset-0 rounded-3xl"
+            className="pointer-events-none absolute inset-0 rounded-3xl opacity-20 dark:opacity-100"
             style={{
-              background: "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%)",
+              background: "linear-gradient(135deg, var(--border) 0%, transparent 50%)",
             }}
           />
 
@@ -153,7 +138,7 @@ export default function ResultsDisplay({
               </motion.div>
 
               <motion.h2
-                className="mt-6 text-2xl font-bold text-white"
+                className="mt-6 text-2xl font-bold text-foreground"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
@@ -177,29 +162,27 @@ export default function ResultsDisplay({
                   />
                 </div>
 
-                <div className="relative flex flex-col items-center justify-center h-44 w-44 rounded-full border-2 border-white/10 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md shadow-2xl">
+                <div className="relative flex flex-col items-center justify-center h-44 w-44 rounded-full border-2 border-border bg-gradient-to-br from-card/30 to-card/10 backdrop-blur-md shadow-2xl">
                   <div className="flex items-baseline justify-center gap-1.5">
                     <span className={`text-7xl font-black font-display bg-gradient-to-r ${current.gradient} bg-clip-text text-transparent`}>
-                      {displayScore}
+                      <NumberTicker value={score} />
                     </span>
-                    <span className="text-3xl font-bold text-gray-400 -ml-0.5">%</span>
+                    <span className="text-3xl font-bold text-foreground/40 -ml-0.5">%</span>
                   </div>
-                  <p className="mt-1 text-[11px] uppercase tracking-[0.25em] font-semibold text-gray-400">AI Score</p>
+                  <p className="mt-1 text-[11px] uppercase tracking-[0.25em] font-semibold text-foreground/40">AI Score</p>
                 </div>
               </motion.div>
 
               {/* Disclaimer */}
               <motion.div
-                className="mt-6 max-w-md mx-auto"
+                className="mt-6 max-w-sm mx-auto"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4 }}
               >
-                <div className="rounded-xl border border-white/5 bg-gradient-to-br from-white/5 to-transparent p-4 backdrop-blur-sm">
-                  <p className="text-xs text-center text-gray-400 leading-relaxed">
-                    AI detection can be imperfect, especially with heavily edited, compressed, or blurred content.
-                  </p>
-                </div>
+                <p className="text-[10px] text-center text-gray-500 leading-relaxed uppercase tracking-wider">
+                  Analysis based on multi-stage forensic trace
+                </p>
               </motion.div>
 
               {/* View Details Button (Only if pipeline data is available) */}
@@ -246,14 +229,14 @@ export default function ResultsDisplay({
                 transition={{ delay: 0.5 }}
               >
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-400">Confidence Level</span>
+                  <span className="text-foreground/60">Confidence Level</span>
                   <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-purple-400" />
-                    <span className="font-medium text-white">{confidenceLabel}</span>
+                    <Sparkles className="h-4 w-4 text-brand-purple" />
+                    <span className="font-medium text-foreground">{confidenceLabel}</span>
                   </div>
                 </div>
 
-                <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-white/10">
+                <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-foreground/10">
                   <div
                     className={`h-full rounded-full bg-gradient-to-r ${current.gradient} transition-[width] duration-1000 ease-out`}
                     style={{ width: `${score}%` }}
@@ -268,15 +251,14 @@ export default function ResultsDisplay({
               </motion.div>
             )}
 
-            {/* Verdict badge */}
             <motion.div
-              className={`mt-6 flex items-center justify-center gap-3 rounded-full border ${current.borderColor} bg-gradient-to-r from-transparent via-white/5 to-transparent px-6 py-3`}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+              className={`mt-4 rounded-full px-4 py-1.5 border ${current.borderColor} bg-white/5 backdrop-blur-sm flex items-center justify-center gap-2`}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.6 }}
             >
-              <Icon className={`h-5 w-5 ${current.iconColor}`} />
-              <span className="text-sm font-medium text-white">{current.message}</span>
+              <current.Icon className={`h-4 w-4 ${current.iconColor}`} />
+              <span className={`text-sm font-bold uppercase tracking-wider ${current.iconColor}`}>{current.label}</span>
             </motion.div>
 
             {/* Key Findings - Show top explanations */}
@@ -314,15 +296,11 @@ export default function ResultsDisplay({
 
               <button
                 onClick={() => setShowShare(true)}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all text-white font-medium flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-8 py-3.5 rounded-xl border border-border bg-card/20 hover:bg-card/40 transition-all text-foreground font-medium flex items-center justify-center gap-2"
               >
                 <Share2 className="h-4 w-4" />
                 <span>Share Result</span>
               </button>
-
-              {pipeline && (
-                <ExportButton pipeline={pipeline} />
-              )}
             </motion.div>
           </div>
         </GlassCard>
@@ -334,96 +312,111 @@ export default function ResultsDisplay({
         result={{ score, verdict: verdict || "uncertain" }}
       />
 
-      {/* Detailed Analysis Modal */}
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         title="Comprehensive Analysis"
       >
-        <div className="space-y-8">
-          <p className="text-gray-400">
-            A deep dive into the forensic trace of the image. Our multi-stage pipeline analyzes visual artifacts, metadata anomalies, and physical inconsistencies.
-          </p>
-
-          {pipeline && (
-            <>
-              {/* AI Model Predictions Section */}
-              <div className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-transparent p-6">
-                <MLModelsCard ml={pipeline.ml} />
+        {pipeline && (
+          <div className="space-y-12 py-4">
+            {/* Finding Summaries */}
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="mb-4 flex items-center gap-2">
+                <div className="h-1 w-8 rounded-full bg-brand-purple/50" />
+                <h3 className="text-lg font-bold text-foreground font-display">Key Forensic Findings</h3>
               </div>
+              <ExplanationList
+                flags={{
+                  visual: pipeline.visual.flags,
+                  metadata: pipeline.metadata.flags,
+                  physics: pipeline.physics.flags,
+                  frequency: pipeline.frequency.flags,
+                  provenance: pipeline.provenance.flags,
+                }}
+              />
+            </div>
 
-              {/* Module Contribution Breakdown */}
-              <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-transparent p-6">
+            {/* Visual Evidence (The Hero) */}
+            {imageUrl && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 delay-200 duration-700">
+                <div className="mb-4 flex items-center gap-2">
+                  <div className="h-1 w-8 rounded-full bg-brand-cyan/50" />
+                  <h3 className="text-lg font-bold text-foreground font-display">Spatial Analysis Overlay</h3>
+                </div>
+                <div className="rounded-2xl border border-border bg-card/20 p-1 overflow-hidden">
+                  <DetectionVisualization pipeline={pipeline} imageUrl={imageUrl} />
+                </div>
+              </div>
+            )}
+
+            {/* Technical Metrics */}
+            <div className="animate-in fade-in slide-in-from-bottom-4 delay-300 duration-700">
+              <div className="mb-6 flex items-center gap-2">
+                <div className="h-1 w-8 rounded-full bg-brand-mint/50" />
+                <h3 className="text-lg font-bold text-foreground font-display">Technical Signature</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <MLModelsCard ml={pipeline.ml} />
                 <ModuleBreakdown
                   weights={pipeline.fusion.weights}
                   scores={pipeline.fusion.module_scores}
                   finalConfidence={pipeline.fusion.confidence}
                 />
               </div>
+            </div>
 
-              {/* Score Calculation Breakdown */}
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-                <FusionBreakdown fusion={pipeline.fusion} />
+            {/* Forensic Details Grid */}
+            <div className="animate-in fade-in slide-in-from-bottom-4 delay-400 duration-700">
+              <div className="mb-6 flex items-center gap-2">
+                <div className="h-1 w-8 rounded-full bg-brand-pink/50" />
+                <h3 className="text-lg font-bold text-foreground font-display">Deep Scan Report</h3>
               </div>
+              <div className="grid gap-6 md:grid-cols-3">
+                <DetailCard
+                  title="Digital Forensics"
+                  icon={Fingerprint}
+                  color="cyan"
+                  score={pipeline.metadata.metadata_score * 100}
+                  metrics={[
+                    { label: "Metadata Risk", value: pipeline.metadata.metadata_score, threshold: 0.3 },
+                    { label: "Frequency Anomalies", value: pipeline.frequency.frequency_score, threshold: 0.5 },
+                  ]}
+                  flags={[...pipeline.metadata.flags, ...pipeline.provenance.flags]}
+                />
 
-              {/* Forensic Modules Grid */}
-              <div>
-                <h3 className="mb-4 text-lg font-semibold text-white">Forensic Module Details</h3>
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {/* Visual Artifacts */}
-                  <DetailCard
-                    title="Visual Analysis"
-                    icon={ScanEye}
-                    color="purple"
-                    score={pipeline.visual.visual_artifacts_score * 100}
-                    metrics={[
-                      { label: "Skin Smoothing", value: pipeline.visual.details.smoothingScore, threshold: 0.6 },
-                      { label: "Texture Consistency", value: pipeline.visual.details.textureMeltScore, threshold: 0.5 },
-                      { label: "Symmetry", value: pipeline.visual.details.symmetryScore, threshold: 0.7 },
-                    ]}
-                    flags={pipeline.visual.flags}
-                  />
+                <DetailCard
+                  title="Visual Artifacts"
+                  icon={ScanEye}
+                  color="purple"
+                  score={pipeline.visual.visual_artifacts_score * 100}
+                  metrics={[
+                    { label: "Skin Smoothing", value: pipeline.visual.details.smoothingScore, threshold: 0.6 },
+                    { label: "Texture Consistency", value: pipeline.visual.details.textureMeltScore, threshold: 0.5 },
+                  ]}
+                  flags={pipeline.visual.flags}
+                />
 
-                  {/* Digital Forensics */}
-                  <DetailCard
-                    title="Digital Forensics"
-                    icon={Fingerprint}
-                    color="cyan"
-                    score={pipeline.metadata.metadata_score * 100}
-                    metrics={[
-                      { label: "Metadata Risk", value: pipeline.metadata.metadata_score, threshold: 0.3 },
-                      { label: "Frequency Anomalies", value: pipeline.frequency.frequency_score, threshold: 0.5 },
-                      { label: "C2PA Signature", value: pipeline.provenance.c2pa_present ? 1 : 0, isBinary: true },
-                    ]}
-                    flags={[...pipeline.metadata.flags, ...pipeline.provenance.flags]}
-                  />
-
-                  {/* Physics & Light */}
-                  <DetailCard
-                    title="Physics & Light"
-                    icon={Zap}
-                    color="pink"
-                    score={100 - pipeline.physics.physics_score * 100}
-                    scoreLabel="Consistency"
-                    metrics={[
-                      { label: "Lighting Coherence", value: 1 - pipeline.physics.details.lightInconsistency, threshold: 0.3, invertColor: true },
-                      { label: "Shadow Alignment", value: 1 - pipeline.physics.details.shadowMisalignment, threshold: 0.4, invertColor: true },
-                      { label: "Perspective", value: 1 - pipeline.physics.details.perspectiveChaos, threshold: 0.3, invertColor: true },
-                    ]}
-                    flags={pipeline.physics.flags}
-                  />
-                </div>
+                <DetailCard
+                  title="Physics & Light"
+                  icon={Zap}
+                  color="pink"
+                  score={100 - pipeline.physics.physics_score * 100}
+                  scoreLabel="Consistency"
+                  metrics={[
+                    { label: "Lighting Coherence", value: 1 - pipeline.physics.details.lightInconsistency, threshold: 0.3, invertColor: true },
+                    { label: "Shadow Alignment", value: 1 - pipeline.physics.details.shadowMisalignment, threshold: 0.4, invertColor: true },
+                  ]}
+                  flags={pipeline.physics.flags}
+                />
               </div>
+            </div>
 
-              {/* Detection Visualization */}
-              {imageUrl && (
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-                  <DetectionVisualization pipeline={pipeline} imageUrl={imageUrl} />
-                </div>
-              )}
-            </>
-          )}
-        </div>
+            {/* Export Section */}
+            <div className="flex justify-center border-t border-white/10 pt-8 mt-12 pb-8">
+              <ExportButton pipeline={pipeline} />
+            </div>
+          </div>
+        )}
       </Modal>
     </>
   );

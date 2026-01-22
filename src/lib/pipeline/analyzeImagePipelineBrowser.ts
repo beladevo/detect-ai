@@ -15,6 +15,7 @@ import type {
   StandardizedImage,
   MlEnsembleResult,
 } from "@/src/lib/pipeline/types";
+import { env } from "@/src/lib/env";
 
 /**
  * Create a standardized image object from browser-decoded RGBA data
@@ -113,32 +114,47 @@ export async function analyzeImagePipelineBrowser(
   const standardized = createStandardizedImage(pixels, width, height, mlConfidence);
 
   // Run forensic modules (no async needed for these)
-  const visual = analyzeVisualArtifacts(standardized);
-  const metadata = analyzeMetadata(undefined); // No EXIF in browser mode
-  const physics = analyzePhysicsConsistency(standardized);
-  const frequency = analyzeFrequencyForensics(standardized);
+  const visual = env.PIPELINE_VISUAL_ENABLED
+    ? analyzeVisualArtifacts(standardized)
+    : { visual_artifacts_score: 0, flags: [], details: {}, disabled: true };
+
+  const metadata = env.PIPELINE_METADATA_ENABLED
+    ? analyzeMetadata(undefined)
+    : { metadata_score: 0, exif_present: false, flags: [], tags: {}, disabled: true };
+
+  const physics = env.PIPELINE_PHYSICS_ENABLED
+    ? analyzePhysicsConsistency(standardized)
+    : { physics_score: 0, flags: [], details: {}, disabled: true };
+
+  const frequency = env.PIPELINE_FREQUENCY_ENABLED
+    ? analyzeFrequencyForensics(standardized)
+    : { frequency_score: 0, flags: [], details: {}, disabled: true };
 
   // Create ML ensemble result from WASM inference
-  const ml: MlEnsembleResult = {
-    ml_score: mlConfidence,
-    model_votes: [
-      {
-        model: modelName || "browser-wasm",
-        confidence: mlConfidence,
-        prediction: mlConfidence >= 0.5 ? "AI" : "REAL",
-      },
-    ],
-    flags: ["single_model"],
-  };
+  const ml: MlEnsembleResult = env.PIPELINE_ML_ENABLED 
+    ? {
+        ml_score: mlConfidence,
+        model_votes: [
+          {
+            model: modelName || "browser-wasm",
+            confidence: mlConfidence,
+            prediction: mlConfidence >= 0.5 ? "AI" : "REAL",
+          },
+        ],
+        flags: ["single_model"],
+      }
+    : { ml_score: 0, model_votes: [], flags: [], disabled: true };
 
   // Provenance check (basic buffer check, no actual file)
-  const provenance = {
-    provenance_score: 0,
-    c2pa_present: false,
-    signature_valid: false,
-    flags: [] as string[],
-    details: {},
-  };
+  const provenance = env.PIPELINE_PROVENANCE_ENABLED
+    ? {
+        provenance_score: 0,
+        c2pa_present: false,
+        signature_valid: false,
+        flags: [] as string[],
+        details: {},
+      }
+    : { provenance_score: 0, c2pa_present: false, signature_valid: false, flags: [], details: {}, disabled: true };
 
   // Fuse evidence
   const fusion = fuseEvidence({

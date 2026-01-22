@@ -39,21 +39,21 @@ export default function GlowButton({
 
   const variantClasses = {
     primary: `
-      bg-white text-black
+      bg-foreground text-background
       hover:bg-opacity-90
       shadow-[0_0_20px_rgba(139,92,246,0.3)]
       hover:shadow-[0_0_40px_rgba(139,92,246,0.5)]
     `,
     secondary: `
-      bg-white/10 text-white border border-white/20
+      bg-card/20 text-foreground border border-border
       backdrop-blur-sm
-      hover:bg-white/20 hover:border-white/40
+      hover:bg-card/40 hover:border-border/60
       shadow-[0_0_20px_rgba(139,92,246,0.15)]
       hover:shadow-[0_0_30px_rgba(139,92,246,0.3)]
     `,
     ghost: `
-      bg-transparent text-white
-      hover:bg-white/10
+      bg-transparent text-foreground
+      hover:bg-foreground/10
     `,
   };
 

@@ -103,20 +103,20 @@ export default function FeaturesSection() {
           transition={{ duration: 0.6 }}
           className="mb-10"
         >
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 px-4 py-2 backdrop-blur-sm">
-            <Sparkles className="h-4 w-4 text-cyan-400" />
-            <span className="text-xs font-medium uppercase tracking-[0.25em] text-gray-300">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-gradient-to-r from-brand-cyan/10 to-brand-blue-500/10 px-4 py-2 backdrop-blur-sm dark:from-cyan-500/10 dark:to-blue-500/10">
+            <Sparkles className="h-4 w-4 text-brand-cyan" />
+            <span className="text-xs font-medium uppercase tracking-[0.25em] text-foreground/60">
               Feature Set
             </span>
           </div>
           <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-            <span className="text-white">Detection built for </span>
-            <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+            <span className="text-foreground">Detection built for </span>
+            <span className="bg-gradient-to-r from-brand-cyan to-brand-blue-500 bg-clip-text text-transparent dark:from-cyan-400 dark:to-blue-400">
               creators, teams, and investigators
             </span>
           </h2>
-          <p className="mt-4 max-w-2xl text-gray-400">
-            <span className="text-white font-medium">Local AI inference</span>{" "}
+          <p className="mt-4 max-w-2xl text-foreground/60">
+            <span className="text-foreground font-medium">Local AI inference</span>{" "}
             keeps images on your machine while still delivering forensic-grade insights.
           </p>
         </motion.div>
@@ -146,11 +146,11 @@ export default function FeaturesSection() {
                 <motion.div
                   className={`
                     group relative h-full overflow-hidden rounded-2xl
-                    border border-white/[0.08]
+                    border border-border
                     bg-gradient-to-br ${feature.gradient}
                     p-6 backdrop-blur-sm
                     transition-all duration-500
-                    hover:border-white/20
+                    hover:border-border/60
                     hover:shadow-[0_0_40px_rgba(139,92,246,0.1)]
                   `}
                   whileHover={{ y: -4, scale: 1.01 }}
@@ -176,9 +176,9 @@ export default function FeaturesSection() {
                     {/* Icon */}
                     <div className={`
                       mb-4 flex h-12 w-12 items-center justify-center rounded-xl
-                      border border-white/10 bg-white/5
+                      border border-border bg-card/40
                       transition-all duration-300
-                      group-hover:scale-110 group-hover:border-white/20
+                      group-hover:scale-110 group-hover:border-border/60
                       ${isLarge ? "h-14 w-14" : ""}
                     `}>
                       <Icon className={`${isLarge ? "h-7 w-7" : "h-5 w-5"} ${feature.iconColor} transition-transform duration-300 group-hover:scale-110`} />
@@ -192,18 +192,18 @@ export default function FeaturesSection() {
                     )}
 
                     {/* Title */}
-                    <h3 className={`font-semibold text-white ${isLarge ? "text-xl" : "text-base"}`}>
+                    <h3 className={`font-semibold text-foreground ${isLarge ? "text-xl" : "text-base"}`}>
                       {feature.title}
                     </h3>
 
                     {/* Description */}
-                    <p className={`mt-2 flex-grow text-gray-400 ${isLarge ? "text-sm" : "text-xs"}`}>
+                    <p className={`mt-2 flex-grow text-foreground/50 ${isLarge ? "text-sm" : "text-xs"}`}>
                       {feature.description}
                     </p>
 
                     {/* Learn more link (for large cards) */}
                     {isLarge && (
-                      <div className="mt-4 flex items-center gap-1 text-sm font-medium text-purple-400 opacity-0 transition-all duration-300 group-hover:opacity-100">
+                      <div className="mt-4 flex items-center gap-1 text-sm font-medium text-brand-purple opacity-0 transition-all duration-300 group-hover:opacity-100">
                         <span>Learn more</span>
                         <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                       </div>
@@ -223,11 +223,11 @@ export default function FeaturesSection() {
           transition={{ duration: 0.6, delay: 0.3 }}
           className="mt-10"
         >
-          <div className="relative overflow-hidden rounded-2xl border border-white/10">
+          <div className="relative overflow-hidden rounded-2xl border border-border">
             {/* Glow effect */}
-            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-cyan-500/20 via-transparent to-purple-500/20 blur-xl" />
+            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-brand-cyan/20 via-transparent to-brand-purple/20 blur-xl" />
 
-            <div className="relative overflow-hidden bg-gradient-to-br from-black/60 to-black/40 backdrop-blur-xl">
+            <div className="relative overflow-hidden bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-xl">
               <Image
                 src="/AI-human.png"
                 alt="AI and human signal nexus illustration"
@@ -236,14 +236,14 @@ export default function FeaturesSection() {
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 896px"
                 className="h-64 w-full object-cover opacity-80 transition-all duration-500 hover:scale-105 hover:opacity-100"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/40 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-6">
-                <p className="text-xs font-medium uppercase tracking-[0.3em] text-cyan-300">
+                <p className="text-xs font-medium uppercase tracking-[0.3em] text-brand-cyan">
                   Powered by Advanced Neural Networks
                 </p>
-                <p className="mt-2 text-2xl font-bold text-white">
+                <p className="mt-2 text-2xl font-bold text-foreground">
                   Let&apos;s detect the{" "}
-                  <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-r from-brand-purple to-brand-pink bg-clip-text text-transparent">
                     FAKE
                   </span>
                 </p>
