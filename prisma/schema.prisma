@@ -26,6 +26,7 @@ model User {
   passwordHash  String
   name          String?
   tier          UserTier  @default(FREE)
+  deletedAt     DateTime?
 
   // Email verification
   emailVerified Boolean   @default(false)
@@ -61,6 +62,7 @@ model User {
   refreshTokens RefreshToken[]
 
   @@index([email])
+  @@index([deletedAt])
   @@index([apiKey])
   @@index([stripeCustomerId])
   @@index([emailVerifyToken])

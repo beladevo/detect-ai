@@ -45,6 +45,11 @@ export default function ResultsDisplay({
 }: ResultsDisplayProps) {
   const [showModal, setShowModal] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const clampedScore = Math.min(100, Math.max(0, score));
+  const scoreDescriptor =
+    clampedScore >= 70 ? "High confidence" :
+    clampedScore >= 40 ? "Balanced signal" :
+    "Low signal";
 
   const config: Record<UiVerdict, {
     gradient: string;
@@ -152,31 +157,56 @@ export default function ResultsDisplay({
 
             <div className="grid gap-4">
               <motion.div
-                className="rounded-2xl border border-border bg-card/40 p-6"
+                className="relative rounded-2xl border border-border bg-gradient-to-br from-[#07090f] via-[#07090f] to-[#121622] p-6 shadow-[0_20px_45px_rgba(0,0,0,0.6)]"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
               >
                 <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-foreground/45">
                   <span>AI Score</span>
-                  <span className="text-foreground/35">0-100</span>
+                  <span className="text-foreground/40">0-100</span>
                 </div>
-                <div className="mt-4 flex items-baseline gap-2">
-                  <span className={`text-6xl font-black font-display bg-gradient-to-r ${current.gradient} bg-clip-text text-transparent`}>
-                    <NumberTicker value={score} />
-                  </span>
-                  <span className="text-2xl font-semibold text-foreground/40">%</span>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative">
+                    <span
+                      className="text-[clamp(3rem,6vw,4rem)] font-black text-foreground"
+                      style={{
+                        fontFamily: "\"Space Grotesk\", \"Inter\", system-ui",
+                      }}
+                    >
+                      <NumberTicker value={score} />
+                    </span>
+                    <span className="absolute -right-3 bottom-1 text-2xl font-semibold text-foreground/50">%</span>
+                  </div>
+                  <div className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-foreground/60">
+                    {scoreDescriptor}
+                  </div>
                 </div>
-                <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-foreground/10">
+
+                <div className="relative mt-6 h-2 w-full overflow-hidden rounded-full bg-border/30">
                   <div
-                    className={`h-full rounded-full bg-gradient-to-r ${current.gradient} transition-[width] duration-1000 ease-out`}
-                    style={{ width: `${score}%` }}
+                    className="absolute inset-0 rounded-full"
+                    style={{
+                      width: `${clampedScore}%`,
+                      background:
+                        "linear-gradient(90deg, #14b8a6 0%, #facc15 45%, #fb923c 70%, #ef4444 100%)",
+                    }}
+                  />
+                  <span
+                    className="pointer-events-none absolute -top-2 h-4 w-4 rounded-full border border-white/30 bg-card/80 shadow-[0_0_15px_rgba(255,255,255,0.25)]"
+                    style={{ left: `calc(${clampedScore}% - 0.5rem)` }}
                   />
                 </div>
-                <div className="mt-2 flex justify-between text-[10px] text-foreground/40">
-                  <span>Low</span>
-                  <span>Neutral</span>
-                  <span>High</span>
+
+                <div className="mt-3 flex justify-between gap-4 text-[10px] font-semibold uppercase tracking-[0.4em] text-foreground/30">
+                  <span className="flex-1 text-left">Low</span>
+                  <span className="flex-1 text-center">Neutral</span>
+                  <span className="flex-1 text-right">High</span>
+                </div>
+
+                <div className="mt-4 rounded-xl border border-border/50 bg-black/20 p-3 text-[11px] uppercase tracking-[0.25em] text-foreground/50">
+                  {scoreDescriptor === "Low signal" ? "Signal is weak. No confident verdict." : scoreDescriptor === "Balanced signal" ? "Mixed indicators across modules." : "Strong AI signatures detected."}
                 </div>
               </motion.div>
             </div>

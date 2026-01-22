@@ -9,9 +9,10 @@ export type ModelDefinition = {
   accuracy: ModelAccuracy;
   aiIndex: number;
   selectable?: boolean;
+  requiresPremium?: boolean;
 };
 
-export const DEFAULT_MODEL_NAME = "model_q4.onnx";
+export const DEFAULT_MODEL_NAME = "model.onnx";
 
 export const MODEL_CATALOG: ModelDefinition[] = [
   {
@@ -21,6 +22,7 @@ export const MODEL_CATALOG: ModelDefinition[] = [
     speed: "fast",
     accuracy: "high",
     aiIndex: 1,
+    requiresPremium: true,
   },
   {
     name: "model.onnx",

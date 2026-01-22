@@ -1,7 +1,5 @@
 import type { VerdictResult } from "@/src/lib/pipeline/types";
 
-import type { VerdictResult } from "@/src/lib/pipeline/types";
-
 export type UiVerdict = "ai" | "real" | "uncertain";
 
 export type VerdictPresentation = {

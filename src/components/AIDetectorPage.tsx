@@ -13,6 +13,8 @@ import PrivacySection from "@/src/components/PrivacySection";
 import FAQSection from "@/src/components/FAQSection";
 import Footer from "@/src/components/Footer";
 import ModelSelector from "@/src/components/ui/ModelSelector";
+import { useAuth } from "@/src/context/AuthContext";
+import { useToast } from "@/src/context/ToastContext";
 const ResultsDisplay = dynamic(() => import("@/src/components/ResultsDisplay"), {
   ssr: false,
 });
@@ -38,7 +40,30 @@ type DetectionResult = {
 
 const HISTORY_KEY = "detectai_history";
 
+async function computeSha256(file: File): Promise<string | null> {
+  if (!crypto?.subtle) return null;
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function logLocalDetection(payload: Record<string, unknown>) {
+  try {
+    await fetch("/api/detections/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    console.warn("Local detection log failed:", error);
+  }
+}
+
 export default function AIDetectorPage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [result, setResult] = useState<DetectionResult>({ score: null });
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -130,30 +155,122 @@ export default function AIDetectorPage() {
   );
 
   const handleFileSelected = useCallback(async (file: File) => {
+    const timers: Array<ReturnType<typeof setTimeout>> = [];
+    const queueToast = (props: { title: string; description: string; variant?: "default" | "success" | "error" | "warning"; duration?: number }) => {
+      toast({ duration: 2400, ...props });
+    };
+    const startedAt = performance.now();
     setIsUploading(true);
     setError(null);
     setResult({ score: null });
     setPreviewUrl(URL.createObjectURL(file));
 
     try {
+      queueToast({
+        title: "Preparing image",
+        description: "Optimizing the file for analysis.",
+      });
+      timers.push(setTimeout(() => {
+        queueToast({
+          title: "Loading model",
+          description: "Starting the detection engine.",
+        });
+      }, 900));
+      timers.push(setTimeout(() => {
+        queueToast({
+          title: "Analyzing image",
+          description: "Scanning for AI signatures.",
+        });
+      }, 2000));
+
       const { analyzeImageWithWasm } = await import("@/src/lib/wasmDetector");
       const result = await analyzeImageWithWasm(file, selectedModel);
       setResult({ score: result.score, pipeline: result.pipeline, presentation: result.presentation });
+      timers.forEach(clearTimeout);
+      queueToast({
+        title: "Analysis complete",
+        description: result.presentation?.title ?? "Results are ready.",
+        variant: "success",
+        duration: 3200,
+      });
       pushHistory({
         id: crypto.randomUUID(),
         fileName: file.name,
         score: result.score,
         createdAt: new Date().toISOString(),
       });
+
+      if (user && result.source === "local") {
+        const processingTime = performance.now() - startedAt;
+        const fileHash =
+          result.pipeline?.hashes?.sha256 || (await computeSha256(file)) || "";
+        const verdict = result.pipeline?.verdict?.verdict || "UNKNOWN";
+        const confidence =
+          typeof result.pipeline?.verdict?.confidence === "number"
+            ? result.pipeline.verdict.confidence
+            : result.score / 100;
+
+        await logLocalDetection({
+          fileName: file.name,
+          fileSize: file.size,
+          fileHash,
+          score: result.score,
+          verdict,
+          confidence,
+          modelUsed: selectedModel,
+          processingTime,
+          pipeline: result.pipeline
+            ? {
+                verdict: result.pipeline.verdict,
+                hashes: result.pipeline.hashes,
+                fusion: result.pipeline.fusion,
+                modules: {
+                  visual: {
+                    score: result.pipeline.visual.visual_artifacts_score,
+                    flags: result.pipeline.visual.flags,
+                  },
+                  metadata: {
+                    score: result.pipeline.metadata.metadata_score,
+                    flags: result.pipeline.metadata.flags,
+                  },
+                  physics: {
+                    score: result.pipeline.physics.physics_score,
+                    flags: result.pipeline.physics.flags,
+                  },
+                  frequency: {
+                    score: result.pipeline.frequency.frequency_score,
+                    flags: result.pipeline.frequency.flags,
+                  },
+                  ml: {
+                    score: result.pipeline.ml.ml_score,
+                    flags: result.pipeline.ml.flags,
+                  },
+                  provenance: {
+                    score: result.pipeline.provenance.provenance_score,
+                    flags: result.pipeline.provenance.flags,
+                  },
+                },
+              }
+            : undefined,
+        });
+      }
     } catch (err) {
       console.error("Detection failed", err);
       const message =
         err instanceof Error ? err.message : "Upload failed. Please try again shortly.";
       setError(message);
+      timers.forEach(clearTimeout);
+      queueToast({
+        title: "Detection failed",
+        description: message,
+        variant: "error",
+        duration: 4000,
+      });
     } finally {
+      timers.forEach(clearTimeout);
       setIsUploading(false);
     }
-  }, [pushHistory, selectedModel]);
+  }, [pushHistory, selectedModel, toast, user]);
 
   const handleReset = () => {
     setResult({ score: null });
