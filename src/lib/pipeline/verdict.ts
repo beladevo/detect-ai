@@ -10,6 +10,7 @@ import {
 
 export function buildVerdict(input: {
   confidence: number;
+  uncertainty: number;
   visual: VisualArtifactsResult;
   metadata: MetadataForensicsResult;
   physics: PhysicsConsistencyResult;
@@ -17,13 +18,13 @@ export function buildVerdict(input: {
   ml: MlEnsembleResult;
   provenance: ProvenanceResult;
 }): VerdictResult {
-  const { confidence, visual, metadata, physics, frequency, ml, provenance } = input;
+  const { confidence, uncertainty, visual, metadata, physics, frequency, ml, provenance } = input;
 
   let verdict: VerdictResult["verdict"] = "UNCERTAIN";
-  if (confidence >= 0.85) verdict = "AI_GENERATED";
-  else if (confidence >= 0.7) verdict = "LIKELY_AI";
-  else if (confidence <= 0.15) verdict = "REAL";
-  else if (confidence <= 0.3) verdict = "LIKELY_REAL";
+  if (confidence >= 0.8) verdict = "AI_GENERATED";
+  else if (confidence >= 0.65) verdict = "LIKELY_AI";
+  else if (confidence <= 0.2) verdict = "REAL";
+  else if (confidence <= 0.35) verdict = "LIKELY_REAL";
 
   const explanations = new Set<string>();
   for (const flag of visual.flags) explanations.add(`visual:${flag}`);
@@ -44,6 +45,7 @@ export function buildVerdict(input: {
   return {
     verdict,
     confidence,
+    uncertainty,
     explanations: Array.from(explanations),
   };
 }

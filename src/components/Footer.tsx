@@ -25,12 +25,12 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="relative border-t border-white/[0.06] bg-gradient-to-b from-transparent to-black/20">
+    <footer className="relative border-t border-border bg-gradient-to-b from-transparent to-card/20">
       {/* Top glow line */}
       <div
         className="absolute left-[20%] right-[20%] top-0 h-px"
         style={{
-          background: "linear-gradient(90deg, transparent, rgba(139,92,246,0.3), transparent)",
+          background: "linear-gradient(90deg, transparent, var(--brand-purple-glow), transparent)",
         }}
       />
 
@@ -46,7 +46,7 @@ export default function Footer() {
           >
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="absolute -inset-1 rounded-xl bg-gradient-to-br from-purple-500/20 to-cyan-500/20 blur-md" />
+                <div className="absolute -inset-1 rounded-xl bg-gradient-to-br from-brand-purple/20 to-brand-cyan/20 blur-md" />
                 <Image
                   src="/logo.png"
                   alt="DetectAI Logo"
@@ -56,21 +56,21 @@ export default function Footer() {
                 />
               </div>
               <span className="font-display text-lg font-semibold flex items-center">
-                <span className="text-white">Imag</span>
-                <span className="text-purple-400">ion</span>
-                <Bot className="ml-2 h-5 w-5 text-purple-400" />
+                <span className="text-foreground">Imag</span>
+                <span className="text-brand-purple">ion</span>
+                <Bot className="ml-2 h-5 w-5 text-brand-purple" />
               </span>
             </div>
 
-            <p className="mt-4 max-w-sm text-sm text-gray-400">
+            <p className="mt-4 max-w-sm text-sm text-foreground/60">
               Imagion — expose synthetic content with forensic-grade AI analysis.
               Privacy-first, on-device processing.
             </p>
 
             {/* Trust badge */}
-            <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2">
-              <Shield className="h-4 w-4 text-emerald-400" />
-              <span className="text-xs font-medium text-emerald-400">
+            <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-brand-mint/30 bg-brand-mint/10 px-4 py-2">
+              <Shield className="h-4 w-4 text-brand-cyan" />
+              <span className="text-xs font-medium text-brand-cyan">
                 100% Privacy-First
               </span>
             </div>
@@ -82,7 +82,7 @@ export default function Footer() {
                   key={social.label}
                   href={social.href}
                   aria-label={social.label}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-gray-400 transition-all duration-300 hover:border-purple-500/30 hover:bg-purple-500/10 hover:text-purple-400"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card/40 text-foreground/40 transition-all duration-300 hover:border-brand-purple/30 hover:bg-brand-purple/10 hover:text-brand-purple"
                   whileHover={{ y: -2, scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -107,7 +107,7 @@ export default function Footer() {
                 <li key={link.label}>
                   <a
                     href={link.href}
-                    className="text-sm text-gray-400 transition-colors hover:text-white"
+                    className="text-sm text-foreground/50 transition-colors hover:text-foreground"
                   >
                     {link.label}
                   </a>
@@ -131,7 +131,7 @@ export default function Footer() {
                 <li key={link.label}>
                   <a
                     href={link.href}
-                    className="text-sm text-gray-400 transition-colors hover:text-white"
+                    className="text-sm text-foreground/50 transition-colors hover:text-foreground"
                   >
                     {link.label}
                   </a>
@@ -147,12 +147,12 @@ export default function Footer() {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/[0.06] pt-8 md:flex-row"
+          className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border pt-8 md:flex-row"
         >
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-foreground/50">
             &copy; {currentYear} Imagion. All rights reserved.
           </p>
-          <p className="text-xs text-gray-600">
+          <p className="text-xs text-foreground/40">
             Local scans only. You control what gets stored or cleared.
           </p>
         </motion.div>

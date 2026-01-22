@@ -26,11 +26,11 @@ export function fuseEvidence(input: {
 }): FusionResult {
   const { image, visual, metadata, physics, frequency, ml, provenance } = input;
   const weights = {
-    visual: 0.15,
-    metadata: 0.1,
-    physics: 0.2,
-    frequency: 0.25,
-    ml: 0.3,
+    visual: 0.12,
+    metadata: 0.08,
+    physics: 0.15,
+    frequency: 0.2,
+    ml: 0.45,
   };
 
   if (!metadata.exif_present) {
@@ -38,7 +38,7 @@ export function fuseEvidence(input: {
   }
 
   if (ml.flags.includes("single_model")) {
-    weights.ml *= 0.85;
+    weights.ml *= 0.95;
   }
 
   if (image.width < 256 || image.height < 256) {
@@ -47,8 +47,35 @@ export function fuseEvidence(input: {
     weights.frequency *= 0.7;
   }
 
+  // Handle disabled modules
+  if (visual.disabled) weights.visual = 0;
+  if (metadata.disabled) weights.metadata = 0;
+  if (physics.disabled) weights.physics = 0;
+  if (frequency.disabled) weights.frequency = 0;
+  if (ml.disabled) weights.ml = 0;
+
   const weightSum =
     weights.visual + weights.metadata + weights.physics + weights.frequency + weights.ml;
+  
+  // If no modules are enabled, avoid division by zero
+  if (weightSum === 0) {
+    return {
+      confidence: 0.5,
+      weights: { visual: 0, metadata: 0, physics: 0, frequency: 0, ml: 0 },
+      raw_weights: weights,
+      contradiction_penalty: 0,
+      uncertainty: 0,
+      weighted_scores: { visual: 0, metadata: 0, physics: 0, frequency: 0, ml: 0 },
+      module_scores: {
+        visual: visual.visual_artifacts_score,
+        metadata: metadata.metadata_score,
+        physics: physics.physics_score,
+        frequency: frequency.frequency_score,
+        ml: ml.ml_score,
+      },
+    };
+  }
+
   const normalized = {
     visual: weights.visual / weightSum,
     metadata: weights.metadata / weightSum,
@@ -64,27 +91,59 @@ export function fuseEvidence(input: {
     normalized.frequency * frequency.frequency_score +
     normalized.ml * ml.ml_score;
 
-  const scores = [
-    visual.visual_artifacts_score,
-    metadata.metadata_score,
-    physics.physics_score,
-    frequency.frequency_score,
-    ml.ml_score,
-  ];
-  const mean = scores.reduce((acc, v) => acc + v, 0) / scores.length;
-  const variance =
-    scores.reduce((acc, v) => acc + (v - mean) ** 2, 0) / scores.length;
+  const scores: number[] = [];
+  if (!visual.disabled) scores.push(visual.visual_artifacts_score);
+  if (!metadata.disabled) scores.push(metadata.metadata_score);
+  if (!physics.disabled) scores.push(physics.physics_score);
+  if (!frequency.disabled) scores.push(frequency.frequency_score);
+  if (!ml.disabled) scores.push(ml.ml_score);
+
+  const mean = scores.length > 0
+    ? scores.reduce((acc, v) => acc + v, 0) / scores.length
+    : 0.5;
+  const variance = scores.length > 0
+    ? scores.reduce((acc, v) => acc + (v - mean) ** 2, 0) / scores.length
+    : 0;
   const spread = Math.sqrt(variance);
-  const contradictionPenalty = clamp01(spread * 0.6);
+
+  const mlDiff = Math.abs(ml.ml_score - mean);
+  const mlConfident = mlDiff < 0.2;
+  const contradictionPenalty = mlConfident
+    ? clamp01(spread * 0.4)
+    : clamp01(spread * 0.5);
+
   let confidence = 0.5 + (weighted - 0.5) * (1 - contradictionPenalty);
 
   if (provenance.c2pa_present && provenance.signature_valid) {
     confidence = Math.max(0, confidence - 0.2);
   }
 
+  // Calculate uncertainty as standard deviation
+  // Higher module disagreement = higher uncertainty
+  const uncertainty = Math.min(spread * 0.5, 0.15); // Cap at ±15%
+
+  // Calculate weighted scores (weight * score)
+  const weighted_scores = {
+    visual: normalized.visual * visual.visual_artifacts_score,
+    metadata: normalized.metadata * metadata.metadata_score,
+    physics: normalized.physics * physics.physics_score,
+    frequency: normalized.frequency * frequency.frequency_score,
+    ml: normalized.ml * ml.ml_score,
+  };
+
   return {
     confidence: clamp01(confidence),
     weights: normalized,
+    raw_weights: weights,
     contradiction_penalty: contradictionPenalty,
+    uncertainty,
+    weighted_scores,
+    module_scores: {
+      visual: visual.visual_artifacts_score,
+      metadata: metadata.metadata_score,
+      physics: physics.physics_score,
+      frequency: frequency.frequency_score,
+      ml: ml.ml_score,
+    },
   };
 }

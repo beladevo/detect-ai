@@ -1,6 +1,6 @@
-import { MongoClient, type MongoClientOptions } from "mongodb";
+import { MongoClient } from "mongodb";
 
-const options: MongoClientOptions = {
+const options = {
   appName: "imagion.vercel.integration",
   maxIdleTimeMS: 5000,
 };
@@ -14,7 +14,7 @@ export const getMongoClient = () => {
   }
 
   if (!client) {
-    client = new MongoClient(uri, options);
+    client = new MongoClient(uri, options as any);
   }
 
   return client;

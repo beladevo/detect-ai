@@ -34,6 +34,17 @@ const DEFAULT_SIZE = 224;
 const MEAN = [0.485, 0.456, 0.406];
 const STD = [0.229, 0.224, 0.225];
 
+// Multi-crop settings
+const MULTI_CROP_THRESHOLD = 512; // Use multi-crop for images larger than this
+const MAX_PIXELS = 4096 * 4096;
+
+type CropRegion = {
+  name: string;
+  x: number;
+  y: number;
+  size: number;
+};
+
 const sessionCache = new Map<string, Promise<SessionState>>();
 
 async function getSession(modelName?: string): Promise<SessionState> {
@@ -171,6 +182,134 @@ function buildInputTensor(
   return new ort.Tensor("float32", data, dims);
 }
 
+/**
+ * Calculate crop regions for multi-crop analysis.
+ * For large images, we analyze multiple regions and average the results.
+ */
+function getCropRegions(width: number, height: number, targetSize: number): CropRegion[] {
+  const minDim = Math.min(width, height);
+
+  // If image is small enough, just use center crop
+  if (minDim <= MULTI_CROP_THRESHOLD) {
+    return [{
+      name: "center",
+      x: Math.floor((width - minDim) / 2),
+      y: Math.floor((height - minDim) / 2),
+      size: minDim,
+    }];
+  }
+
+  // For large images, use 5 crops: 4 corners + center
+  const cropSize = Math.min(minDim, Math.max(targetSize * 2, 448)); // At least 2x target size
+
+  const regions: CropRegion[] = [
+    // Center crop (most important)
+    {
+      name: "center",
+      x: Math.floor((width - cropSize) / 2),
+      y: Math.floor((height - cropSize) / 2),
+      size: cropSize,
+    },
+    // Top-left
+    {
+      name: "top-left",
+      x: 0,
+      y: 0,
+      size: cropSize,
+    },
+    // Top-right
+    {
+      name: "top-right",
+      x: Math.max(0, width - cropSize),
+      y: 0,
+      size: cropSize,
+    },
+    // Bottom-left
+    {
+      name: "bottom-left",
+      x: 0,
+      y: Math.max(0, height - cropSize),
+      size: cropSize,
+    },
+    // Bottom-right
+    {
+      name: "bottom-right",
+      x: Math.max(0, width - cropSize),
+      y: Math.max(0, height - cropSize),
+      size: cropSize,
+    },
+  ];
+
+  return regions;
+}
+
+/**
+ * Run inference on a single crop region.
+ */
+async function runInferenceOnCrop(
+  buffer: Buffer,
+  crop: CropRegion,
+  session: SessionState,
+  aiIndex: number
+): Promise<{ confidence: number; rawValues: number[]; probabilities: number[] }> {
+  // Extract and resize the crop
+  const cropped = await sharp(buffer, { failOn: "none" })
+    .extract({
+      left: crop.x,
+      top: crop.y,
+      width: crop.size,
+      height: crop.size,
+    })
+    .ensureAlpha()
+    .resize(session.width, session.height, { fit: "cover", kernel: "lanczos3" })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const tensor = buildInputTensor(
+    new Uint8Array(cropped.data.buffer, cropped.data.byteOffset, cropped.data.byteLength),
+    cropped.info.width,
+    cropped.info.height,
+    cropped.info.channels,
+    session.width,
+    session.height,
+    session.layout
+  );
+
+  const results = await session.session.run({ [session.inputName]: tensor });
+  const output = results[session.outputName];
+
+  if (!output) {
+    throw new Error("Model output missing");
+  }
+
+  const rawData = output.data as Float32Array | number[];
+  const rawValues = Array.from(rawData).map((v) => Number(v));
+
+  // Calculate probabilities
+  let probabilities: number[];
+  if (rawValues.length === 1) {
+    const value = rawValues[0];
+    const prob = value >= 0 && value <= 1 ? value : 1 / (1 + Math.exp(-value));
+    probabilities = [prob];
+  } else {
+    let sum = 0;
+    let inRange = true;
+    for (const v of rawValues) {
+      sum += v;
+      if (v < 0 || v > 1) inRange = false;
+    }
+    if (inRange && Math.abs(sum - 1) < 0.01) {
+      probabilities = rawValues;
+    } else {
+      probabilities = Array.from(softmax(rawValues));
+    }
+  }
+
+  const confidence = probabilities.length > 1 ? probabilities[aiIndex] : probabilities[0];
+
+  return { confidence, rawValues, probabilities };
+}
+
 function softmax(values: Float32Array | number[]): Float32Array {
   let max = -Infinity;
   for (const v of values) {
@@ -191,106 +330,140 @@ function softmax(values: Float32Array | number[]): Float32Array {
   return out;
 }
 
-function probabilityFromOutput(output: ort.Tensor, aiIndex = 1): number {
-  console.debug("Node detector: output tensor", output);
-  
-  const data = output.data as Float32Array | number[];
-  if (!data || data.length === 0) {
-    throw new Error("Model returned no data");
-  }
-  if (data.length === 1) {
-    const value = data[0];
-    if (value >= 0 && value <= 1) {
-      return value;
-    }
-    return 1 / (1 + Math.exp(-value));
-  }
-  let sum = 0;
-  let inRange = true;
-  for (const v of data) {
-    sum += v;
-    if (v < 0 || v > 1) inRange = false;
-  }
-  const probs = inRange && Math.abs(sum - 1) < 0.01 ? new Float32Array(data) : softmax(data);
-  const index = probs.length > 1 ? aiIndex : 0;
-  return probs[index];
-}
-
 export async function detectAIFromBuffer(
   buffer: Buffer,
   modelName?: string,
   fileName?: string
 ): Promise<DetectionResult> {
   const session = await getSession(modelName);
-  const image = sharp(buffer, { failOn: "none" })
-    .ensureAlpha()
-    .resize(session.width, session.height, { fit: "fill" });
-  const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
+  const { config } = resolveModelConfig(modelName);
 
-  console.debug("Node detector: decoded image", {
-    width: info.width,
-    height: info.height,
-    channels: info.channels,
-  });
-  if (!Number.isFinite(info.width) || !Number.isFinite(info.height)) {
-    throw new Error("Invalid image dimensions");
+  // Get original image dimensions
+  const metadata = await sharp(buffer, { failOn: "none" }).metadata();
+  const originalWidth = metadata.width || 0;
+  const originalHeight = metadata.height || 0;
+
+  if (!originalWidth || !originalHeight) {
+    throw new Error("Unable to read image dimensions");
   }
 
-  const { config } = resolveModelConfig(modelName);
-  const tensor = buildInputTensor(
-    new Uint8Array(data.buffer, data.byteOffset, data.byteLength),
-    info.width,
-    info.height,
-    info.channels,
-    session.width,
-    session.height,
-    session.layout
-  );
+  if (originalWidth * originalHeight > MAX_PIXELS) {
+    throw new Error("Image dimensions out of range");
+  }
 
   const startTime = performance.now();
-  const results = await session.session.run({ [session.inputName]: tensor });
-  const inferenceTimeMs = performance.now() - startTime;
 
-  const output = results[session.outputName];
-  if (!output) {
-    throw new Error("Model output missing");
-  }
+  // Determine crop regions based on image size
+  const crops = getCropRegions(originalWidth, originalHeight, session.width);
+  const useMultiCrop = crops.length > 1;
 
-  // Get raw output for logging
-  const rawData = output.data as Float32Array | number[];
-  const rawValues = Array.from(rawData).map((v) => Number(v));
+  let finalConfidence: number;
+  let finalRawValues: number[];
+  let finalProbabilities: number[];
 
-  // Calculate probabilities for logging
-  let probabilities: number[];
-  if (rawValues.length === 1) {
-    const value = rawValues[0];
-    const prob = value >= 0 && value <= 1 ? value : 1 / (1 + Math.exp(-value));
-    probabilities = [prob];
+  if (useMultiCrop) {
+    // Run inference on multiple crops and average the results
+    console.log(`Multi-crop analysis: ${crops.length} regions for ${originalWidth}x${originalHeight} image`);
+
+    const cropResults = await Promise.all(
+      crops.map((crop) => runInferenceOnCrop(buffer, crop, session, config.aiIndex))
+    );
+
+    // Average the confidences (weighted: center crop has more weight)
+    const weights = crops.map((c) => (c.name === "center" ? 2 : 1));
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+    finalConfidence = cropResults.reduce(
+      (sum, result, i) => sum + result.confidence * weights[i],
+      0
+    ) / totalWeight;
+
+    // Use center crop's raw values for logging (most representative)
+    const centerResult = cropResults[0];
+    finalRawValues = centerResult.rawValues;
+    finalProbabilities = centerResult.probabilities;
+
+    // Log individual crop results
+    console.log("=== MULTI-CROP RESULTS ===");
+    crops.forEach((crop, i) => {
+      console.log(`  ${crop.name}: ${(cropResults[i].confidence * 100).toFixed(1)}%`);
+    });
+    console.log(`  Weighted average: ${(finalConfidence * 100).toFixed(1)}%`);
+    console.log("==========================");
   } else {
-    let sum = 0;
-    let inRange = true;
-    for (const v of rawValues) {
-      sum += v;
-      if (v < 0 || v > 1) inRange = false;
+    // Single crop (small image) - use center crop with proper aspect ratio
+    const crop = crops[0];
+
+    // Extract center crop and resize properly (no stretching!)
+    const cropped = await sharp(buffer, { failOn: "none" })
+      .extract({
+        left: crop.x,
+        top: crop.y,
+        width: crop.size,
+        height: crop.size,
+      })
+      .ensureAlpha()
+      .resize(session.width, session.height, { fit: "cover", kernel: "lanczos3" })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    const tensor = buildInputTensor(
+      new Uint8Array(cropped.data.buffer, cropped.data.byteOffset, cropped.data.byteLength),
+      cropped.info.width,
+      cropped.info.height,
+      cropped.info.channels,
+      session.width,
+      session.height,
+      session.layout
+    );
+
+    const results = await session.session.run({ [session.inputName]: tensor });
+    const output = results[session.outputName];
+
+    if (!output) {
+      throw new Error("Model output missing");
     }
-    if (inRange && Math.abs(sum - 1) < 0.01) {
-      probabilities = rawValues;
+
+    const rawData = output.data as Float32Array | number[];
+    finalRawValues = Array.from(rawData).map((v) => Number(v));
+
+    // Calculate probabilities
+    if (finalRawValues.length === 1) {
+      const value = finalRawValues[0];
+      const prob = value >= 0 && value <= 1 ? value : 1 / (1 + Math.exp(-value));
+      finalProbabilities = [prob];
     } else {
-      probabilities = Array.from(softmax(rawValues));
+      let sum = 0;
+      let inRange = true;
+      for (const v of finalRawValues) {
+        sum += v;
+        if (v < 0 || v > 1) inRange = false;
+      }
+      if (inRange && Math.abs(sum - 1) < 0.01) {
+        finalProbabilities = finalRawValues;
+      } else {
+        finalProbabilities = Array.from(softmax(finalRawValues));
+      }
     }
+
+    finalConfidence = finalProbabilities.length > 1
+      ? finalProbabilities[config.aiIndex]
+      : finalProbabilities[0];
   }
 
-  const confidence = probabilityFromOutput(output, config.aiIndex);
-  const clamped = Math.min(1, Math.max(0, confidence));
+  const inferenceTimeMs = performance.now() - startTime;
+  const clamped = Math.min(1, Math.max(0, finalConfidence));
   const score = Math.round(clamped * 100);
 
-  // Always log model output to console for debugging
+  // Log model output to console
   console.log("=== MODEL INFERENCE ===");
   console.log("File:", fileName || "unknown");
   console.log("Model:", session.model);
+  console.log("Original Size:", `${originalWidth}x${originalHeight}`);
+  console.log("Multi-crop:", useMultiCrop ? `Yes (${crops.length} regions)` : "No");
   console.log("AI Index:", config.aiIndex);
-  console.log("Raw Output:", rawValues);
-  console.log("Probabilities:", probabilities);
+  console.log("Raw Output:", finalRawValues);
+  console.log("Probabilities:", finalProbabilities);
   console.log("Confidence:", clamped);
   console.log("Score:", score);
   console.log("Inference Time:", inferenceTimeMs.toFixed(2), "ms");
@@ -303,18 +476,19 @@ export async function detectAIFromBuffer(
       session.model,
       fileName,
       {
-        originalWidth: info.width,
-        originalHeight: info.height,
-        channels: info.channels,
+        originalWidth,
+        originalHeight,
+        channels: 4,
         targetWidth: session.width,
         targetHeight: session.height,
         layout: session.layout,
-        tensorShape: tensor.dims as number[],
-        tensorData: tensor.data as Float32Array,
+        tensorShape: [1, 3, session.height, session.width],
+        multiCrop: useMultiCrop,
+        cropCount: crops.length,
       },
       {
-        rawValues,
-        probabilities,
+        rawValues: finalRawValues,
+        probabilities: finalProbabilities,
         aiIndex: config.aiIndex,
         confidence: clamped,
         score,

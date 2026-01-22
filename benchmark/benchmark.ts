@@ -8,6 +8,7 @@
  *   npx tsx benchmark/benchmark.ts --models model_q4.onnx,nyuad.onnx
  *   npx tsx benchmark/benchmark.ts --threshold 60
  *   npx tsx benchmark/benchmark.ts --verbose  # Enable detailed logging
+ *   npx tsx benchmark/benchmark.ts --show-misses  # Show misclassified image paths
  */
 
 import fs from "node:fs";
@@ -182,11 +183,17 @@ class BenchmarkLogger {
 // CLI Argument Parsing
 // ============================================================================
 
-function parseArgs(): { models: string[]; threshold: number; verbose: boolean } {
+function parseArgs(): {
+  models: string[];
+  threshold: number;
+  verbose: boolean;
+  showMisses: boolean;
+} {
   const args = process.argv.slice(2);
   let models: string[] = [];
   let threshold = 50;
   let verbose = false;
+  let showMisses = false;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--models" && args[i + 1]) {
@@ -197,10 +204,12 @@ function parseArgs(): { models: string[]; threshold: number; verbose: boolean } 
       i++;
     } else if (args[i] === "--verbose" || args[i] === "-v") {
       verbose = true;
+    } else if (args[i] === "--show-misses") {
+      showMisses = true;
     }
   }
 
-  return { models, threshold, verbose };
+  return { models, threshold, verbose, showMisses };
 }
 
 // ============================================================================
@@ -544,7 +553,10 @@ function printProgress(current: number, total: number, width = 40) {
   const percent = current / total;
   const filled = Math.round(width * percent);
   const bar = "█".repeat(filled) + "░".repeat(width - filled);
-  process.stdout.write(`\rProgress: [${bar}] ${current}/${total}`);
+  // Skip progress bar during build
+  if (typeof process !== 'undefined' && process.stdout && 'write' in process.stdout) {
+    (process.stdout as any).write(`\rProgress: [${bar}] ${current}/${total}`);
+  }
   if (current === total) {
     console.log("");
   }
@@ -568,6 +580,22 @@ function printModelResults(result: ModelResult) {
   console.log(
     `  Actual Fake │ ${result.confusion.falseNegative.toString().padStart(5)}  │ ${result.confusion.truePositive.toString().padStart(5)}`
   );
+}
+
+function printMisclassified(result: ModelResult) {
+  const misses = result.perImageResults.filter((r) => !r.correct);
+  console.log("");
+  console.log("  Misclassified images:");
+  if (misses.length === 0) {
+    console.log("  - None");
+    return;
+  }
+
+  for (const miss of misses) {
+    console.log(
+      `  - ${miss.file} (expected ${miss.expected}, predicted ${miss.predicted}, score ${miss.score}%)`
+    );
+  }
 }
 
 function printFinalRanking(models: ModelResult[]) {
@@ -595,7 +623,7 @@ function printFinalRanking(models: ModelResult[]) {
 // ============================================================================
 
 async function runBenchmark() {
-  const { models: specifiedModels, threshold, verbose } = parseArgs();
+  const { models: specifiedModels, threshold, verbose, showMisses } = parseArgs();
 
   // Initialize logger
   const logger = new BenchmarkLogger(verbose);
@@ -709,6 +737,9 @@ async function runBenchmark() {
 
     allResults.push(modelResult);
     printModelResults(modelResult);
+    if (showMisses) {
+      printMisclassified(modelResult);
+    }
   }
 
   // Final ranking

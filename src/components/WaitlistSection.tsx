@@ -73,22 +73,22 @@ export default function WaitlistSection() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-gradient-to-r from-purple-500/10 to-pink-500/10 px-4 py-2 backdrop-blur-sm">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-gradient-to-r from-brand-purple/10 to-brand-pink/10 px-4 py-2 backdrop-blur-sm dark:from-purple-500/10 dark:to-pink-500/10">
               <div className="relative">
-                <div className="absolute inset-0 animate-ping rounded-full bg-purple-400/40" />
-                <Sparkles className="relative h-4 w-4 text-purple-400" />
+                <div className="absolute inset-0 animate-ping rounded-full bg-brand-purple/40" />
+                <Sparkles className="relative h-4 w-4 text-brand-purple" />
               </div>
-              <span className="text-xs font-medium uppercase tracking-[0.25em] text-gray-300">
+              <span className="text-xs font-medium uppercase tracking-[0.25em] text-foreground/60">
                 Coming Soon
               </span>
             </div>
 
             <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-              <span className="text-white">Server-powered </span>
-              <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
+              <span className="text-foreground">Server-powered </span>
+              <span className="bg-gradient-to-r from-brand-purple via-brand-pink to-brand-cyan bg-clip-text text-transparent dark:from-purple-400 dark:via-pink-400 dark:to-cyan-400">
                 AI detection
               </span>
-              <span className="text-white"> for your team</span>
+              <span className="text-foreground"> for your team</span>
             </h2>
 
             <p className="mt-4 text-gray-400">
@@ -105,20 +105,20 @@ export default function WaitlistSection() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.4, delay: index * 0.1 }}
-                  className="group flex items-start gap-4 rounded-2xl border border-white/[0.08] bg-gradient-to-r from-white/[0.04] to-transparent p-4 transition-all duration-300 hover:border-white/20 hover:bg-white/[0.06]"
+                  className="group flex items-start gap-4 rounded-2xl border border-border bg-card/40 p-4 transition-all duration-300 hover:border-border/60 hover:bg-card/60"
                 >
-                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 ${benefit.color}`}>
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card/40 ${benefit.color}`}>
                     <benefit.icon className="h-5 w-5" />
                   </div>
-                  <span className="text-sm text-gray-300">{benefit.text}</span>
+                  <span className="text-sm text-foreground/70">{benefit.text}</span>
                 </motion.div>
               ))}
             </div>
 
-            <p className="mt-6 text-xs text-gray-500">
+            <p className="mt-6 text-xs text-foreground/40">
               How it works: You send the image → We analyze it → You get a clear score.
             </p>
-            <p className="mt-2 text-xs text-gray-600">
+            <p className="mt-2 text-xs text-foreground/50">
               Local detection stays available for privacy-focused workflows.
             </p>
           </motion.div>
@@ -132,9 +132,9 @@ export default function WaitlistSection() {
             className="relative"
           >
             {/* Glow effect */}
-            <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-purple-500/20 via-pink-500/10 to-cyan-500/20 blur-2xl" />
+            <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-brand-purple/20 via-brand-pink/10 to-brand-cyan/20 blur-2xl" />
 
-            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-black/60 via-black/40 to-purple-900/20 p-8 backdrop-blur-xl">
+            <div className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card/80 via-card/40 to-brand-purple/10 p-8 backdrop-blur-xl dark:bg-panel">
               {/* Glass shine */}
               <div
                 className="pointer-events-none absolute inset-0 rounded-3xl"
@@ -145,22 +145,22 @@ export default function WaitlistSection() {
 
               <div className="relative z-10">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10">
-                    <Mail className="h-6 w-6 text-purple-400" />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-brand-purple/30 bg-brand-purple/10">
+                    <Mail className="h-6 w-6 text-brand-purple" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-white">Join the Waitlist</h3>
-                    <p className="text-xs text-gray-400">Get early access to the API</p>
+                    <h3 className="text-xl font-bold text-foreground">Join the Waitlist</h3>
+                    <p className="text-xs text-foreground/50">Get early access to the API</p>
                   </div>
                 </div>
 
-                <p className="mt-4 text-sm text-gray-400">
+                <p className="mt-4 text-sm text-foreground/60">
                   Be first to know when the server API opens. We only email for launch updates.
                 </p>
 
                 <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                   <div>
-                    <label className="mb-2 block text-xs font-medium uppercase tracking-[0.25em] text-gray-500">
+                    <label className="mb-2 block text-xs font-medium uppercase tracking-[0.25em] text-foreground/40">
                       Email Address
                     </label>
                     <div className="relative">
@@ -172,9 +172,9 @@ export default function WaitlistSection() {
                         value={email}
                         onChange={(event) => setEmail(event.target.value)}
                         placeholder="you@company.com"
-                        className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-white placeholder:text-gray-500 transition-all duration-300 focus:border-purple-500/50 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                        className="w-full rounded-xl border border-border bg-card/40 px-4 py-3.5 text-foreground placeholder:text-foreground/30 transition-all duration-300 focus:border-brand-purple/50 focus:bg-card/60 focus:outline-none focus:ring-2 focus:ring-brand-purple/20"
                       />
-                      <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-r from-purple-500/0 via-purple-500/5 to-pink-500/0 opacity-0 transition-opacity duration-300 focus-within:opacity-100" />
+                      <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-r from-brand-purple/0 via-brand-purple/5 to-brand-pink/0 opacity-0 transition-opacity duration-300 focus-within:opacity-100" />
                     </div>
                   </div>
 
@@ -208,11 +208,10 @@ export default function WaitlistSection() {
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm ${
-                          state === "success"
+                        className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm ${state === "success"
                             ? "bg-emerald-500/10 text-emerald-400"
                             : "bg-red-500/10 text-red-400"
-                        }`}
+                          }`}
                       >
                         {state === "success" ? (
                           <CheckCircle2 className="h-4 w-4" />
@@ -225,7 +224,7 @@ export default function WaitlistSection() {
                   </AnimatePresence>
                 </form>
 
-                <p className="mt-4 text-center text-xs text-gray-500">
+                <p className="mt-4 text-center text-xs text-foreground/40">
                   No spam, ever. Unsubscribe anytime.
                 </p>
               </div>

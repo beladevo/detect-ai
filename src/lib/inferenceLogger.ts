@@ -85,7 +85,9 @@ export function createLogEntry(
     targetHeight: number;
     layout: "NCHW" | "NHWC";
     tensorShape: number[];
-    tensorData: Float32Array;
+    tensorData?: Float32Array;
+    multiCrop?: boolean;
+    cropCount?: number;
   },
   outputInfo: {
     rawValues: number[];
@@ -109,9 +111,9 @@ export function createLogEntry(
       targetHeight: inputInfo.targetHeight,
       layout: inputInfo.layout,
       tensorShape: inputInfo.tensorShape,
-      tensorSample: Array.from(inputInfo.tensorData.slice(0, 10)).map((v) =>
-        Number(v.toFixed(6))
-      ),
+      tensorSample: inputInfo.tensorData
+        ? Array.from(inputInfo.tensorData.slice(0, 10)).map((v) => Number(v.toFixed(6)))
+        : [],
     },
     output: {
       rawValues: outputInfo.rawValues.map((v) => Number(v.toFixed(6))),

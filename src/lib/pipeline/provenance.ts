@@ -13,12 +13,23 @@ function clamp01(value: number): number {
   return value;
 }
 
-function bufferIncludes(buffer: Buffer, needle: string): boolean {
-  const idx = buffer.indexOf(needle, 0, "utf8");
-  return idx !== -1;
+function bufferIncludes(buffer: Uint8Array, needle: string): boolean {
+  const needleBytes = new TextEncoder().encode(needle);
+  if (needleBytes.length === 0) return true;
+  for (let i = 0; i <= buffer.length - needleBytes.length; i += 1) {
+    let match = true;
+    for (let j = 0; j < needleBytes.length; j += 1) {
+      if (buffer[i + j] !== needleBytes[j]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) return true;
+  }
+  return false;
 }
 
-export function analyzeProvenance(buffer: Buffer): ProvenanceResult {
+export function analyzeProvenance(buffer: Uint8Array): ProvenanceResult {
   const flags: string[] = [];
   let c2paPresent = false;
 

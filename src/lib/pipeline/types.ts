@@ -15,15 +15,23 @@ export type StandardizedImage = {
   };
   metadata: {
     format?: string;
-    exif?: Buffer;
-    icc?: Buffer;
+    exif?: Uint8Array;
+    icc?: Uint8Array;
   };
+};
+
+export type SpatialMap = {
+  width: number;
+  height: number;
+  data: Float32Array; // 0-1 values, row-major order
 };
 
 export type VisualArtifactsResult = {
   visual_artifacts_score: number;
   flags: string[];
   details: Record<string, number>;
+  spatialMap?: SpatialMap;
+  disabled?: boolean;
 };
 
 export type MetadataForensicsResult = {
@@ -31,24 +39,35 @@ export type MetadataForensicsResult = {
   exif_present: boolean;
   flags: string[];
   tags: Record<string, string | number | boolean>;
+  disabled?: boolean;
 };
 
 export type PhysicsConsistencyResult = {
   physics_score: number;
   flags: string[];
   details: Record<string, number>;
+  spatialMap?: SpatialMap;
+  disabled?: boolean;
 };
 
 export type FrequencyForensicsResult = {
   frequency_score: number;
   flags: string[];
   details: Record<string, number>;
+  spatialMap?: SpatialMap;
+  disabled?: boolean;
 };
 
 export type MlEnsembleResult = {
   ml_score: number;
-  model_votes: Array<{ model: string; confidence: number }>;
+  model_votes: Array<{ model: string; confidence: number; prediction: "AI" | "REAL" }>;
   flags: string[];
+  ensemble_stats?: {
+    mean: number;
+    variance: number;
+    spread: number;
+  };
+  disabled?: boolean;
 };
 
 export type ProvenanceResult = {
@@ -57,17 +76,29 @@ export type ProvenanceResult = {
   signature_valid: boolean;
   flags: string[];
   details: Record<string, string | boolean>;
+  disabled?: boolean;
 };
 
 export type FusionResult = {
   confidence: number;
   weights: Record<string, number>;
+  raw_weights: Record<string, number>;
   contradiction_penalty: number;
+  uncertainty: number; // Standard deviation of module scores (for ± display)
+  weighted_scores: Record<string, number>;
+  module_scores: {
+    visual: number;
+    metadata: number;
+    physics: number;
+    frequency: number;
+    ml: number;
+  };
 };
 
 export type VerdictResult = {
   verdict: "AI_GENERATED" | "LIKELY_AI" | "UNCERTAIN" | "LIKELY_REAL" | "REAL";
   confidence: number;
+  uncertainty: number; // ± uncertainty value (e.g., 0.06 for ±6%)
   explanations: string[];
 };
 

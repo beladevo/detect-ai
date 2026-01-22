@@ -1,9 +1,54 @@
-import { FrequencyForensicsResult, StandardizedImage } from "@/src/lib/pipeline/types";
+import { FrequencyForensicsResult, StandardizedImage, SpatialMap } from "@/src/lib/pipeline/types";
 
 function clamp01(value: number): number {
   if (value <= 0) return 0;
   if (value >= 1) return 1;
   return value;
+}
+
+function generateFrequencySpatialMap(
+  gray: Float32Array,
+  width: number,
+  height: number
+): SpatialMap {
+  const mapSize = 64;
+  const blockSize = 8;
+  const data = new Float32Array(mapSize * mapSize);
+
+  // For each block in the output map, compute local DCT energy ratio
+  for (let my = 0; my < mapSize; my++) {
+    for (let mx = 0; mx < mapSize; mx++) {
+      const startX = Math.floor((mx / mapSize) * (width - blockSize));
+      const startY = Math.floor((my / mapSize) * (height - blockSize));
+
+      // Extract 8x8 block
+      const block = new Float32Array(64);
+      for (let y = 0; y < blockSize; y++) {
+        for (let x = 0; x < blockSize; x++) {
+          const srcIdx = (startY + y) * width + (startX + x);
+          block[y * blockSize + x] = gray[srcIdx] ?? 0;
+        }
+      }
+
+      // Compute DCT energy distribution
+      const dct = dct8x8(block);
+      let highEnergy = 0;
+      let totalEnergy = 0;
+      for (let i = 1; i < dct.length; i++) {
+        const v = Math.abs(dct[i]);
+        totalEnergy += v;
+        if (i > 10) highEnergy += v;
+      }
+
+      // Low high-frequency energy = smoother = potentially AI
+      const energyRatio = totalEnergy > 0 ? highEnergy / totalEnergy : 0;
+      const anomalyScore = clamp01((0.42 - energyRatio) / 0.42);
+
+      data[my * mapSize + mx] = anomalyScore;
+    }
+  }
+
+  return { width: mapSize, height: mapSize, data };
 }
 
 function fft1d(re: Float64Array, im: Float64Array): void {
@@ -231,32 +276,35 @@ export function analyzeFrequencyForensics(image: StandardizedImage): FrequencyFo
     values.reduce((acc, v) => acc + (v - mean) * (v - mean), 0) /
     Math.max(1, values.length);
   const std = Math.sqrt(variance);
-  const peakThreshold = mean + 3 * std;
+  const peakThreshold = mean + 2.5 * std; 
   const peakCount = values.filter((v) => v > peakThreshold).length;
-  const peakScore = clamp01(peakCount / Math.max(1, values.length / 50));
-  if (peakScore > 0.6) {
+  const peakScore = clamp01(peakCount / Math.max(1, values.length / 45));
+  if (peakScore > 0.5) {
     flags.push("spectral_peaks");
   }
 
   const residual = laplacianResidual(gray, width, height);
   const noiseCorr = correlation(residual, width, height, 1, 0);
-  const noiseScore = clamp01((noiseCorr - 0.1) / 0.4);
-  if (noiseScore > 0.6) {
+  const noiseScore = clamp01((noiseCorr - 0.08) / 0.35);
+  if (noiseScore > 0.55) {
     flags.push("structured_noise");
   }
 
   const dctEnergyRatio = dctBlockStats(gray, width, height);
-  const dctScore = clamp01((0.45 - dctEnergyRatio) / 0.45);
-  if (dctScore > 0.6) {
+  const dctScore = clamp01((0.42 - dctEnergyRatio) / 0.42);
+  if (dctScore > 0.55) {
     flags.push("low_dct_highfreq_energy");
   }
 
   const frequencyScore = clamp01(
-    0.35 * clamp01((highRatio - 0.15) / 0.35) +
+    0.3 * clamp01((highRatio - 0.12) / 0.32) +
       0.2 * peakScore +
       0.2 * noiseScore +
-      0.25 * dctScore
+      0.3 * dctScore
   );
+
+  // Generate spatial map
+  const spatialMap = generateFrequencySpatialMap(gray, width, height);
 
   return {
     frequency_score: frequencyScore,
@@ -268,5 +316,6 @@ export function analyzeFrequencyForensics(image: StandardizedImage): FrequencyFo
       noiseCorr,
       dctEnergyRatio,
     },
+    spatialMap,
   };
 }

@@ -16,6 +16,19 @@ const KNOWN_GENERATORS = [
   "black forest labs",
   "mj v6",
   "midjourney v6",
+  "imagen",
+  "playground",
+  "leonardo.ai",
+  "civitai",
+  "artbreeder",
+  "craiyon",
+  "bluewillow",
+  "starryai",
+  "dreamstudio",
+  "runway",
+  "pika",
+  "gen-2",
+  "gen-3",
 ];
 
 const KNOWN_CAMERA_MAKES = [
@@ -55,7 +68,7 @@ function normalizeText(value: unknown): string {
   return String(value).toLowerCase();
 }
 
-export function analyzeMetadata(exif?: Buffer): MetadataForensicsResult {
+export function analyzeMetadata(exif?: Uint8Array | ArrayBuffer): MetadataForensicsResult {
   const flags: string[] = [];
   const tags: Record<string, string | number | boolean> = {};
   let exifPresent = false;
@@ -95,20 +108,27 @@ export function analyzeMetadata(exif?: Buffer): MetadataForensicsResult {
 
     const softwareText = normalizeText(software);
     if (KNOWN_GENERATORS.some((token) => softwareText.includes(token))) {
-      score += 0.5;
+      score += 0.6;
       flags.push("software_generator_tag");
     }
 
     const makeText = normalizeText(make);
+    const modelText = normalizeText(model);
+
     const hasMake = Boolean(makeText && KNOWN_CAMERA_MAKES.some((token) => makeText.includes(token)));
 
+    if (KNOWN_GENERATORS.some((token) => makeText.includes(token) || modelText.includes(token))) {
+      score += 0.5;
+      flags.push("generator_in_make_model");
+    }
+
     if (makeText && !hasMake) {
-      score += 0.2;
+      score += 0.25;
       flags.push("unknown_camera_make");
     }
 
     if (!make && !model) {
-      score += 0.1;
+      score += 0.15;
       flags.push("camera_make_model_missing");
     }
 
@@ -122,8 +142,11 @@ export function analyzeMetadata(exif?: Buffer): MetadataForensicsResult {
       }
 
       if (captureDetailCount < 2) {
-        score += 0.3;
+        score += 0.35;
         flags.push("spoofed_metadata_detected");
+      } else if (captureDetailCount < 3) {
+        score += 0.15;
+        flags.push("incomplete_camera_metadata");
       }
     }
 
