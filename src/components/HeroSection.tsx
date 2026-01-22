@@ -85,12 +85,13 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
         <motion.div
           className="absolute -left-[15%] top-[5%] h-[500px] w-[500px] rounded-full"
           style={{
-            background: "radial-gradient(circle, rgba(139,92,246,0.4) 0%, transparent 70%)",
+            background: "radial-gradient(circle, var(--brand-purple) 0%, transparent 70%)",
             filter: "blur(80px)",
           }}
           animate={{
             x: [0, 30, 0],
             y: [0, -20, 0],
+            opacity: [0.05, 0.1, 0.05],
           }}
           transition={{
             duration: 15,
@@ -101,12 +102,13 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
         <motion.div
           className="absolute -right-[10%] top-[20%] h-[400px] w-[400px] rounded-full"
           style={{
-            background: "radial-gradient(circle, rgba(6,182,212,0.3) 0%, transparent 70%)",
+            background: "radial-gradient(circle, var(--brand-cyan) 0%, transparent 70%)",
             filter: "blur(90px)",
           }}
           animate={{
             x: [0, -40, 0],
             y: [0, 30, 0],
+            opacity: [0.05, 0.1, 0.05],
           }}
           transition={{
             duration: 18,
@@ -117,11 +119,11 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
 
         {/* Grid pattern */}
         <div
-          className="absolute inset-0 opacity-[0.02]"
+          className="absolute inset-0 opacity-[0.05] dark:opacity-[0.02]"
           style={{
             backgroundImage: `
-              linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)
+              linear-gradient(var(--foreground) 1px, transparent 1px),
+              linear-gradient(90deg, var(--foreground) 1px, transparent 1px)
             `,
             backgroundSize: "60px 60px",
           }}
@@ -139,12 +141,12 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
           >
             {/* Badge */}
             <motion.div variants={itemVariants}>
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-gradient-to-r from-purple-500/10 to-cyan-500/10 px-4 py-2 backdrop-blur-sm">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-gradient-to-r from-brand-purple/10 to-brand-cyan/10 px-4 py-2 backdrop-blur-sm">
                 <div className="relative">
-                  <div className="absolute inset-0 animate-ping rounded-full bg-purple-400/40" />
-                  <Bot className="relative h-4 w-4 text-purple-300" />
+                  <div className="absolute inset-0 animate-ping rounded-full bg-brand-purple/40" />
+                  <Bot className="relative h-4 w-4 text-brand-purple" />
                 </div>
-                <span className="text-xs font-medium uppercase tracking-[0.25em] text-gray-300">
+                <span className="text-xs font-medium uppercase tracking-[0.25em] text-foreground/70">
                   Imagion AI Detection
                 </span>
               </div>
@@ -168,11 +170,11 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
                   }}
                 >
                   {word === "AI-generated" || word === "truth." ? (
-                    <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
+                    <span className="bg-gradient-to-r from-brand-purple via-brand-pink to-brand-cyan bg-clip-text text-transparent">
                       {word}
                     </span>
                   ) : (
-                    word
+                    <span className="text-foreground">{word}</span>
                   )}
                 </motion.span>
               ))}
@@ -181,10 +183,10 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
             {/* Description */}
             <motion.p
               variants={itemVariants}
-              className="mt-6 text-lg leading-relaxed text-gray-400"
+              className="mt-6 text-lg leading-relaxed text-foreground/60"
             >
               Like a polygraph for images — upload any photo and{" "}
-              <span className="text-white">instantly detect</span> if it was created by AI.
+              <span className="text-foreground">instantly detect</span> if it was created by AI.
               Uncover synthetic content with forensic-grade analysis.
             </motion.p>
 
@@ -262,40 +264,40 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
             {/* Stats Cards */}
             <div className="grid w-full gap-4 sm:w-auto">
               <motion.div
-                className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.08] to-purple-500/10 p-5 backdrop-blur-xl"
+                className="overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card/40 to-brand-purple/10 p-5 backdrop-blur-xl"
                 whileHover={{ scale: 1.02, y: -2 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >
-                <p className="text-xs font-medium uppercase tracking-[0.25em] text-gray-500">
+                <p className="text-xs font-medium uppercase tracking-[0.25em] text-foreground/50">
                   Detection Score
                 </p>
                 <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-white">87</span>
-                  <span className="text-xl font-semibold text-purple-400">%</span>
+                  <span className="text-4xl font-bold text-foreground">87</span>
+                  <span className="text-xl font-semibold text-brand-purple">%</span>
                 </div>
-                <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-foreground/10">
                   <motion.div
-                    className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500"
+                    className="h-full rounded-full bg-gradient-to-r from-brand-purple to-brand-pink"
                     initial={{ width: 0 }}
                     animate={{ width: "87%" }}
                     transition={{ duration: 1, delay: 0.8 }}
                   />
                 </div>
-                <p className="mt-2 text-xs text-gray-500">AI likelihood detected</p>
+                <p className="mt-2 text-xs text-foreground/50">AI likelihood detected</p>
               </motion.div>
 
               <motion.div
-                className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.08] to-emerald-500/10 p-5 backdrop-blur-xl"
+                className="overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card/40 to-brand-emerald-500/10 p-5 backdrop-blur-xl dark:to-emerald-500/10"
                 whileHover={{ scale: 1.02, y: -2 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >
-                <p className="text-xs font-medium uppercase tracking-[0.25em] text-gray-500">
+                <p className="text-xs font-medium uppercase tracking-[0.25em] text-foreground/50">
                   Privacy Status
                 </p>
-                <p className="mt-2 text-lg font-semibold text-emerald-400">
+                <p className="mt-2 text-lg font-semibold text-emerald-600 dark:text-emerald-400">
                   Zero Retention
                 </p>
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-foreground/50">
                   All scans processed locally on your device
                 </p>
               </motion.div>

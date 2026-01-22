@@ -6,6 +6,7 @@ import HotjarProvider from "@/src/components/HotjarProvider";
 import ClientLogger from "@/src/components/ClientLogger";
 import { ToastProvider } from "@/src/context/ToastContext";
 import { AuthProvider } from "@/src/context/AuthContext";
+import { ThemeProvider } from "@/src/components/ThemeProvider";
 
 const displayFont = Syne({
   variable: "--font-display",
@@ -150,13 +151,15 @@ export default function RootLayout({
         />
       </head>
       <body className={`${displayFont.variable} ${bodyFont.variable} antialiased`}>
-        <AuthProvider>
-          <ToastProvider>
-            <HotjarProvider />
-            <ClientLogger />
-            {children}
-          </ToastProvider>
-        </AuthProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <AuthProvider>
+            <ToastProvider>
+              <HotjarProvider />
+              <ClientLogger />
+              {children}
+            </ToastProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

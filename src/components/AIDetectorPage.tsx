@@ -20,6 +20,9 @@ const ComparisonTool = dynamic(() => import("@/src/components/ComparisonTool"), 
   ssr: false,
 });
 
+import { DotPattern } from "@/src/components/ui/DotPattern";
+import { cn } from "@/src/lib/utils";
+
 
 import type { PipelineResult } from "@/src/lib/pipeline/types";
 
@@ -162,13 +165,19 @@ export default function AIDetectorPage() {
   };
 
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen text-foreground">
       <Navbar onActionClick={handleCTAClick} />
 
       <main className="relative overflow-hidden pt-24">
-        <div className="absolute left-[-10%] top-[-20%] h-[36rem] w-[36rem] rounded-full bg-purple-900/20 blur-[140px]" />
-        <div className="absolute right-[-15%] top-[10%] h-[30rem] w-[30rem] rounded-full bg-cyan-700/20 blur-[140px]" />
-        <div className="absolute bottom-[-10%] left-[25%] h-[26rem] w-[26rem] rounded-full bg-pink-600/20 blur-[140px]" />
+        <DotPattern
+          className={cn(
+            "[mask-image:radial-gradient(500px_circle_at_center,white,transparent)]",
+            "opacity-30 dark:hidden"
+          )}
+        />
+        <div className="absolute left-[-10%] top-[-20%] h-[36rem] w-[36rem] rounded-full bg-brand-purple/5 blur-[140px] dark:bg-brand-purple/20" />
+        <div className="absolute right-[-15%] top-[10%] h-[30rem] w-[30rem] rounded-full bg-brand-cyan/5 blur-[140px] dark:bg-brand-cyan/20" />
+        <div className="absolute bottom-[-10%] left-[25%] h-[26rem] w-[26rem] rounded-full bg-brand-pink/5 blur-[140px] dark:bg-brand-pink/20" />
 
         <HeroSection onCTA={handleCTAClick} />
         <FeaturesSection />
@@ -181,7 +190,7 @@ export default function AIDetectorPage() {
         >
           <div
             ref={uploadCardRef}
-            className="rounded-3xl border border-white/10 bg-[var(--panel)] p-8 shadow-2xl backdrop-blur-xl"
+            className="rounded-3xl border border-border bg-card/60 p-8 shadow-2xl backdrop-blur-xl dark:bg-panel"
           >
             <UploadZone isUploading={isUploading} onFileSelected={handleFileSelected} />
 
@@ -210,13 +219,13 @@ export default function AIDetectorPage() {
                 imageUrl={previewUrl || undefined}
               />
             ) : (
-              <div className="mt-10 grid gap-4 text-sm text-gray-400">
-                <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                  <Sparkles className="h-4 w-4 text-purple-300" />
+              <div className="mt-10 grid gap-4 text-sm text-foreground/50">
+                <div className="flex items-center gap-3 rounded-2xl border border-border bg-card/40 px-4 py-3">
+                  <Sparkles className="h-4 w-4 text-brand-purple" />
                   <span>Deep pixel analysis with advanced model signatures.</span>
                 </div>
-                <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                  <ShieldCheck className="h-4 w-4 text-emerald-300" />
+                <div className="flex items-center gap-3 rounded-2xl border border-border bg-card/40 px-4 py-3">
+                  <ShieldCheck className="h-4 w-4 text-brand-emerald-500" />
                   <span>Full privacy mode with local-only processing.</span>
                 </div>
               </div>
@@ -226,27 +235,27 @@ export default function AIDetectorPage() {
           <div className="space-y-8">
             <div
               ref={statusCardRef}
-              className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 via-white/5 to-purple-500/10 p-6 shadow-glow-purple"
+              className="rounded-3xl border border-border bg-gradient-to-br from-card/40 via-card/20 to-brand-purple/10 p-6 shadow-glow-purple"
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">Detection engine status</h3>
+                <h3 className="text-lg font-semibold text-foreground">Detection engine status</h3>
                 <ModelSelector
                   currentModel={selectedModel}
                   onModelChange={setSelectedModel}
                   variant="single"
                 />
               </div>
-              <p className="mt-2 text-sm text-gray-300">
+              <p className="mt-2 text-sm text-foreground/60">
                 Model: {selectedModel} | Estimated time: {estimatedTime} | Accuracy: 96.2%
               </p>
-              <div className="mt-5 grid grid-cols-2 gap-4 text-sm text-gray-200">
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Realtime</p>
-                  <p className="mt-1 text-lg font-semibold text-emerald-200">Live</p>
+              <div className="mt-5 grid grid-cols-2 gap-4 text-sm text-foreground/80">
+                <div className="rounded-2xl border border-border bg-card/40 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-foreground/40">Realtime</p>
+                  <p className="mt-1 text-lg font-semibold text-brand-emerald-600 dark:text-emerald-200">Live</p>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Threat Index</p>
-                  <p className="mt-1 text-lg font-semibold text-purple-200">Low</p>
+                <div className="rounded-2xl border border-border bg-card/40 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-foreground/40">Threat Index</p>
+                  <p className="mt-1 text-lg font-semibold text-brand-purple">Low</p>
                 </div>
               </div>
             </div>

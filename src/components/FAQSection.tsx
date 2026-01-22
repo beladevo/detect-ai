@@ -52,21 +52,21 @@ export default function FAQSection() {
       <GlassCard hover={false} glow="cyan" className="p-8 sm:p-10">
         {/* Header */}
         <div className="mb-10 text-center">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 px-4 py-2 backdrop-blur-sm">
-            <HelpCircle className="h-4 w-4 text-cyan-400" />
-            <span className="text-xs font-medium uppercase tracking-[0.25em] text-gray-300">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-gradient-to-r from-brand-cyan/10 to-brand-purple/10 px-4 py-2 backdrop-blur-sm">
+            <HelpCircle className="h-4 w-4 text-brand-cyan" />
+            <span className="text-xs font-medium uppercase tracking-[0.25em] text-foreground/60">
               FAQ
             </span>
           </div>
 
           <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-            <span className="text-white">Frequently Asked </span>
-            <span className="bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+            <span className="text-foreground">Frequently Asked </span>
+            <span className="bg-gradient-to-r from-brand-cyan to-brand-purple bg-clip-text text-transparent">
               Questions
             </span>
           </h2>
 
-          <p className="mx-auto mt-4 max-w-2xl text-gray-400">
+          <p className="mx-auto mt-4 max-w-2xl text-foreground/60">
             Everything you need to know about our AI detection technology and how it works.
           </p>
         </div>
@@ -79,8 +79,8 @@ export default function FAQSection() {
                 className={`
                   group overflow-hidden rounded-2xl border transition-all duration-300
                   ${openIndex === index
-                    ? "border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-white/[0.04] to-transparent shadow-[0_0_40px_rgba(139,92,246,0.1)]"
-                    : "border-white/[0.08] bg-gradient-to-br from-white/[0.04] to-transparent hover:border-white/20"
+                    ? "border-brand-purple/30 bg-gradient-to-br from-brand-purple/10 via-card/40 to-transparent shadow-[0_0_40px_rgba(139,92,246,0.1)]"
+                    : "border-border bg-gradient-to-br from-card/40 to-transparent hover:border-border/60"
                   }
                 `}
               >
@@ -95,14 +95,14 @@ export default function FAQSection() {
                         flex h-10 w-10 shrink-0 items-center justify-center rounded-xl
                         border transition-all duration-300
                         ${openIndex === index
-                          ? "border-purple-500/30 bg-purple-500/20 text-purple-400"
-                          : "border-white/10 bg-white/5 text-gray-400 group-hover:border-cyan-500/30 group-hover:text-cyan-400"
+                          ? "border-brand-purple/30 bg-brand-purple/20 text-brand-purple"
+                          : "border-border bg-card/40 text-foreground/40 group-hover:border-brand-cyan/30 group-hover:text-brand-cyan"
                         }
                       `}
                     >
                       <Sparkles className="h-4 w-4" />
                     </div>
-                    <span className="font-medium text-white">{faq.question}</span>
+                    <span className="font-medium text-foreground">{faq.question}</span>
                   </div>
 
                   <div
@@ -122,14 +122,14 @@ export default function FAQSection() {
                 {/* Answer */}
                 {openIndex === index && (
                   <div className="overflow-hidden animate-fadeIn">
-                      <div className="border-t border-white/[0.06] px-6 pb-6 pt-4">
-                        <div className="ml-14">
-                          <p className="text-sm leading-relaxed text-gray-400">
-                            {faq.answer}
-                          </p>
-                        </div>
+                    <div className="border-t border-border px-6 pb-6 pt-4">
+                      <div className="ml-14">
+                        <p className="text-sm leading-relaxed text-foreground/60">
+                          {faq.answer}
+                        </p>
                       </div>
                     </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -138,17 +138,17 @@ export default function FAQSection() {
 
         {/* Bottom CTA */}
         <div className="mt-10 text-center">
-          <div className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.04] to-transparent px-6 py-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-500/30 bg-cyan-500/10">
-              <HelpCircle className="h-5 w-5 text-cyan-400" />
+          <div className="inline-flex items-center gap-3 rounded-2xl border border-border bg-gradient-to-r from-card/40 to-transparent px-6 py-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-brand-cyan/30 bg-brand-cyan/10">
+              <HelpCircle className="h-5 w-5 text-brand-cyan" />
             </div>
             <div className="text-left">
-              <p className="text-sm font-medium text-white">Still have questions?</p>
-              <p className="text-xs text-gray-400">
+              <p className="text-sm font-medium text-foreground">Still have questions?</p>
+              <p className="text-xs text-foreground/50">
                 Contact us at{" "}
                 <a
                   href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@imagion.ai"}`}
-                  className="text-cyan-400 hover:underline"
+                  className="text-brand-cyan hover:underline"
                 >
                   {process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@imagion.ai"}
                 </a>

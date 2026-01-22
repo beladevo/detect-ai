@@ -20,15 +20,15 @@ export default function ComparisonTool({ previewUrl, verdict, pipeline }: Compar
 
   return (
     <section className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-20">
-      <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
+      <div className="rounded-3xl border border-border bg-card/60 p-8 shadow-2xl backdrop-blur-xl">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-white">Layer comparison</h3>
-            <p className="text-sm text-gray-400">
+            <h3 className="text-lg font-semibold text-foreground">Layer comparison</h3>
+            <p className="text-sm text-foreground/50">
               Side-by-side view of the original and the anomaly heatmap.
             </p>
           </div>
-          <span className="rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.3em] text-gray-300">
+          <span className="rounded-full border border-border bg-card/40 px-4 py-2 text-xs uppercase tracking-[0.3em] text-foreground/60">
             {label}
           </span>
         </div>
@@ -39,8 +39,8 @@ export default function ComparisonTool({ previewUrl, verdict, pipeline }: Compar
           </div>
         ) : (
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/40">
-              <div className="px-4 py-3 text-xs uppercase tracking-[0.3em] text-gray-400">
+            <div className="overflow-hidden rounded-2xl border border-border bg-card/20">
+              <div className="px-4 py-3 text-xs uppercase tracking-[0.3em] text-foreground/40">
                 Original
               </div>
               <div
@@ -48,8 +48,8 @@ export default function ComparisonTool({ previewUrl, verdict, pipeline }: Compar
                 style={{ backgroundImage: `url(${previewUrl})` }}
               />
             </div>
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/40">
-              <div className="px-4 py-3 text-xs uppercase tracking-[0.3em] text-gray-400">
+            <div className="overflow-hidden rounded-2xl border border-border bg-card/20">
+              <div className="px-4 py-3 text-xs uppercase tracking-[0.3em] text-foreground/40">
                 Heatmap Overlay
               </div>
               <div className="relative aspect-[4/3] w-full">

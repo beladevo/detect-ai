@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Bot, Menu, X, LogIn } from "lucide-react";
 import GlowButton from "./ui/GlowButton";
 import { useAuth } from "@/src/context/AuthContext";
+import { ThemeToggle } from "./ThemeToggle";
 
 type NavbarProps = {
   onActionClick: () => void;
@@ -38,9 +39,8 @@ export default function Navbar({ onActionClick }: NavbarProps) {
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
-        className={`fixed left-0 right-0 top-0 z-50 transition-all duration-500 ${
-          scrolled ? "py-2" : "py-4"
-        }`}
+        className={`fixed left-0 right-0 top-0 z-50 transition-all duration-500 ${scrolled ? "py-2" : "py-4"
+          }`}
       >
         <div className="mx-auto max-w-6xl px-4">
           <div
@@ -48,17 +48,17 @@ export default function Navbar({ onActionClick }: NavbarProps) {
               relative overflow-hidden rounded-2xl
               border transition-all duration-500
               ${scrolled
-                ? "border-white/10 bg-black/60 shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
-                : "border-white/[0.06] bg-white/[0.02]"
+                ? "border-border bg-background/60 shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
+                : "border-border/40 bg-card/10"
               }
               backdrop-blur-xl
             `}
           >
             {/* Glass shine effect */}
             <div
-              className="pointer-events-none absolute inset-0"
+              className="pointer-events-none absolute inset-0 opacity-20 dark:opacity-100"
               style={{
-                background: "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 50%)",
+                background: "linear-gradient(135deg, var(--border) 0%, transparent 50%)",
               }}
             />
 
@@ -88,11 +88,11 @@ export default function Navbar({ onActionClick }: NavbarProps) {
                   />
                 </div>
                 <span className="font-display text-lg font-semibold tracking-tight flex items-center">
-                  <span className="bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
                     Imag
                   </span>
-                  <span className="text-purple-300">ion</span>
-                  <Bot className="ml-2 h-5 w-5 text-purple-300" />
+                  <span className="text-brand-purple">ion</span>
+                  <Bot className="ml-2 h-5 w-5 text-brand-purple" />
                 </span>
               </motion.div>
 
@@ -142,6 +142,8 @@ export default function Navbar({ onActionClick }: NavbarProps) {
                   </Link>
                 )}
 
+                <ThemeToggle />
+
                 <GlowButton
                   onClick={onActionClick}
                   size="sm"
@@ -173,7 +175,7 @@ export default function Navbar({ onActionClick }: NavbarProps) {
             transition={{ duration: 0.2 }}
             className="fixed inset-x-0 top-20 z-40 px-4 md:hidden"
           >
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/80 p-4 backdrop-blur-xl">
+            <div className="overflow-hidden rounded-2xl border border-border bg-background/90 p-4 backdrop-blur-xl dark:bg-black/80">
               <div className="flex flex-col gap-2">
                 {navLinks.map((link) => (
                   <a

@@ -101,9 +101,9 @@ export default function ResultsDisplay({
           {verdict === "ai" && <BorderBeam size={300} duration={12} delay={9} />}
           {/* Glass shine effect */}
           <div
-            className="pointer-events-none absolute inset-0 rounded-3xl"
+            className="pointer-events-none absolute inset-0 rounded-3xl opacity-20 dark:opacity-100"
             style={{
-              background: "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%)",
+              background: "linear-gradient(135deg, var(--border) 0%, transparent 50%)",
             }}
           />
 
@@ -138,7 +138,7 @@ export default function ResultsDisplay({
               </motion.div>
 
               <motion.h2
-                className="mt-6 text-2xl font-bold text-white"
+                className="mt-6 text-2xl font-bold text-foreground"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
@@ -162,14 +162,14 @@ export default function ResultsDisplay({
                   />
                 </div>
 
-                <div className="relative flex flex-col items-center justify-center h-44 w-44 rounded-full border-2 border-white/10 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md shadow-2xl">
+                <div className="relative flex flex-col items-center justify-center h-44 w-44 rounded-full border-2 border-border bg-gradient-to-br from-card/30 to-card/10 backdrop-blur-md shadow-2xl">
                   <div className="flex items-baseline justify-center gap-1.5">
                     <span className={`text-7xl font-black font-display bg-gradient-to-r ${current.gradient} bg-clip-text text-transparent`}>
                       <NumberTicker value={score} />
                     </span>
-                    <span className="text-3xl font-bold text-gray-400 -ml-0.5">%</span>
+                    <span className="text-3xl font-bold text-foreground/40 -ml-0.5">%</span>
                   </div>
-                  <p className="mt-1 text-[11px] uppercase tracking-[0.25em] font-semibold text-gray-400">AI Score</p>
+                  <p className="mt-1 text-[11px] uppercase tracking-[0.25em] font-semibold text-foreground/40">AI Score</p>
                 </div>
               </motion.div>
 
@@ -229,14 +229,14 @@ export default function ResultsDisplay({
                 transition={{ delay: 0.5 }}
               >
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-400">Confidence Level</span>
+                  <span className="text-foreground/60">Confidence Level</span>
                   <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-purple-400" />
-                    <span className="font-medium text-white">{confidenceLabel}</span>
+                    <Sparkles className="h-4 w-4 text-brand-purple" />
+                    <span className="font-medium text-foreground">{confidenceLabel}</span>
                   </div>
                 </div>
 
-                <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-white/10">
+                <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-foreground/10">
                   <div
                     className={`h-full rounded-full bg-gradient-to-r ${current.gradient} transition-[width] duration-1000 ease-out`}
                     style={{ width: `${score}%` }}
@@ -296,7 +296,7 @@ export default function ResultsDisplay({
 
               <button
                 onClick={() => setShowShare(true)}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all text-white font-medium flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-8 py-3.5 rounded-xl border border-border bg-card/20 hover:bg-card/40 transition-all text-foreground font-medium flex items-center justify-center gap-2"
               >
                 <Share2 className="h-4 w-4" />
                 <span>Share Result</span>
@@ -322,8 +322,8 @@ export default function ResultsDisplay({
             {/* Finding Summaries */}
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
               <div className="mb-4 flex items-center gap-2">
-                <div className="h-1 w-8 rounded-full bg-purple-500/50" />
-                <h3 className="text-lg font-bold text-white font-display">Key Forensic Findings</h3>
+                <div className="h-1 w-8 rounded-full bg-brand-purple/50" />
+                <h3 className="text-lg font-bold text-foreground font-display">Key Forensic Findings</h3>
               </div>
               <ExplanationList
                 flags={{
@@ -340,10 +340,10 @@ export default function ResultsDisplay({
             {imageUrl && (
               <div className="animate-in fade-in slide-in-from-bottom-4 delay-200 duration-700">
                 <div className="mb-4 flex items-center gap-2">
-                  <div className="h-1 w-8 rounded-full bg-cyan-500/50" />
-                  <h3 className="text-lg font-bold text-white font-display">Spatial Analysis Overlay</h3>
+                  <div className="h-1 w-8 rounded-full bg-brand-cyan/50" />
+                  <h3 className="text-lg font-bold text-foreground font-display">Spatial Analysis Overlay</h3>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-1 overflow-hidden">
+                <div className="rounded-2xl border border-border bg-card/20 p-1 overflow-hidden">
                   <DetectionVisualization pipeline={pipeline} imageUrl={imageUrl} />
                 </div>
               </div>
@@ -352,8 +352,8 @@ export default function ResultsDisplay({
             {/* Technical Metrics */}
             <div className="animate-in fade-in slide-in-from-bottom-4 delay-300 duration-700">
               <div className="mb-6 flex items-center gap-2">
-                <div className="h-1 w-8 rounded-full bg-emerald-500/50" />
-                <h3 className="text-lg font-bold text-white font-display">Technical Signature</h3>
+                <div className="h-1 w-8 rounded-full bg-brand-mint/50" />
+                <h3 className="text-lg font-bold text-foreground font-display">Technical Signature</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <MLModelsCard ml={pipeline.ml} />
@@ -368,8 +368,8 @@ export default function ResultsDisplay({
             {/* Forensic Details Grid */}
             <div className="animate-in fade-in slide-in-from-bottom-4 delay-400 duration-700">
               <div className="mb-6 flex items-center gap-2">
-                <div className="h-1 w-8 rounded-full bg-pink-500/50" />
-                <h3 className="text-lg font-bold text-white font-display">Deep Scan Report</h3>
+                <div className="h-1 w-8 rounded-full bg-brand-pink/50" />
+                <h3 className="text-lg font-bold text-foreground font-display">Deep Scan Report</h3>
               </div>
               <div className="grid gap-6 md:grid-cols-3">
                 <DetailCard
