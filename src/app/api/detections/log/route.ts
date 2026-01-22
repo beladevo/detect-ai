@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { getCurrentUser } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
 
@@ -48,14 +49,22 @@ export async function POST(request: NextRequest) {
         ? Math.round(payload.processingTime)
         : null;
 
-    const pipelineSummary = payload.pipeline
-      ? {
-          verdict: payload.pipeline.verdict,
-          hashes: payload.pipeline.hashes,
-          fusion: payload.pipeline.fusion,
-          modules: payload.pipeline.modules,
-        }
-      : null;
+const sanitizeJsonValue = (value: unknown): Prisma.InputJsonValue | null => {
+  if (value === undefined) {
+    return null;
+  }
+
+  return value as Prisma.InputJsonValue;
+};
+
+const pipelineSummary: Prisma.InputJsonObject | null = payload.pipeline
+  ? {
+      verdict: sanitizeJsonValue(payload.pipeline.verdict),
+      hashes: sanitizeJsonValue(payload.pipeline.hashes),
+      fusion: sanitizeJsonValue(payload.pipeline.fusion),
+      modules: sanitizeJsonValue(payload.pipeline.modules),
+    }
+  : null;
 
     await prisma.$transaction([
       prisma.detection.create({
@@ -70,7 +79,7 @@ export async function POST(request: NextRequest) {
           status: "COMPLETED",
           processingTime,
           modelUsed,
-          pipelineData: pipelineSummary,
+          pipelineData: pipelineSummary ?? undefined,
         },
       }),
       prisma.user.update({

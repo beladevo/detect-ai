@@ -5,6 +5,7 @@ import { Brain, Check } from "lucide-react";
 import {
   DEFAULT_MODEL_NAME,
   ENSEMBLE_PRESETS,
+  EnsemblePreset,
   getModelByName,
   getSelectableModels,
 } from "@/src/lib/models";
@@ -30,15 +31,17 @@ export default function ModelSelector({
     accuracy: "high",
   };
   const availableModels = selectableModels.length > 0 ? selectableModels : [fallbackModel];
-  const defaultPreset = ENSEMBLE_PRESETS[0]?.name ?? "fast";
-  const [selectedPreset, setSelectedPreset] = React.useState(defaultPreset);
+  const defaultPreset: EnsemblePreset = ENSEMBLE_PRESETS[0]?.name ?? "fast";
+  const [selectedPreset, setSelectedPreset] = React.useState<EnsemblePreset>(
+    defaultPreset,
+  );
 
   const handleSelectModel = (modelName: string) => {
     onModelChange?.(modelName);
     setIsOpen(false);
   };
 
-  const handleSelectPreset = (presetName: string) => {
+  const handleSelectPreset = (presetName: EnsemblePreset) => {
     const preset = ENSEMBLE_PRESETS.find((p) => p.name === presetName);
     if (preset) {
       setSelectedPreset(presetName);

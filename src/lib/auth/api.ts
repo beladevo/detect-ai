@@ -8,8 +8,8 @@ export async function authenticateRequest(request: NextRequest): Promise<User | 
   const apiKey = request.headers.get('x-api-key')
   if (apiKey) {
     try {
-      const user = await prisma.user.findUnique({
-        where: { apiKey, apiKeyEnabled: true }
+      const user = await prisma.user.findFirst({
+        where: { apiKey, apiKeyEnabled: true, deletedAt: null }
       })
       return user
     } catch (error) {
@@ -24,8 +24,8 @@ export async function authenticateRequest(request: NextRequest): Promise<User | 
     if (accessToken) {
       const payload = await verifyToken(accessToken)
       if (payload) {
-        const user = await prisma.user.findUnique({
-          where: { id: payload.userId }
+        const user = await prisma.user.findFirst({
+          where: { id: payload.userId, deletedAt: null }
         })
         return user
       }
@@ -39,8 +39,8 @@ export async function authenticateRequest(request: NextRequest): Promise<User | 
         })
 
         if (storedToken && storedToken.expiresAt > new Date()) {
-          const user = await prisma.user.findUnique({
-            where: { id: payload.userId }
+          const user = await prisma.user.findFirst({
+            where: { id: payload.userId, deletedAt: null }
           })
           return user
         }
