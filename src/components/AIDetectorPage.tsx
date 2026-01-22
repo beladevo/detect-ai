@@ -22,6 +22,7 @@ const ComparisonTool = dynamic(() => import("@/src/components/ComparisonTool"), 
 
 import { DotPattern } from "@/src/components/ui/DotPattern";
 import { cn } from "@/src/lib/utils";
+import { getConfiguredModelName } from "@/src/lib/models";
 
 
 import type { PipelineResult } from "@/src/lib/pipeline/types";
@@ -41,7 +42,7 @@ export default function AIDetectorPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [estimatedTime, setEstimatedTime] = useState<string>("--");
-  const [selectedModel, setSelectedModel] = useState<string>("model_q4.onnx");
+  const [selectedModel, setSelectedModel] = useState<string>(() => getConfiguredModelName());
   const uploadRef = useRef<HTMLDivElement>(null);
   const uploadCardRef = useRef<HTMLDivElement>(null);
   const statusCardRef = useRef<HTMLDivElement>(null);

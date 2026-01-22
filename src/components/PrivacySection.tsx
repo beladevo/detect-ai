@@ -52,7 +52,7 @@ export default function PrivacySection() {
                 >
                   <div className="flex items-center gap-3 text-foreground">
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-card/40">
-                      <Icon className="h-4 w-4 text-brand-emerald-500" />
+                      <Icon className="h-4 w-4 text-brand-mint" />
                     </span>
                     <span className="font-semibold">{item.title}</span>
                   </div>

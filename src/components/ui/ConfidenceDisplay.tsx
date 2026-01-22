@@ -80,7 +80,7 @@ export default function ConfidenceDisplay({
             transition={{ delay: 0.3, duration: 0.4 }}
             className={`${classes.interval} text-gray-400`}
           >
-            ± {uncertaintyPercent.toFixed(1)}%
+            +/- {uncertaintyPercent.toFixed(1)}%
           </motion.div>
         )}
       </div>

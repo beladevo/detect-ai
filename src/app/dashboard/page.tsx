@@ -353,7 +353,7 @@ export default function DashboardPage() {
               Go to Detection
             </GlowButton>
             {user.tier === 'FREE' && (
-              <GlowButton variant="secondary">
+              <GlowButton variant="secondary" onClick={() => router.push('/pricing')}>
                 <Crown className="h-4 w-4" />
                 <span>Upgrade to Premium</span>
               </GlowButton>

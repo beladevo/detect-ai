@@ -97,7 +97,7 @@ export default function ResultsDisplay({
           hover={false}
           variant="glowing"
           glow={verdict === "ai" ? "purple" : verdict === "real" ? "emerald" : "pink"}
-          className="p-8 relative"
+          className="p-6 md:p-8 relative"
         >
           {verdict === "ai" && <BorderBeam size={300} duration={12} delay={9} />}
           {/* Glass shine effect */}
@@ -110,166 +110,145 @@ export default function ResultsDisplay({
 
           {/* Animated background glow */}
           <motion.div
-            className="pointer-events-none absolute -inset-20 opacity-30"
+            className="pointer-events-none absolute -inset-24 opacity-20"
             style={{
               background: `radial-gradient(circle at 50% 50%, ${current.glowColor}, transparent 70%)`,
             }}
             animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.2, 0.4, 0.2],
+              scale: [1, 1.15, 1],
+              opacity: [0.1, 0.25, 0.1],
             }}
             transition={{
-              duration: 4,
+              duration: 6,
               repeat: Infinity,
               repeatType: "reverse",
             }}
           />
 
-          <div className="relative z-10">
-            {/* Header with icon */}
-            <div className="flex flex-col items-center text-center">
-              <motion.div
-                className={`relative flex h-20 w-20 items-center justify-center rounded-2xl border ${current.borderColor} bg-gradient-to-br ${current.iconBg}`}
-                initial={{ scale: 0, rotate: -180 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ duration: 0.6, type: "spring", stiffness: 200 }}
-              >
-                <div className="absolute inset-0 rounded-2xl bg-white/5" />
-                <Icon className={`h-10 w-10 ${current.iconColor}`} />
-              </motion.div>
+          <div className="relative z-10 space-y-6">
+            <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card/30 p-5 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-4">
+                <motion.div
+                  className={`relative flex h-12 w-12 items-center justify-center rounded-2xl border ${current.borderColor} bg-gradient-to-br ${current.iconBg}`}
+                  initial={{ scale: 0.8, rotate: -6 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ duration: 0.5, type: "spring", stiffness: 200 }}
+                >
+                  <div className="absolute inset-0 rounded-2xl bg-white/10" />
+                  <Icon className={`h-6 w-6 ${current.iconColor}`} />
+                </motion.div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.35em] text-foreground/50">Result</p>
+                  <h2 className="mt-1 text-2xl font-semibold text-foreground font-display">
+                    {current.title}
+                  </h2>
+                  <p className="mt-1 text-sm text-foreground/60">{current.message}</p>
+                </div>
+              </div>
+              <div className={`inline-flex items-center gap-2 rounded-full border ${current.borderColor} bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.3em] ${current.iconColor}`}>
+                <Icon className="h-3.5 w-3.5" />
+                <span>{current.label}</span>
+              </div>
+            </div>
 
-              <motion.h2
-                className="mt-6 text-2xl font-bold text-foreground"
+            <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+              <motion.div
+                className="rounded-2xl border border-border bg-card/40 p-6"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
               >
-                {current.title}
-              </motion.h2>
-
-              {/* Score display */}
-              <motion.div
-                className="mt-6 relative flex justify-center"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
-              >
-                {/* Animated Glow Ring */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <motion.div
-                    animate={{ rotate: 360, scale: [1, 1.05, 1] }}
-                    transition={{ rotate: { duration: 10, repeat: Infinity, ease: "linear" }, scale: { duration: 4, repeat: Infinity, ease: "easeInOut" } }}
-                    className={`h-44 w-44 rounded-full border-2 border-dashed ${current.borderColor} opacity-30`}
-                  />
+                <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.35em] text-foreground/45">
+                  <span>AI Score</span>
+                  <span className="text-foreground/35">0-100</span>
                 </div>
-
-                <div className="relative flex flex-col items-center justify-center h-44 w-44 rounded-full border-2 border-border bg-gradient-to-br from-card/30 to-card/10 backdrop-blur-md shadow-2xl">
-                  <div className="flex items-baseline justify-center gap-1.5">
-                    <span className={`text-7xl font-black font-display bg-gradient-to-r ${current.gradient} bg-clip-text text-transparent`}>
-                      <NumberTicker value={score} />
-                    </span>
-                    <span className="text-3xl font-bold text-foreground/40 -ml-0.5">%</span>
-                  </div>
-                  <p className="mt-1 text-[11px] uppercase tracking-[0.25em] font-semibold text-foreground/40">AI Score</p>
+                <div className="mt-4 flex items-baseline gap-2">
+                  <span className={`text-6xl font-black font-display bg-gradient-to-r ${current.gradient} bg-clip-text text-transparent`}>
+                    <NumberTicker value={score} />
+                  </span>
+                  <span className="text-2xl font-semibold text-foreground/40">%</span>
                 </div>
-              </motion.div>
-
-              {/* Disclaimer */}
-              <motion.div
-                className="mt-6 max-w-sm mx-auto"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-              >
-                <p className="text-[10px] text-center text-gray-500 leading-relaxed uppercase tracking-wider">
-                  Analysis based on multi-stage forensic trace
-                </p>
-              </motion.div>
-
-              {/* View Details Button (Only if pipeline data is available) */}
-              {pipeline && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="mt-8"
-                >
-                  <GlowButton
-                    onClick={() => setShowModal(true)}
-                    variant="secondary"
-                    className="group"
-                  >
-                    <span>View Detailed Analysis</span>
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </GlowButton>
-                </motion.div>
-              )}
-            </div>
-
-            {/* Confidence Display with Uncertainty */}
-            {pipeline?.verdict && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-              >
-                <ConfidenceDisplay
-                  confidence={pipeline.verdict.confidence}
-                  uncertainty={pipeline.verdict.uncertainty}
-                  verdict={pipeline.verdict.verdict}
-                />
-              </motion.div>
-            )}
-
-            {/* Fallback simple confidence meter if no pipeline data */}
-            {!pipeline && (
-              <motion.div
-                className="mt-8 rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent p-5"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-              >
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-foreground/60">Confidence Level</span>
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-brand-purple" />
-                    <span className="font-medium text-foreground">{confidenceLabel}</span>
-                  </div>
-                </div>
-
-                <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-foreground/10">
+                <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-foreground/10">
                   <div
                     className={`h-full rounded-full bg-gradient-to-r ${current.gradient} transition-[width] duration-1000 ease-out`}
                     style={{ width: `${score}%` }}
                   />
                 </div>
-
-                <div className="mt-3 flex justify-between text-xs text-gray-500">
-                  <span>0%</span>
-                  <span>50%</span>
-                  <span>100%</span>
+                <div className="mt-2 flex justify-between text-[10px] text-foreground/40">
+                  <span>Low</span>
+                  <span>Neutral</span>
+                  <span>High</span>
                 </div>
               </motion.div>
-            )}
 
-            <motion.div
-              className={`mt-4 rounded-full px-4 py-1.5 border ${current.borderColor} bg-white/5 backdrop-blur-sm flex items-center justify-center gap-2`}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.6 }}
-            >
-              <current.Icon className={`h-4 w-4 ${current.iconColor}`} />
-              <span className={`text-sm font-bold uppercase tracking-wider ${current.iconColor}`}>{current.label}</span>
-            </motion.div>
+              <motion.div
+                className="rounded-2xl border border-border bg-card/30 p-6"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+              >
+                <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em] text-foreground/45">
+                  <span>Confidence</span>
+                  {!pipeline && (
+                    <span className={`rounded-full border ${current.borderColor} px-2 py-0.5 text-[10px] ${current.iconColor}`}>
+                      {confidenceLabel}
+                    </span>
+                  )}
+                </div>
+
+                {pipeline?.verdict ? (
+                  <div className="mt-4">
+                    <ConfidenceDisplay
+                      confidence={pipeline.verdict.confidence}
+                      uncertainty={pipeline.verdict.uncertainty}
+                      verdict={pipeline.verdict.verdict}
+                    />
+                  </div>
+                ) : (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between text-xs text-foreground/60">
+                      <span>Confidence Level</span>
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-3.5 w-3.5 text-brand-purple" />
+                        <span className="font-medium text-foreground">{confidenceLabel}</span>
+                      </div>
+                    </div>
+                    <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-foreground/10">
+                      <div
+                        className={`h-full rounded-full bg-gradient-to-r ${current.gradient} transition-[width] duration-1000 ease-out`}
+                        style={{ width: `${score}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {pipeline && (
+                  <div className="mt-5">
+                    <GlowButton
+                      onClick={() => setShowModal(true)}
+                      variant="secondary"
+                      className="group w-full justify-center"
+                    >
+                      <span>View Detailed Analysis</span>
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </GlowButton>
+                  </div>
+                )}
+              </motion.div>
+            </div>
 
             {/* Key Findings - Show top explanations */}
             {pipeline?.verdict && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.65 }}
-                className="mt-6"
+                transition={{ delay: 0.4 }}
+                className="mt-2"
               >
+                <div className="mb-3 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.25em] text-foreground/50">
+                  <span>Key Findings</span>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
                 <PremiumOverlay className="rounded-2xl">
                   <ExplanationList
                     flags={{
@@ -285,12 +264,21 @@ export default function ResultsDisplay({
               </motion.div>
             )}
 
-            {/* Action buttons */}
             <motion.div
-              className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4"
+              className="text-center text-[10px] uppercase tracking-[0.3em] text-foreground/45"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 0.7 }}
+              transition={{ delay: 0.5 }}
+            >
+              Analysis based on multi-stage forensic trace
+            </motion.div>
+
+            {/* Action buttons */}
+            <motion.div
+              className="flex flex-col sm:flex-row items-center justify-center gap-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.55 }}
             >
               <GlowButton onClick={onReset} size="lg" className="w-full sm:w-auto">
                 <RotateCcw className="h-4 w-4" />
@@ -299,7 +287,7 @@ export default function ResultsDisplay({
 
               <button
                 onClick={() => setShowShare(true)}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-xl border border-border bg-card/20 hover:bg-card/40 transition-all text-foreground font-medium flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-8 py-3.5 rounded-2xl border border-border bg-card/20 hover:bg-card/40 transition-all text-foreground font-medium flex items-center justify-center gap-2"
               >
                 <Share2 className="h-4 w-4" />
                 <span>Share Result</span>

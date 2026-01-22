@@ -277,7 +277,10 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
                 </div>
                 <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-foreground/10">
                   <motion.div
-                    className="h-full rounded-full bg-gradient-to-r from-brand-purple to-brand-pink"
+                    className="h-full rounded-full bg-brand-purple"
+                    style={{
+                      background: "linear-gradient(90deg, var(--brand-purple), var(--brand-pink))",
+                    }}
                     initial={{ width: 0 }}
                     animate={{ width: "87%" }}
                     transition={{ duration: 1, delay: 0.8 }}
@@ -287,7 +290,7 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
               </motion.div>
 
               <motion.div
-                className="overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card/40 to-brand-emerald-500/10 p-5 backdrop-blur-xl dark:to-emerald-500/10"
+                className="overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card/40 to-brand-mint/20 p-5 backdrop-blur-xl dark:to-brand-mint/20"
                 whileHover={{ scale: 1.02, y: -2 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
               >

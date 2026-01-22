@@ -2,13 +2,7 @@
  * Runtime model selection and ensemble configuration
  */
 
-export type EnsemblePreset = "fast" | "balanced" | "thorough";
-
-export const ENSEMBLE_CONFIGURATIONS: Record<EnsemblePreset, string[]> = {
-  fast: ["model_q4.onnx"],
-  balanced: ["model_q4.onnx", "model.onnx"],
-  thorough: ["model_q4.onnx", "model.onnx", "nyuad.onnx"],
-};
+import { ENSEMBLE_CONFIGURATIONS, EnsemblePreset, getKnownModelNames } from "@/src/lib/models";
 
 /**
  * Get the current model configuration from environment or default
@@ -68,18 +62,12 @@ export function getRecommendedEnsemble(useCase: "speed" | "accuracy" | "balanced
  * Validate model names
  */
 export function validateModelNames(models: string[]): { valid: boolean; errors: string[] } {
-  const validModels = [
-    "model.onnx",
-    "model_q4.onnx",
-    "nyuad.onnx",
-    "smogy.onnx",
-    "sdxl-detector.onnx",
-  ];
+  const validModels = new Set(getKnownModelNames());
 
   const errors: string[] = [];
 
   for (const model of models) {
-    if (!validModels.includes(model)) {
+    if (!validModels.has(model)) {
       errors.push(`Unknown model: ${model}`);
     }
   }

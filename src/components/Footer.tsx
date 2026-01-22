@@ -68,9 +68,9 @@ export default function Footer() {
             </p>
 
             {/* Trust badge */}
-            <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-brand-emerald-500/20 bg-brand-emerald-500/10 px-4 py-2">
-              <Shield className="h-4 w-4 text-brand-emerald-600 dark:text-brand-emerald-400" />
-              <span className="text-xs font-medium text-brand-emerald-600 dark:text-brand-emerald-400">
+            <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-brand-mint/30 bg-brand-mint/10 px-4 py-2">
+              <Shield className="h-4 w-4 text-brand-cyan" />
+              <span className="text-xs font-medium text-brand-cyan">
                 100% Privacy-First
               </span>
             </div>

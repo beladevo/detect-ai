@@ -2,11 +2,15 @@
 
 import React, { Suspense, useState } from "react";
 import { analyzeImageWithWasm } from "@/src/lib/wasmDetector";
+import { getConfiguredModelName, getModelByName } from "@/src/lib/models";
 
 function WasmCheckContent() {
   const [score, setScore] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const configuredModelName = getConfiguredModelName();
+  const configuredModel = getModelByName(configuredModelName);
+  const modelLabel = configuredModel?.displayName ?? configuredModelName;
 
   const handleChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -42,7 +46,7 @@ function WasmCheckContent() {
             comparisons only.
           </p>
           <p className="mt-2 text-xs uppercase tracking-[0.3em] text-gray-400">
-            Model: model.onnx
+            Model: {modelLabel}
           </p>
         </div>
         <div className="space-y-3">

@@ -10,31 +10,31 @@ const features = [
     icon: Cpu,
     title: "Local model execution",
     description: "Runs on your device for fast, private AI detection with zero data transmission.",
-    gradient: "from-purple-500/20 to-violet-500/10",
-    iconColor: "text-purple-400",
+    gradient: "from-orange-500/20 to-amber-500/10",
+    iconColor: "text-orange-400",
     size: "large",
   },
   {
     icon: ScanSearch,
     title: "Forensic confidence score",
     description: "Breaks down signal strength with calibrated certainty levels.",
-    gradient: "from-cyan-500/20 to-blue-500/10",
-    iconColor: "text-cyan-400",
+    gradient: "from-teal-500/20 to-emerald-500/10",
+    iconColor: "text-teal-400",
     size: "small",
   },
   {
     icon: Layers,
     title: "Heatmap overlays",
     description: "Visualize where synthetic artifacts concentrate in the frame.",
-    gradient: "from-pink-500/20 to-rose-500/10",
-    iconColor: "text-pink-400",
+    gradient: "from-amber-500/20 to-orange-500/10",
+    iconColor: "text-amber-400",
     size: "small",
   },
   {
     icon: ShieldCheck,
     title: "Zero retention",
     description: "Images stay local and are never uploaded to any server.",
-    gradient: "from-emerald-500/20 to-green-500/10",
+    gradient: "from-emerald-500/20 to-teal-500/10",
     iconColor: "text-emerald-400",
     size: "medium",
   },
@@ -42,8 +42,8 @@ const features = [
     icon: Cloud,
     title: "Server API",
     description: "Send images to our servers and get a clear score back fast.",
-    gradient: "from-blue-500/20 to-indigo-500/10",
-    iconColor: "text-blue-400",
+    gradient: "from-teal-500/20 to-orange-500/10",
+    iconColor: "text-teal-400",
     badge: "Coming Soon",
     size: "medium",
   },
@@ -59,8 +59,8 @@ const features = [
     icon: Sparkles,
     title: "Free to use",
     description: "Unlimited scans while we prepare the production launch.",
-    gradient: "from-violet-500/20 to-purple-500/10",
-    iconColor: "text-violet-400",
+    gradient: "from-orange-500/20 to-amber-500/10",
+    iconColor: "text-orange-400",
     size: "small",
   },
 ];
@@ -103,7 +103,7 @@ export default function FeaturesSection() {
           transition={{ duration: 0.6 }}
           className="mb-10"
         >
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-gradient-to-r from-brand-cyan/10 to-brand-blue-500/10 px-4 py-2 backdrop-blur-sm dark:from-cyan-500/10 dark:to-blue-500/10">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-gradient-to-r from-brand-cyan/10 to-brand-mint/20 px-4 py-2 backdrop-blur-sm dark:from-brand-cyan/10 dark:to-brand-mint/20">
             <Sparkles className="h-4 w-4 text-brand-cyan" />
             <span className="text-xs font-medium uppercase tracking-[0.25em] text-foreground/60">
               Feature Set
@@ -111,7 +111,7 @@ export default function FeaturesSection() {
           </div>
           <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
             <span className="text-foreground">Detection built for </span>
-            <span className="bg-gradient-to-r from-brand-cyan to-brand-blue-500 bg-clip-text text-transparent dark:from-cyan-400 dark:to-blue-400">
+            <span className="bg-gradient-to-r from-brand-cyan to-brand-mint bg-clip-text text-transparent">
               creators, teams, and investigators
             </span>
           </h2>
@@ -151,7 +151,7 @@ export default function FeaturesSection() {
                     p-6 backdrop-blur-sm
                     transition-all duration-500
                     hover:border-border/60
-                    hover:shadow-[0_0_40px_rgba(139,92,246,0.1)]
+                    hover:shadow-[0_0_40px_rgba(255,122,61,0.12)]
                   `}
                   whileHover={{ y: -4, scale: 1.01 }}
                   transition={{ type: "spring", stiffness: 300, damping: 20 }}
@@ -186,7 +186,7 @@ export default function FeaturesSection() {
 
                     {/* Badge */}
                     {feature.badge && (
-                      <span className="mb-2 inline-flex w-fit items-center gap-1 rounded-full bg-blue-500/20 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-blue-300">
+                      <span className="mb-2 inline-flex w-fit items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-amber-200">
                         {feature.badge}
                       </span>
                     )}

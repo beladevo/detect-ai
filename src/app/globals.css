@@ -21,6 +21,7 @@
   --brand-pink: #f1b75d;
   --brand-cyan: #2bb6ad;
   --brand-mint: #a4e8cf;
+  --brand-purple-glow: rgba(255, 122, 61, 0.7);
 }
 
 .dark {
@@ -30,6 +31,7 @@
   --border: rgba(255, 255, 255, 0.08);
   --panel: rgba(18, 22, 26, 0.78);
   --panel-border: rgba(255, 255, 255, 0.08);
+  --brand-purple-glow: rgba(255, 122, 61, 0.55);
 }
 
 /* Base body styles */
