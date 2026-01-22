@@ -23,15 +23,17 @@ const ComparisonTool = dynamic(() => import("@/src/components/ComparisonTool"), 
 import { DotPattern } from "@/src/components/ui/DotPattern";
 import { cn } from "@/src/lib/utils";
 import { getConfiguredModelName } from "@/src/lib/models";
-import { uiVerdictFromPipeline, uiVerdictFromScore } from "@/src/lib/verdictUi";
+import { getVerdictPresentation, getVerdictPresentationFromScore } from "@/src/lib/verdictUi";
+import type { VerdictPresentation, UiVerdict } from "@/src/lib/verdictUi";
 
 
 import type { PipelineResult } from "@/src/lib/pipeline/types";
 
 type DetectionResult = {
   score: number | null;
-  verdict?: "ai" | "real" | "uncertain";
+  verdict?: UiVerdict;
   pipeline?: PipelineResult;
+  presentation?: VerdictPresentation;
 };
 
 const HISTORY_KEY = "detectai_history";
@@ -106,12 +108,15 @@ export default function AIDetectorPage() {
     };
   }, []);
 
-  const verdict = useMemo(() => {
+  const presentation = useMemo(() => {
+    if (result.presentation) return result.presentation;
     if (result.pipeline?.verdict) {
-      return uiVerdictFromPipeline(result.pipeline.verdict.verdict);
+      return getVerdictPresentation(result.pipeline.verdict.verdict);
     }
-    return uiVerdictFromScore(result.score);
-  }, [result.pipeline?.verdict, result.score]);
+    return getVerdictPresentationFromScore(result.score);
+  }, [result.pipeline?.verdict, result.presentation, result.score]);
+
+  const verdict = presentation?.uiVerdict;
 
   const pushHistory = useCallback(
     (item: HistoryItem) => {
@@ -133,7 +138,7 @@ export default function AIDetectorPage() {
     try {
       const { analyzeImageWithWasm } = await import("@/src/lib/wasmDetector");
       const result = await analyzeImageWithWasm(file, selectedModel);
-      setResult({ score: result.score, pipeline: result.pipeline });
+      setResult({ score: result.score, pipeline: result.pipeline, presentation: result.presentation });
       pushHistory({
         id: crypto.randomUUID(),
         fileName: file.name,
@@ -208,6 +213,7 @@ export default function AIDetectorPage() {
               <ResultsDisplay
                 score={result.score}
                 verdict={verdict}
+                presentation={presentation}
                 onReset={handleReset}
                 pipeline={result.pipeline}
                 imageUrl={previewUrl || undefined}

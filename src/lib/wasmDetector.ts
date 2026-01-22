@@ -2,6 +2,8 @@ import * as ort from "onnxruntime-web";
 import { resolveModelConfig, getModelPathFor, MODEL_NAME } from "@/src/lib/modelConfigs";
 import { scoreFromConfidence } from "@/src/lib/scoreUtils";
 import type { PipelineResult } from "@/src/lib/pipeline/types";
+import { getVerdictPresentation } from "@/src/lib/verdictUi";
+import type { VerdictPresentation } from "@/src/lib/verdictUi";
 import { analyzeImagePipelineBrowser } from "@/src/lib/pipeline/analyzeImagePipelineBrowser";
 
 type DetectionResult = {
@@ -13,6 +15,7 @@ type DetectionResult = {
 export type AnalysisResult = {
   score: number;
   pipeline?: PipelineResult;
+  presentation?: VerdictPresentation;
 };
 
 type SessionState = {
@@ -442,7 +445,7 @@ export async function analyzeImageWithWasm(
       uncertainty: pipeline.verdict.uncertainty,
     });
 
-    return { score, pipeline };
+    return { score, pipeline, presentation: getVerdictPresentation(pipeline.verdict.verdict) };
   } catch (error) {
     const details = formatWasmError(error);
     console.error("WASM detector: error", details);
@@ -528,6 +531,7 @@ async function analyzeImageWithApi(file: File, modelName?: string): Promise<Anal
         explanations: data.explanations,
       },
     },
+    presentation: data.presentation ?? getVerdictPresentation(data.verdict),
   };
 }
 

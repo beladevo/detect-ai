@@ -12,6 +12,7 @@ import Modal from "./ui/Modal";
 import GlassCard from "./ui/GlassCard";
 import GlowButton from "./ui/GlowButton";
 import type { PipelineResult } from "@/src/lib/pipeline/types";
+import type { VerdictPresentation, UiVerdict } from "@/src/lib/verdictUi";
 import DetailCard from "./ui/DetailCard";
 import ShareModal from "./ShareModal";
 import DetectionVisualization from "./ui/DetectionVisualization";
@@ -27,7 +28,8 @@ import PremiumOverlay from "./ui/PremiumOverlay";
 
 type ResultsDisplayProps = {
   score: number;
-  verdict?: "ai" | "real" | "uncertain";
+  verdict?: UiVerdict;
+  presentation?: VerdictPresentation;
   onReset: () => void;
   pipeline?: PipelineResult;
   imageUrl?: string;
@@ -36,6 +38,7 @@ type ResultsDisplayProps = {
 export default function ResultsDisplay({
   score,
   verdict,
+  presentation,
   onReset,
   pipeline,
   imageUrl,
@@ -43,7 +46,14 @@ export default function ResultsDisplay({
   const [showModal, setShowModal] = useState(false);
   const [showShare, setShowShare] = useState(false);
 
-  const config = {
+  const config: Record<UiVerdict, {
+    gradient: string;
+    iconBg: string;
+    iconColor: string;
+    borderColor: string;
+    glowColor: string;
+    Icon: typeof AlertCircle;
+  }> = {
     ai: {
       gradient: "from-rose-500 via-orange-400 to-amber-400",
       iconBg: "from-rose-500/20 to-amber-500/20",
@@ -51,9 +61,6 @@ export default function ResultsDisplay({
       borderColor: "border-rose-500/30",
       glowColor: "rgba(244,63,94,0.18)",
       Icon: ShieldAlert,
-      title: "AI-Generated Detected",
-      message: "Detected signatures consistent with AI-generated imagery.",
-      label: "AI-GENERATED",
     },
     real: {
       gradient: "from-emerald-400 to-teal-400",
@@ -62,9 +69,6 @@ export default function ResultsDisplay({
       borderColor: "border-emerald-500/30",
       glowColor: "rgba(16,185,129,0.18)",
       Icon: CheckCircle2,
-      title: "Authentic Image",
-      message: "The system identifies the image as authentic.",
-      label: "AUTHENTIC",
     },
     uncertain: {
       gradient: "from-amber-400 to-orange-400",
@@ -73,13 +77,11 @@ export default function ResultsDisplay({
       borderColor: "border-amber-500/30",
       glowColor: "rgba(245,158,11,0.18)",
       Icon: AlertCircle,
-      title: "Inconclusive Result",
-      message: "The result is inconclusive. Consider a secondary check.",
-      label: "INCONCLUSIVE",
     },
   };
 
-  const current = config[verdict || "uncertain"];
+  const uiVerdict: UiVerdict = presentation?.uiVerdict || verdict || "uncertain";
+  const current = config[uiVerdict];
   const Icon = current.Icon;
 
   return (
@@ -93,10 +95,10 @@ export default function ResultsDisplay({
         <GlassCard
           hover={false}
           variant="glowing"
-          glow={verdict === "ai" ? "purple" : verdict === "real" ? "emerald" : "pink"}
+          glow={uiVerdict === "ai" ? "purple" : uiVerdict === "real" ? "emerald" : "pink"}
           className="p-6 md:p-8 relative"
         >
-          {verdict === "ai" && <BorderBeam size={300} duration={12} delay={9} />}
+          {uiVerdict === "ai" && <BorderBeam size={300} duration={12} delay={9} />}
           {/* Glass shine effect */}
           <div
             className="pointer-events-none absolute inset-0 rounded-3xl opacity-20 dark:opacity-100"
@@ -137,14 +139,14 @@ export default function ResultsDisplay({
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.35em] text-foreground/50">Result</p>
                   <h2 className="mt-1 text-2xl font-semibold text-foreground font-display">
-                    {current.title}
+                    {presentation?.title ?? "Inconclusive Result"}
                   </h2>
-                  <p className="mt-1 text-sm text-foreground/60">{current.message}</p>
+                  <p className="mt-1 text-sm text-foreground/60">{presentation?.message ?? "The result is inconclusive. Consider a secondary check."}</p>
                 </div>
               </div>
               <div className={`inline-flex items-center gap-2 rounded-full border ${current.borderColor} bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.3em] ${current.iconColor}`}>
                 <Icon className="h-3.5 w-3.5" />
-                <span>{current.label}</span>
+                <span>{presentation?.label ?? "INCONCLUSIVE"}</span>
               </div>
             </div>
 

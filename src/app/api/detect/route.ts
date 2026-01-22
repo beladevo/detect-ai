@@ -6,6 +6,7 @@ import { logServerEvent } from "@/src/lib/loggerServer";
 import { checkRateLimit as checkBurstRateLimit, getClientIP } from "@/src/lib/rateLimit";
 import { authenticateRequest, checkRateLimit as checkDailyRateLimit } from "@/src/lib/auth/api";
 import { prisma } from "@/src/lib/prisma";
+import { getVerdictPresentation } from "@/src/lib/verdictUi";
 
 export const runtime = "nodejs";
 
@@ -256,6 +257,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       score,
       verdict: result.verdict.verdict,
+      presentation: getVerdictPresentation(result.verdict.verdict),
       confidence: result.verdict.confidence,
       uncertainty: result.verdict.uncertainty,
       explanations: result.verdict.explanations,
