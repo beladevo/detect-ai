@@ -63,13 +63,15 @@ export async function POST(request: Request) {
       { ipAddress: ipAddress ?? undefined }
     )
 
+    const firstName = user.name ? user.name.split(" ")[0] : null
+
     return NextResponse.json({
       success: true,
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
-        firstName: user.firstName,
+        firstName,
         emailVerified: user.emailVerified,
         registerIp: user.registerIp,
         lastLoginIp: user.lastLoginIp,

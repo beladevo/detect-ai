@@ -1,0 +1,38 @@
+<svg width="900" height="520" viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="extensionScreenshotTitle" focusable="false">
+  <title id="extensionScreenshotTitle">Imagion extension badge overlay example</title>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+    <linearGradient id="window" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#1f2937" />
+    </linearGradient>
+    <linearGradient id="badge" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f43f5e" />
+      <stop offset="50%" stop-color="#e11d48" />
+      <stop offset="100%" stop-color="#db2777" />
+    </linearGradient>
+  </defs>
+  <rect width="900" height="520" rx="32" fill="url(#bg)" />
+  <rect x="70" y="80" width="760" height="360" rx="22" fill="url(#window)" stroke="#475569" stroke-width="3" />
+  <rect x="80" y="100" width="740" height="32" rx="6" fill="rgba(255,255,255,0.08)" />
+  <circle cx="680" cy="116" r="6" fill="#f97316" />
+  <circle cx="702" cy="116" r="6" fill="#facc15" />
+  <circle cx="724" cy="116" r="6" fill="#34d399" />
+  <rect x="90" y="146" width="360" height="14" rx="5" fill="rgba(255,255,255,0.12)" />
+  <rect x="90" y="180" width="710" height="220" rx="14" fill="#111827" stroke="rgba(255,255,255,0.1)" stroke-width="1.5" />
+  <rect x="130" y="204" width="120" height="100" rx="8" fill="url(#badge)" />
+  <rect x="260" y="204" width="360" height="16" rx="6" fill="rgba(255,255,255,0.6)" />
+  <rect x="260" y="230" width="300" height="16" rx="6" fill="rgba(255,255,255,0.4)" />
+  <rect x="260" y="256" width="180" height="14" rx="5" fill="rgba(255,255,255,0.3)" />
+  <rect x="620" y="204" width="100" height="32" rx="10" fill="rgba(15,23,42,0.7)" stroke="rgba(255,255,255,0.3)" />
+  <text x="95" y="330" fill="rgba(255,255,255,0.7)" font-size="16" font-family="Segoe UI, system-ui">Imagion badges hover above AI-sensitive visuals with real-time verdicts.</text>
+  <rect x="130" y="230" width="56" height="8" rx="4" fill="rgba(255,255,255,0.6)" />
+  <rect x="130" y="246" width="40" height="6" rx="3" fill="rgba(255,255,255,0.4)" />
+  <rect x="130" y="264" width="32" height="6" rx="3" fill="rgba(255,255,255,0.3)" />
+  <rect x="560" y="204" width="5" height="100" rx="2" fill="rgba(255,255,255,0.2)" />
+  <rect x="610" y="204" width="5" height="100" rx="2" fill="rgba(255,255,255,0.2)" />
+  <rect x="660" y="204" width="5" height="100" rx="2" fill="rgba(255,255,255,0.2)" />
+</svg>
