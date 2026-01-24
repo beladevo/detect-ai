@@ -1,21 +1,18 @@
-/**
- * Simple in-memory rate limiter
- * For production, consider using Redis or a similar solution
- */
+import { getRedisClient } from "@/src/lib/redisClient";
 
 type RateLimitEntry = {
   count: number;
   resetTime: number;
 };
 
-const rateLimitStore = new Map<string, RateLimitEntry>();
+const fallbackRateLimitStore = new Map<string, RateLimitEntry>();
 
-// Cleanup old entries every 5 minutes
+// Cleanup old entries every 5 minutes (only for the in-memory fallback)
 setInterval(() => {
   const now = Date.now();
-  for (const [key, entry] of rateLimitStore.entries()) {
+  for (const [key, entry] of fallbackRateLimitStore.entries()) {
     if (entry.resetTime < now) {
-      rateLimitStore.delete(key);
+      fallbackRateLimitStore.delete(key);
     }
   }
 }, 5 * 60 * 1000);
@@ -32,22 +29,16 @@ export type RateLimitResult = {
   resetTime: number;
 };
 
-/**
- * Check if a request is within rate limit
- * @param identifier - Unique identifier for the requester (IP, user ID, etc.)
- * @param config - Rate limit configuration
- */
-export function checkRateLimit(
+function buildInMemoryRateLimit(
   identifier: string,
   config: RateLimitConfig
 ): RateLimitResult {
   const now = Date.now();
-  const entry = rateLimitStore.get(identifier);
+  const entry = fallbackRateLimitStore.get(identifier);
 
   if (!entry || entry.resetTime < now) {
-    // Create new entry
     const resetTime = now + config.windowMs;
-    rateLimitStore.set(identifier, { count: 1, resetTime });
+    fallbackRateLimitStore.set(identifier, { count: 1, resetTime });
     return {
       allowed: true,
       limit: config.maxRequests,
@@ -56,9 +47,7 @@ export function checkRateLimit(
     };
   }
 
-  // Update existing entry
   entry.count += 1;
-
   const allowed = entry.count <= config.maxRequests;
   const remaining = Math.max(0, config.maxRequests - entry.count);
 
@@ -70,11 +59,39 @@ export function checkRateLimit(
   };
 }
 
-/**
- * Get client IP from request
- */
+export async function checkRateLimit(
+  identifier: string,
+  config: RateLimitConfig
+): Promise<RateLimitResult> {
+  const normalizedWindowSeconds = Math.max(1, Math.ceil(config.windowMs / 1000));
+  const key = `rate-limit:${identifier}`;
+
+  try {
+    const redis = await getRedisClient();
+    const currentCount = await redis.incr(key);
+    let ttlSeconds = await redis.ttl(key);
+
+    if (ttlSeconds < 0) {
+      await redis.expire(key, normalizedWindowSeconds);
+      ttlSeconds = normalizedWindowSeconds;
+    }
+
+    const remaining = Math.max(0, config.maxRequests - currentCount);
+    const resetTime = Date.now() + ttlSeconds * 1000;
+
+    return {
+      allowed: currentCount <= config.maxRequests,
+      limit: config.maxRequests,
+      remaining,
+      resetTime,
+    };
+  } catch (error) {
+    console.error("Redis rate limiting failed, falling back to in-memory limiter:", error);
+    return buildInMemoryRateLimit(identifier, config);
+  }
+}
+
 export function getClientIP(request: Request): string {
-  // Try various headers for IP (common in reverse proxy setups)
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) {
     return forwarded.split(",")[0].trim();
@@ -85,6 +102,5 @@ export function getClientIP(request: Request): string {
     return realIP;
   }
 
-  // Fallback to a default (not ideal for rate limiting)
   return "unknown";
 }

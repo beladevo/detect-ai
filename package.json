@@ -37,6 +37,7 @@
     "prisma": "^5.22.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "redis": "^5.10.0",
     "sharp": "^0.34.3",
     "stripe": "^20.2.0",
     "tailwind-merge": "^3.4.0"

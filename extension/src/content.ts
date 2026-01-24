@@ -20,6 +20,7 @@ type BadgeResponse = {
   badgeId: string;
   imageUrl?: string;
   retryAfterSeconds?: number;
+  badgeLabel?: string;
 };
 
 type ContentLocaleStrings = {
@@ -356,9 +357,10 @@ function updateBadgeFromResponse(badge: HTMLDivElement, response: BadgeResponse)
     badge.title = response.message || "Click the Imagion icon to sign in.";
     badge.dataset.requestState = "key-required";
   } else if (response.status === "rate-limit") {
+    const rateLimitLabel = response.badgeLabel ?? localized.rateLimitLabel;
     badge.classList.add("imagion-badge--error");
-    label.textContent = localized.rateLimitLabel;
-    updateBadgeAria(badge, localized.rateLimitLabel);
+    label.textContent = rateLimitLabel;
+    updateBadgeAria(badge, rateLimitLabel);
     badge.title = response.message || localized.disabledHostMessage;
     badge.dataset.requestState = "rate-limit";
   } else {

@@ -6,6 +6,8 @@ const TELEMETRY_KEY = "imagionTelemetry";
 const TELEMETRY_LIMIT = 40;
 const BACKOFF_MIN_MS = 15000;
 const BACKOFF_MAX_MS = 60000;
+const HASH_HISTORY_KEY = "recentImageHistory";
+const MAX_HASH_HISTORY = 250;
 
 console.log(LOG_PREFIX, "Service worker started");
 
@@ -21,7 +23,14 @@ type DetectionResponsePayload = {
   confidence?: number;
   presentation?: string;
   message?: string;
+  badgeLabel?: string;
   retryAfterSeconds?: number;
+};
+
+type HashHistoryEntry = {
+  hash: string;
+  payload: DetectionResponsePayload;
+  createdAt: number;
 };
 
 type DetectionResponse = DetectionResponsePayload & {
@@ -53,6 +62,8 @@ let runningDetections = 0;
 let cachedConfig: ImagionConfig | null = null;
 let nextAllowedTimestamp = 0;
 let backoffTimer: ReturnType<typeof setTimeout> | null = null;
+let hashHistory: HashHistoryEntry[] = [];
+const hashHistoryReady = loadHashHistory();
 
 async function getConfig(): Promise<ImagionConfig> {
   if (cachedConfig) {
@@ -228,6 +239,27 @@ async function runDetection(imageUrl: string) {
     return;
   }
 
+  let imageHash: string | null = null;
+  try {
+    imageHash = await hashBlobSHA256(blob);
+  } catch (hashError) {
+    console.warn(LOG_PREFIX, "Failed to hash image:", hashError);
+  }
+
+  if (imageHash) {
+    const historyEntry = await findHashHistoryEntry(imageHash);
+    if (historyEntry) {
+      recordTelemetry({
+        level: "info",
+        message: "local_history_hit",
+        details: { imageUrl, hash: imageHash },
+      });
+      cache.set(imageUrl, { timestamp: Date.now(), payload: historyEntry.payload });
+      dispatchResponse(imageUrl, historyEntry.payload);
+      return;
+    }
+  }
+
   const formData = new FormData();
   const fileName = extractFileName(imageUrl);
   const file = new File([blob], fileName, { type: blob.type || "image/jpeg" });
@@ -277,18 +309,25 @@ async function runDetection(imageUrl: string) {
   }
 
   if (response.status === 429) {
-    const retryAfter = parseRetryAfter(response.headers.get("Retry-After"));
-    applyRateLimitBackoff(retryAfter);
-    console.warn(LOG_PREFIX, "Rate limited, retry after:", retryAfter, "seconds");
+    const rateLimitBody = payload as {
+      message?: string;
+      badgeLabel?: string;
+      retryAfter?: number;
+    };
+    const headerRetry = parseRetryAfter(response.headers.get("Retry-After"));
+    const effectiveRetryAfter = rateLimitBody.retryAfter ?? headerRetry;
+    applyRateLimitBackoff(effectiveRetryAfter);
+    console.warn(LOG_PREFIX, "Rate limited, retry after:", effectiveRetryAfter, "seconds");
     recordTelemetry({
       level: "warning",
       message: "rate_limited",
-      details: { imageUrl, retryAfter },
+      details: { imageUrl, retryAfter: effectiveRetryAfter, badgeLabel: rateLimitBody.badgeLabel },
     });
     dispatchResponse(imageUrl, {
       status: "rate-limit",
-      message: `Rate limit exceeded. Retrying in ${retryAfter} seconds.`,
-      retryAfterSeconds: retryAfter,
+      message: rateLimitBody.message ?? `Rate limit exceeded. Retrying in ${effectiveRetryAfter} seconds.`,
+      retryAfterSeconds: effectiveRetryAfter,
+      badgeLabel: rateLimitBody.badgeLabel,
     });
     return;
   }
@@ -331,6 +370,9 @@ async function runDetection(imageUrl: string) {
   });
 
   cache.set(imageUrl, { timestamp: Date.now(), payload: successPayload });
+  if (imageHash) {
+    void recordHashHistory(imageHash, successPayload);
+  }
   dispatchResponse(imageUrl, successPayload);
 }
 
@@ -397,6 +439,68 @@ function applyRateLimitBackoff(seconds: number) {
     backoffTimer = null;
     processQueue();
   }, waitMs);
+}
+
+async function loadHashHistory(): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(HASH_HISTORY_KEY, (items) => {
+      const stored = items[HASH_HISTORY_KEY];
+      if (Array.isArray(stored)) {
+        hashHistory = stored.filter(isHashHistoryEntry);
+        if (hashHistory.length > MAX_HASH_HISTORY) {
+          hashHistory = hashHistory.slice(0, MAX_HASH_HISTORY);
+        }
+      } else {
+        hashHistory = [];
+      }
+      resolve();
+    });
+  });
+}
+
+async function ensureHashHistoryLoaded(): Promise<void> {
+  await hashHistoryReady;
+}
+
+async function findHashHistoryEntry(hash: string): Promise<HashHistoryEntry | undefined> {
+  await ensureHashHistoryLoaded();
+  return hashHistory.find((entry) => entry.hash === hash);
+}
+
+async function recordHashHistory(hash: string, payload: DetectionResponsePayload): Promise<void> {
+  await ensureHashHistoryLoaded();
+  hashHistory = hashHistory.filter((entry) => entry.hash !== hash);
+  hashHistory.unshift({ hash, payload, createdAt: Date.now() });
+  if (hashHistory.length > MAX_HASH_HISTORY) {
+    hashHistory.length = MAX_HASH_HISTORY;
+  }
+  persistHashHistory();
+}
+
+function persistHashHistory() {
+  chrome.storage.local.set({ [HASH_HISTORY_KEY]: hashHistory });
+}
+
+function isHashHistoryEntry(value: unknown): value is HashHistoryEntry {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const entry = value as HashHistoryEntry;
+  return (
+    typeof entry.hash === "string" &&
+    entry.hash.length > 0 &&
+    typeof entry.createdAt === "number" &&
+    typeof entry.payload === "object" &&
+    entry.payload !== null &&
+    typeof entry.payload.status === "string"
+  );
+}
+
+async function hashBlobSHA256(blob: Blob): Promise<string> {
+  const arrayBuffer = await blob.arrayBuffer();
+  const digest = await crypto.subtle.digest("SHA-256", arrayBuffer);
+  const hashArray = Array.from(new Uint8Array(digest));
+  return hashArray.map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function recordTelemetry(entry: Omit<TelemetryEntry, "timestamp">) {

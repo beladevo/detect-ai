@@ -137,6 +137,17 @@ model Detection {
   @@index([fileHash])
 }
 
+model ProcessedImage {
+  id              String   @id @default(uuid())
+  fileHash        String   @unique
+  payload         Json
+  lastAccessedAt  DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@index([lastAccessedAt])
+}
+
 model UsageLog {
   id          String   @id @default(uuid())
   userId      String?

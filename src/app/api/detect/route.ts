@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeImagePipeline } from "@/src/lib/pipeline/analyzeImagePipeline";
 import { scoreFromConfidence } from "@/src/lib/scoreUtils";
@@ -18,6 +20,9 @@ const RATE_LIMIT = {
   maxRequests: 10,
   windowMs: 60 * 1000, // 1 minute
 };
+
+const BADGE_LABEL_UPGRADE = "Upgrade";
+const BADGE_LABEL_REACHED_MAX = "Reached max";
 
 async function logUsage({
   userId,
@@ -73,10 +78,18 @@ export async function POST(request: NextRequest) {
       errorType: "DAILY_RATE_LIMIT_EXCEEDED",
       message: "You have reached your daily usage limit. Try again tomorrow.",
       retryAfter: Math.max(0, Math.ceil((reset.getTime() - Date.now()) / 1000)),
+      badgeLabel: BADGE_LABEL_UPGRADE,
     }, { status: 429 });
   }
 
-  const rateLimit = checkBurstRateLimit(clientIP, RATE_LIMIT);
+  const rateLimit = await checkBurstRateLimit(clientIP, RATE_LIMIT);
+  const retryAfterSeconds = Math.max(0, Math.ceil((rateLimit.resetTime - Date.now()) / 1000));
+  const rateLimitHeaders = {
+    "X-RateLimit-Limit": rateLimit.limit.toString(),
+    "X-RateLimit-Remaining": rateLimit.remaining.toString(),
+    "X-RateLimit-Reset": new Date(rateLimit.resetTime).toISOString(),
+    "Retry-After": retryAfterSeconds.toString(),
+  };
 
   if (!rateLimit.allowed) {
     await logServerEvent({
@@ -91,16 +104,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       error: "Too many requests",
       errorType: "RATE_LIMIT_EXCEEDED",
-      message: `You've exceeded the rate limit. Please wait ${Math.ceil((rateLimit.resetTime - Date.now()) / 1000)} seconds before trying again.`,
-      retryAfter: Math.ceil((rateLimit.resetTime - Date.now()) / 1000),
+      message: `You've exceeded the rate limit. Please wait ${retryAfterSeconds} seconds before trying again.`,
+      retryAfter: retryAfterSeconds,
+      badgeLabel: BADGE_LABEL_REACHED_MAX,
     }, {
       status: 429,
-      headers: {
-        "X-RateLimit-Limit": rateLimit.limit.toString(),
-        "X-RateLimit-Remaining": rateLimit.remaining.toString(),
-        "X-RateLimit-Reset": new Date(rateLimit.resetTime).toISOString(),
-        "Retry-After": Math.ceil((rateLimit.resetTime - Date.now()) / 1000).toString(),
-      },
+      headers: rateLimitHeaders,
     });
   }
 
@@ -179,8 +188,43 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const startTime = performance.now();
     const buffer = Buffer.from(await file.arrayBuffer());
+    const fileHash = crypto.createHash("sha256").update(buffer).digest("hex");
+
+    let cachedPayload: Prisma.JsonObject | null = null;
+    let cachedEntryId: string | null = null;
+    try {
+      const cachedRecord = await prisma.processedImage.findUnique({ where: { fileHash } });
+      if (cachedRecord?.payload) {
+        cachedPayload = cachedRecord.payload as Prisma.JsonObject;
+        cachedEntryId = cachedRecord.id;
+        try {
+          await prisma.processedImage.update({
+            where: { fileHash },
+            data: { lastAccessedAt: new Date() },
+          });
+        } catch (updateError) {
+          console.warn("Processed image cache update failed:", updateError);
+        }
+      }
+    } catch (cacheError) {
+      console.warn("Processed image cache lookup failed:", cacheError);
+    }
+
+    if (cachedPayload) {
+      await logServerEvent({
+        level: "Info",
+        source: "Backend",
+        service: "Detect",
+        message: "Cached detection served",
+        additional: JSON.stringify({ fileHash, cacheId: cachedEntryId }),
+        request,
+      });
+      await logUsage({ userId, ipAddress: clientIP, userAgent, statusCode: 200, credited: true });
+      return NextResponse.json(cachedPayload, { headers: rateLimitHeaders });
+    }
+
+    const startTime = performance.now();
     await logServerEvent({
       level: "Info",
       source: "Backend",
@@ -207,7 +251,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (user) {
-      const fileHash = result.hashes?.sha256 || "";
       const pipelineSummary = {
         verdict: result.verdict,
         hashes: result.hashes,
@@ -253,8 +296,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    await logUsage({ userId, ipAddress: clientIP, userAgent, statusCode: 200, credited: true });
-    return NextResponse.json({
+    const responsePayload: Prisma.JsonObject = {
       score,
       verdict: result.verdict.verdict,
       presentation: getVerdictPresentation(result.verdict.verdict),
@@ -271,13 +313,27 @@ export async function POST(request: NextRequest) {
         provenance: result.provenance,
         fusion: result.fusion,
       },
-    }, {
-      headers: {
-        "X-RateLimit-Limit": rateLimit.limit.toString(),
-        "X-RateLimit-Remaining": rateLimit.remaining.toString(),
-        "X-RateLimit-Reset": new Date(rateLimit.resetTime).toISOString(),
-      },
-    });
+    } as Prisma.JsonObject;
+
+    try {
+      await prisma.processedImage.upsert({
+        where: { fileHash },
+        create: {
+          fileHash,
+          payload: responsePayload,
+          lastAccessedAt: new Date(),
+        },
+        update: {
+          payload: responsePayload,
+          lastAccessedAt: new Date(),
+        },
+      });
+    } catch (cacheError) {
+      console.warn("Processed image cache persist failed:", cacheError);
+    }
+
+    await logUsage({ userId, ipAddress: clientIP, userAgent, statusCode: 200, credited: true });
+    return NextResponse.json(responsePayload, { headers: rateLimitHeaders });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Detection failed";
     await logServerEvent({
