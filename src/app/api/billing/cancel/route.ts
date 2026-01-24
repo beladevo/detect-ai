@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getStripeClient } from "@/src/lib/stripe";
 import { getCurrentUser } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
 
@@ -7,6 +8,15 @@ export async function POST() {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (user.stripeSubscriptionId) {
+      try {
+        const stripe = getStripeClient();
+        await stripe.subscriptions.del(user.stripeSubscriptionId);
+      } catch (error) {
+        console.error("Stripe subscription cancel failed:", error);
+      }
     }
 
     await prisma.user.update({
