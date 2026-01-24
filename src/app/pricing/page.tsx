@@ -31,22 +31,24 @@ export default function PricingPage() {
     setCheckoutState("processing")
     setCheckoutError(null)
     try {
-      const response = await fetch("/api/billing/upgrade", {
+      const response = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan: "premium", billingCycle }),
       })
 
-      if (!response.ok) {
-        throw new Error("Upgrade failed")
+      const data = await response.json()
+      if (!response.ok || !data.url) {
+        throw new Error(data?.error || "Upgrade failed")
       }
 
       await refreshUser()
       setCheckoutState("success")
+      window.location.assign(data.url)
     } catch (error) {
-      console.error("Mock upgrade failed:", error)
+      console.error("Upgrade failed:", error)
       setCheckoutState("error")
-      setCheckoutError("Payment mock failed. Please try again.")
+      setCheckoutError("Checkout could not be started. Please try again.")
     }
   }
 
@@ -242,11 +244,11 @@ export default function PricingPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
-            <h3 className="text-lg font-semibold text-white">Mock Checkout</h3>
-            <p className="mt-2 text-sm text-gray-400">
-              This flow uses a simulated payment to unlock premium. No card details are stored.
-            </p>
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+          <h3 className="text-lg font-semibold text-white">Simulated Card Entry</h3>
+          <p className="mt-2 text-sm text-gray-400">
+            This grid is purely illustrative—the real payment happens through Stripe Checkout after clicking upgrade.
+          </p>
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <div>
                 <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
@@ -313,7 +315,7 @@ export default function PricingPage() {
                 <span className="font-semibold text-white">{price.label}</span>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-gray-400">
-                Mock payment creates a premium subscription with a {billingCycle === "annual" ? "365" : "30"}-day billing cycle.
+                Stripe Checkout handles the secure payment; your subscription will follow the {billingCycle === "annual" ? "365-day" : "30-day"} cycle.
               </div>
               {!user && !loading && (
                 <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 p-3 text-xs text-purple-200">

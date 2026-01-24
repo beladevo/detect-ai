@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/src/lib/prisma'
+import { getPlanForPriceId } from '@/src/lib/stripe'
 import { withAdminAuth, logAdminAction, canModifyUser, canDeleteUsers } from '@/src/lib/auth'
 
 export async function GET(
@@ -60,6 +61,8 @@ export async function GET(
       }
     })
 
+    const billing = getPlanForPriceId(user.stripePriceId)
+
     return NextResponse.json({
       id: user.id,
       email: user.email,
@@ -88,6 +91,10 @@ export async function GET(
       tags: user.tags,
       stripeCustomerId: user.stripeCustomerId,
       stripeSubscriptionId: user.stripeSubscriptionId,
+      stripePriceId: user.stripePriceId,
+      stripeCurrentPeriodEnd: user.stripeCurrentPeriodEnd,
+      billingPlan: billing?.plan ?? null,
+      billingCycle: billing?.billingCycle ?? null,
       notes: user.adminNotes,
       detectionHistory: detectionHistoryFormatted,
       recentDetections: user.detections,

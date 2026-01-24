@@ -10,6 +10,7 @@ import {
   DonutChart,
 } from "@/src/components/admin"
 import GlassCard from "@/src/components/ui/GlassCard"
+import GlowButton from "@/src/components/ui/GlowButton"
 
 interface DashboardStats {
   totalUsers: number
@@ -39,6 +40,15 @@ interface DashboardStats {
     label: string
     value: number
   }>
+  billing: {
+    mrr: number
+    activeSubscriptions: number
+    newSubscriptions: number
+    premiumSubscribers: number
+    enterpriseSubscribers: number
+    premiumRevenue: number
+    enterpriseRevenue: number
+  }
 }
 
 export default function AdminDashboard() {
@@ -102,9 +112,26 @@ export default function AdminDashboard() {
       { label: 'Sat', value: 98 },
       { label: 'Sun', value: 85 },
     ],
+    billing: {
+      mrr: 24500,
+      activeSubscriptions: 1824,
+      newSubscriptions: 112,
+      premiumSubscribers: 1582,
+      enterpriseSubscribers: 242,
+      premiumRevenue: 14500,
+      enterpriseRevenue: 10000,
+    },
   }
 
   const displayStats = stats || mockStats
+  const billing = displayStats.billing
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    }).format(value)
 
   return (
     <div className="min-h-screen">
@@ -269,6 +296,55 @@ export default function AdminDashboard() {
             </div>
             <ActivityFeed activities={displayStats.recentActivity} maxItems={5} />
           </GlassCard>
+        </div>
+
+        {/* Billing Overview */}
+        <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div>
+              <h3 className="font-display text-lg font-semibold text-foreground">Billing Overview</h3>
+              <p className="text-sm text-muted-foreground">Metrics synced from Stripe subscriptions</p>
+            </div>
+            <GlowButton
+              variant="secondary"
+              onClick={() =>
+                window.open('https://dashboard.stripe.com/subscriptions', '_blank', 'noopener,noreferrer')
+              }
+              className="px-5 py-3"
+            >
+              View Stripe Dashboard
+            </GlowButton>
+          </div>
+          <div className="grid gap-6 md:grid-cols-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-gray-500">MRR</p>
+              <p className="text-2xl font-semibold text-foreground">{formatCurrency(billing.mrr)}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-gray-500">Active subs</p>
+              <p className="text-2xl font-semibold text-foreground">{billing.activeSubscriptions.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-gray-500">New this period</p>
+              <p className="text-2xl font-semibold text-foreground">{billing.newSubscriptions.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-gray-500">Premium/Enterprise</p>
+              <p className="text-sm text-muted-foreground">
+                {billing.premiumSubscribers.toLocaleString()} / {billing.enterpriseSubscribers.toLocaleString()}
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 grid gap-6 md:grid-cols-2">
+            <div className="rounded-2xl border border-border bg-card/50 p-4">
+              <p className="text-xs uppercase tracking-[0.3em] text-gray-500">Premium revenue</p>
+              <p className="text-xl font-semibold text-foreground">{formatCurrency(billing.premiumRevenue)}</p>
+            </div>
+            <div className="rounded-2xl border border-border bg-card/50 p-4">
+              <p className="text-xs uppercase tracking-[0.3em] text-gray-500">Enterprise revenue</p>
+              <p className="text-xl font-semibold text-foreground">{formatCurrency(billing.enterpriseRevenue)}</p>
+            </div>
+          </div>
         </div>
 
         {/* Quick Actions */}

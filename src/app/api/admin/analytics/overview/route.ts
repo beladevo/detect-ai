@@ -35,6 +35,8 @@ export async function GET(request: NextRequest) {
       premiumUsers,
       enterpriseUsers,
       verdictCounts,
+      activeBillingUsers,
+      newBillingSubscriptions,
     ] = await Promise.all([
       prisma.user.count({ where: { deletedAt: null } }),
       prisma.user.count({ where: { deletedAt: null, createdAt: { lt: startDate } } }),
@@ -52,6 +54,19 @@ export async function GET(request: NextRequest) {
         where: { createdAt: { gte: startDate } },
         _count: true,
       }),
+      prisma.user.count({
+        where: {
+          deletedAt: null,
+          stripeSubscriptionId: { not: null },
+        },
+      }),
+      prisma.user.count({
+        where: {
+          deletedAt: null,
+          stripeSubscriptionId: { not: null },
+          createdAt: { gte: startDate },
+        },
+      }),
     ])
 
     const detectionsInPeriod = await prisma.detection.count({
@@ -67,6 +82,8 @@ export async function GET(request: NextRequest) {
       : 100
 
     const monthlyRevenue = premiumUsers * 9.99 + enterpriseUsers * 49.99
+    const premiumRevenue = premiumUsers * 9.99
+    const enterpriseRevenue = enterpriseUsers * 49.99
 
     const verdictDistribution = {
       ai: verdictCounts.find(v => v.verdict === 'AI_GENERATED')?._count || 0,
@@ -80,6 +97,16 @@ export async function GET(request: NextRequest) {
 
     const recentActivity = await getRecentActivity()
 
+    const billingBreakdown = {
+      mrr: Math.round(monthlyRevenue * 100) / 100,
+      activeSubscriptions: activeBillingUsers,
+      newSubscriptions: newBillingSubscriptions,
+      premiumSubscribers: premiumUsers,
+      enterpriseSubscribers: enterpriseUsers,
+      premiumRevenue: Math.round(premiumRevenue * 100) / 100,
+      enterpriseRevenue: Math.round(enterpriseRevenue * 100) / 100,
+    }
+
     return NextResponse.json({
       totalUsers,
       activeToday,
@@ -88,6 +115,7 @@ export async function GET(request: NextRequest) {
       userGrowth: Math.round(userGrowth * 10) / 10,
       detectionGrowth: Math.round(detectionGrowth * 10) / 10,
       revenueGrowth: 8.2,
+      billing: billingBreakdown,
       verdictDistribution,
       detectionTrend,
       userTrend,

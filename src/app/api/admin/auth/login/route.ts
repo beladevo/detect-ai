@@ -70,7 +70,8 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return setAuthCookies(response, accessToken, refreshToken)
+    await setAuthCookies(accessToken, refreshToken)
+    return response
   } catch (error) {
     console.error('Admin login error:', error)
     return NextResponse.json(

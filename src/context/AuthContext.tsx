@@ -15,6 +15,12 @@ export type AuthUser = {
   lastDetectionAt: string | null
   createdAt: string
   lastLoginAt: string | null
+  stripeCustomerId: string | null
+  stripeSubscriptionId: string | null
+  stripePriceId: string | null
+  stripeCurrentPeriodEnd: string | null
+  billingPlan: 'premium' | 'enterprise' | null
+  billingCycle: 'monthly' | 'annual' | null
 }
 
 type AuthContextType = {

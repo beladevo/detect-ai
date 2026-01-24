@@ -31,6 +31,10 @@ interface UserDetail {
   tags: string[]
   stripeCustomerId: string | null
   stripeSubscriptionId: string | null
+  stripePriceId: string | null
+  stripeCurrentPeriodEnd: string | null
+  billingPlan: "premium" | "enterprise" | null
+  billingCycle: "monthly" | "annual" | null
   notes: Array<{
     id: string
     content: string
@@ -64,6 +68,9 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   const [lockReason, setLockReason] = useState("")
   const [newTier, setNewTier] = useState<"FREE" | "PREMIUM" | "ENTERPRISE">("FREE")
   const [newNote, setNewNote] = useState("")
+  const [billingActionLoading, setBillingActionLoading] = useState(false)
+  const [billingActionMessage, setBillingActionMessage] = useState<string | null>(null)
+  const [billingActionError, setBillingActionError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchUser()
@@ -160,6 +167,40 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
     } catch (error) {
       console.error("Failed to add note:", error)
     }
+  }
+
+  const handleAdminCancelBilling = async () => {
+    if (!user) return
+    setBillingActionLoading(true)
+    setBillingActionMessage(null)
+    setBillingActionError(null)
+    try {
+      const response = await fetch(
+        `/api/admin/users/${resolvedParams.id}/billing/cancel`,
+        { method: "POST" }
+      )
+      if (!response.ok) {
+        throw new Error("Failed to cancel subscription")
+      }
+      setBillingActionMessage("Subscription cancelled.")
+      fetchUser()
+    } catch (error) {
+      console.error("Failed to cancel subscription:", error)
+      setBillingActionError(
+        "Unable to cancel the subscription right now."
+      )
+    } finally {
+      setBillingActionLoading(false)
+    }
+  }
+
+  const handleOpenStripeDashboard = () => {
+    if (typeof window === "undefined" || !user?.stripeSubscriptionId) return
+    window.open(
+      `https://dashboard.stripe.com/subscriptions/${user.stripeSubscriptionId}`,
+      "_blank",
+      "noopener,noreferrer"
+    )
   }
 
   if (loading) {
@@ -365,6 +406,94 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
                   </p>
                 </div>
               </div>
+            </GlassCard>
+            <GlassCard className="p-6 lg:col-span-3" hover={false}>
+              <h3 className="mb-4 font-display text-lg font-semibold text-foreground">
+                Billing
+              </h3>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-gray-500">
+                    Plan
+                  </p>
+                  <p className="text-white">
+                    {user.billingPlan
+                      ? user.billingPlan.charAt(0).toUpperCase() +
+                        user.billingPlan.slice(1)
+                      : user.tier}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-gray-500">
+                    Billing cycle
+                  </p>
+                  <p className="text-white">
+                    {user.billingCycle === "annual"
+                      ? "Annual"
+                      : user.billingCycle === "monthly"
+                      ? "Monthly"
+                      : "Pay as you go"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-gray-500">
+                    Next renewal
+                  </p>
+                  <p className="text-white">
+                    {user.stripeCurrentPeriodEnd
+                      ? new Date(user.stripeCurrentPeriodEnd).toLocaleDateString()
+                      : "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-gray-500">
+                    Stripe customer
+                  </p>
+                  <p className="text-white">
+                    {user.stripeCustomerId || "None"}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 space-y-2">
+                {billingActionMessage && (
+                  <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-100">
+                    {billingActionMessage}
+                  </div>
+                )}
+                {billingActionError && (
+                  <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-200">
+                    {billingActionError}
+                  </div>
+                )}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-3">
+                {user.stripeSubscriptionId && (
+                  <GlowButton
+                    variant="secondary"
+                    onClick={handleAdminCancelBilling}
+                    disabled={billingActionLoading}
+                  >
+                    {billingActionLoading
+                      ? "Cancelling..."
+                      : "Cancel subscription"}
+                  </GlowButton>
+                )}
+                {user.stripeSubscriptionId && (
+                  <GlowButton variant="ghost" onClick={handleOpenStripeDashboard}>
+                    View in Stripe
+                  </GlowButton>
+                )}
+              </div>
+              {user.stripeSubscriptionId && (
+                <p className="mt-4 text-xs text-muted-foreground">
+                  Subscription ID: {user.stripeSubscriptionId}
+                </p>
+              )}
+              {user.stripePriceId && (
+                <p className="text-xs text-muted-foreground">
+                  Price ID: {user.stripePriceId}
+                </p>
+              )}
             </GlassCard>
           </div>
         )}
