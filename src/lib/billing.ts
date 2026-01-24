@@ -13,7 +13,7 @@ export const PLAN_DESCRIPTIONS: Record<BillingPlanKey, string> = {
 
 export const PLAN_AMOUNT = {
   premium: {
-    monthly: 49,
+    monthly: 10,
     annual: 399,
   },
   enterprise: {

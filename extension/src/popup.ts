@@ -122,7 +122,7 @@ async function setStorage(data: Partial<StorageData>): Promise<void> {
 }
 
 async function checkAuthStatus() {
-  console.log(LOG_PREFIX, "Checking auth status...");
+  console.debug(LOG_PREFIX, "Checking auth status...");
   const storage = await getStorage();
 
   // Extract base URL from endpoint
@@ -138,12 +138,12 @@ async function checkAuthStatus() {
   endpointInput.value = baseUrl;
 
   if (storage.imagionApiKey) {
-    console.log(LOG_PREFIX, "User is authenticated");
+    console.info(LOG_PREFIX, "User is authenticated");
     currentApiKey = storage.imagionApiKey;
     displayAuthenticatedView(storage);
     showView("authenticated");
   } else {
-    console.log(LOG_PREFIX, "User is not authenticated");
+    console.info(LOG_PREFIX, "User is not authenticated");
     showView("login");
   }
 }
@@ -187,7 +187,7 @@ async function handleLogin(e: Event) {
   }
 
   setLoading(true);
-  console.log(LOG_PREFIX, "Attempting login for:", email);
+  console.info(LOG_PREFIX, "Attempting login for:", email);
 
   try {
     const response = await fetch(`${baseUrl}${AUTH_ENDPOINT_PATH}`, {
@@ -199,7 +199,7 @@ async function handleLogin(e: Event) {
     });
 
     const data: AuthResponse = await response.json();
-    console.log(LOG_PREFIX, "Auth response:", response.status, data.success);
+    console.debug(LOG_PREFIX, "Auth response:", response.status, data.success);
 
     if (!response.ok || !data.success) {
       showStatus(data.error || "Authentication failed", "error");
@@ -225,7 +225,7 @@ async function handleLogin(e: Event) {
     });
 
     currentApiKey = data.apiKey;
-    console.log(LOG_PREFIX, "Login successful, API key saved");
+    console.info(LOG_PREFIX, "Login successful, API key saved");
 
     // Clear form
     emailInput.value = "";
@@ -247,7 +247,7 @@ async function handleLogin(e: Event) {
 }
 
 async function handleLogout() {
-  console.log(LOG_PREFIX, "Logging out...");
+  console.info(LOG_PREFIX, "Logging out...");
 
   await setStorage({
     imagionApiKey: "",
@@ -278,7 +278,7 @@ async function handleCopyApiKey() {
 
 async function handleBadgeToggle() {
   const enabled = badgeToggle.checked;
-  console.log(LOG_PREFIX, "Badge toggle:", enabled);
+  console.debug(LOG_PREFIX, "Badge toggle:", enabled);
   await setStorage({ imagionBadgeEnabled: enabled });
 }
 
@@ -321,7 +321,7 @@ optionsLink.addEventListener("click", (e) => {
 });
 
 // Initialize
-console.log(LOG_PREFIX, "Popup initialized");
+console.info(LOG_PREFIX, "Popup initialized");
 checkAuthStatus();
 
 export {};

@@ -1,4 +1,5 @@
 import { prisma } from "@/src/lib/prisma"
+import { getBillingAmount } from "@/src/lib/billing"
 
 export type AdminAnalyticsRange = "7d" | "30d" | "90d"
 
@@ -127,11 +128,15 @@ export async function getAdminAnalyticsOverview(
       ? ((detectionsInPeriod - previousDetections) / previousDetections) * 100
       : 100
 
-  const monthlyRevenue = premiumUsers * 9.99 + enterpriseUsers * 49.99
-  const premiumRevenue = premiumUsers * 9.99
-  const enterpriseRevenue = enterpriseUsers * 49.99
+  const premiumMonthlyAmount = getBillingAmount("premium", "monthly")
+  const enterpriseMonthlyAmount = getBillingAmount("enterprise", "monthly")
+  const monthlyRevenue =
+    premiumUsers * premiumMonthlyAmount + enterpriseUsers * enterpriseMonthlyAmount
+  const premiumRevenue = premiumUsers * premiumMonthlyAmount
+  const enterpriseRevenue = enterpriseUsers * enterpriseMonthlyAmount
   const previousRevenue =
-    previousPremiumUsers * 9.99 + previousEnterpriseUsers * 49.99
+    previousPremiumUsers * premiumMonthlyAmount +
+    previousEnterpriseUsers * enterpriseMonthlyAmount
   const revenueGrowth =
     previousRevenue > 0 ? ((monthlyRevenue - previousRevenue) / previousRevenue) * 100 : 100
 

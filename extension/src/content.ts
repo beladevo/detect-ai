@@ -141,7 +141,7 @@ function insertBadgeStyles() {
   style.id = STYLE_ID;
   style.textContent = badgeStyle;
   (document.head || document.documentElement).appendChild(style);
-  console.log(LOG_PREFIX, "Badge styles injected");
+  console.debug(LOG_PREFIX, "Badge styles injected");
 }
 
 function schedulePositionUpdate() {
@@ -196,14 +196,14 @@ function shouldSkipScanning() {
 
 function scanForImages() {
   if (shouldSkipScanning()) {
-    console.log(LOG_PREFIX, "Scanning skipped (disabled or host blocked)");
+    console.debug(LOG_PREFIX, "Scanning skipped (disabled or host blocked)");
     removeAllBadges();
     return;
   }
   const images = Array.from(document.images) as HTMLImageElement[];
   const newImages = images.filter((img) => shouldTrackImage(img));
   if (newImages.length > 0) {
-    console.log(LOG_PREFIX, `Found ${newImages.length} new images to track (total on page: ${images.length})`);
+    console.debug(LOG_PREFIX, `Found ${newImages.length} new images to track (total on page: ${images.length})`);
   }
   for (const img of newImages) {
     attachBadge(img);
@@ -273,7 +273,7 @@ function attachBadge(img: HTMLImageElement) {
 function requestDetection(img: HTMLImageElement, badge: HTMLDivElement, badgeId: string) {
   const imageUrl = img.currentSrc || img.src;
   if (!imageUrl || imageUrl.startsWith("data:")) {
-    console.log(LOG_PREFIX, `Skipping data URI for ${badgeId}`);
+    console.debug(LOG_PREFIX, `Skipping data URI for ${badgeId}`);
     updateBadgeFromResponse(badge, {
       status: "error",
       message: "Unable to analyze data URI.",
@@ -282,7 +282,7 @@ function requestDetection(img: HTMLImageElement, badge: HTMLDivElement, badgeId:
     return;
   }
 
-  console.log(LOG_PREFIX, `Requesting detection for ${badgeId}:`, imageUrl.substring(0, 100));
+  console.debug(LOG_PREFIX, `Requesting detection for ${badgeId}:`, imageUrl.substring(0, 100));
 
   const payload = {
     type: "REQUEST_DETECTION" as const,
@@ -293,7 +293,7 @@ function requestDetection(img: HTMLImageElement, badge: HTMLDivElement, badgeId:
 
   sendDetectionRequest(payload)
     .then((response) => {
-      console.log(LOG_PREFIX, `Response for ${badgeId}:`, response.status, response.verdict || response.message);
+      console.debug(LOG_PREFIX, `Response for ${badgeId}:`, response.status, response.verdict || response.message);
       updateBadgeFromResponse(badge, response);
     })
     .catch((error) => {
@@ -413,7 +413,7 @@ function removeAllBadges() {
   }
   trackedImages.clear();
   if (count > 0) {
-    console.log(LOG_PREFIX, `Removed ${count} badges`);
+    console.debug(LOG_PREFIX, `Removed ${count} badges`);
   }
 }
 
@@ -424,7 +424,7 @@ function updateDisabledHosts(items: Record<string, unknown>) {
     .filter((value): value is string => Boolean(value));
   disabledHostsSet = new Set(normalized);
   if (normalized.length > 0) {
-    console.log(LOG_PREFIX, "Disabled hosts:", normalized);
+    console.info(LOG_PREFIX, "Disabled hosts:", normalized);
   }
 }
 
@@ -460,7 +460,7 @@ function syncSettings() {
       state.enabled = enabled;
       updateDisabledHosts(items);
 
-      console.log(LOG_PREFIX, "Settings synced:", { enabled, hostBlocked: isHostBlocked(window.location.hostname) });
+      console.info(LOG_PREFIX, "Settings synced:", { enabled, hostBlocked: isHostBlocked(window.location.hostname) });
 
       if (shouldSkipScanning()) {
         removeAllBadges();
@@ -476,11 +476,11 @@ function syncSettings() {
 }
 
 function init() {
-  console.log(LOG_PREFIX, "Initializing on", window.location.hostname);
+  console.info(LOG_PREFIX, "Initializing on", window.location.hostname);
 
   // Skip entirely on our own domains to prevent React hydration issues
   if (isExcludedDomain(window.location.hostname)) {
-    console.log(LOG_PREFIX, "Skipping on excluded domain:", window.location.hostname);
+    console.info(LOG_PREFIX, "Skipping on excluded domain:", window.location.hostname);
     return;
   }
 
@@ -497,14 +497,14 @@ function init() {
   if (observerTarget) {
     const mutationObserver = new MutationObserver(() => scheduleScan());
     mutationObserver.observe(observerTarget, { childList: true, subtree: true });
-    console.log(LOG_PREFIX, "MutationObserver attached");
+    console.debug(LOG_PREFIX, "MutationObserver attached");
   }
 
   window.addEventListener("scroll", schedulePositionUpdate, { passive: true });
   window.addEventListener("resize", schedulePositionUpdate);
   chrome.storage.onChanged.addListener(syncSettings);
 
-  console.log(LOG_PREFIX, "Initialization complete");
+  console.info(LOG_PREFIX, "Initialization complete");
 }
 
 if (document.readyState === "loading") {

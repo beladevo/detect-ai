@@ -9,7 +9,7 @@ const BACKOFF_MAX_MS = 60000;
 const HASH_HISTORY_KEY = "recentImageHistory";
 const MAX_HASH_HISTORY = 250;
 
-console.log(LOG_PREFIX, "Service worker started");
+console.info(LOG_PREFIX, "Service worker started");
 
 type ImagionConfig = {
   imagionApiKey: string;
@@ -89,7 +89,7 @@ async function getConfig(): Promise<ImagionConfig> {
   });
 
   cachedConfig = config;
-  console.log(LOG_PREFIX, "Config loaded:", {
+  console.info(LOG_PREFIX, "Config loaded:", {
     hasApiKey: !!config.imagionApiKey,
     endpoint: config.imagionDetectionEndpoint,
   });
@@ -101,7 +101,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     return;
   }
   if (changes.imagionApiKey || changes.imagionDetectionEndpoint) {
-    console.log(LOG_PREFIX, "Config changed, clearing cache");
+    console.info(LOG_PREFIX, "Config changed, clearing cache");
     cachedConfig = null;
   }
 });
@@ -111,7 +111,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return false;
   }
 
-  console.log(LOG_PREFIX, "Received detection request:", message.badgeId, message.imageUrl?.substring(0, 80));
+  console.debug(LOG_PREFIX, "Received detection request:", message.badgeId, message.imageUrl?.substring(0, 80));
   handleImageDetection(message, sendResponse);
   return true;
 });
@@ -136,19 +136,19 @@ function handleImageDetection(message: {
 
   const cached = getCachedResult(normalizedUrl);
   if (cached) {
-    console.log(LOG_PREFIX, "Cache hit for:", message.badgeId);
+    console.debug(LOG_PREFIX, "Cache hit for:", message.badgeId);
     sendResponse({ ...cached, badgeId: message.badgeId, imageUrl: normalizedUrl });
     return;
   }
 
   const existing = pendingRequests.get(normalizedUrl);
   if (existing) {
-    console.log(LOG_PREFIX, "Joining existing request for:", message.badgeId);
+    console.debug(LOG_PREFIX, "Joining existing request for:", message.badgeId);
     existing.resolvers.push({ badgeId: message.badgeId, sendResponse });
     return;
   }
 
-  console.log(LOG_PREFIX, "Queueing new request for:", message.badgeId);
+  console.debug(LOG_PREFIX, "Queueing new request for:", message.badgeId);
   pendingRequests.set(normalizedUrl, { resolvers: [{ badgeId: message.badgeId, sendResponse }] });
   detectionQueue.push({ imageUrl: normalizedUrl });
   processQueue();
@@ -180,7 +180,7 @@ function getCachedResult(imageUrl: string): DetectionResponsePayload | null {
 
 function processQueue() {
   if (Date.now() < nextAllowedTimestamp) {
-    console.log(LOG_PREFIX, "Rate limited, waiting...");
+    console.debug(LOG_PREFIX, "Rate limited, waiting...");
     return;
   }
 
@@ -190,7 +190,7 @@ function processQueue() {
       continue;
     }
     runningDetections += 1;
-    console.log(LOG_PREFIX, `Processing queue (${runningDetections}/${MAX_CONCURRENT_DETECTIONS} running, ${detectionQueue.length} pending)`);
+    console.debug(LOG_PREFIX, `Processing queue (${runningDetections}/${MAX_CONCURRENT_DETECTIONS} running, ${detectionQueue.length} pending)`);
 
     runDetection(job.imageUrl)
       .catch(() => {
@@ -222,9 +222,9 @@ async function runDetection(imageUrl: string) {
 
   let blob: Blob;
   try {
-    console.log(LOG_PREFIX, "Fetching image:", imageUrl.substring(0, 80));
+    console.debug(LOG_PREFIX, "Fetching image:", imageUrl.substring(0, 80));
     blob = await fetchImageBytes(imageUrl);
-    console.log(LOG_PREFIX, "Image fetched, size:", blob.size, "bytes");
+    console.debug(LOG_PREFIX, "Image fetched, size:", blob.size, "bytes");
   } catch (error) {
     console.error(LOG_PREFIX, "Failed to fetch image:", error);
     recordTelemetry({
@@ -283,7 +283,7 @@ async function runDetection(imageUrl: string) {
 
   let response: Response;
   try {
-    console.log(LOG_PREFIX, "Sending to API:", imagionDetectionEndpoint);
+    console.debug(LOG_PREFIX, "Sending to API:", imagionDetectionEndpoint);
     response = await fetch(imagionDetectionEndpoint, {
       method: "POST",
       headers: {
@@ -292,7 +292,7 @@ async function runDetection(imageUrl: string) {
       },
       body: formData,
     });
-    console.log(LOG_PREFIX, "API response status:", response.status);
+    console.debug(LOG_PREFIX, "API response status:", response.status);
   } catch (error) {
     console.error(LOG_PREFIX, "API request failed:", error);
     recordTelemetry({
@@ -310,7 +310,7 @@ async function runDetection(imageUrl: string) {
   let payload: unknown;
   try {
     payload = await response.json();
-    console.log(LOG_PREFIX, "API response payload:", payload);
+    console.debug(LOG_PREFIX, "API response payload:", payload);
   } catch (error) {
     console.error(LOG_PREFIX, "Failed to parse JSON:", error);
     recordTelemetry({
@@ -379,7 +379,7 @@ async function runDetection(imageUrl: string) {
     presentation: structuredPayload.presentation,
   };
 
-  console.log(LOG_PREFIX, "Detection success:", structuredPayload.verdict, "score:", structuredPayload.score);
+  console.info(LOG_PREFIX, "Detection success:", structuredPayload.verdict, "score:", structuredPayload.score);
   recordTelemetry({
     level: "info",
     message: "detection_success",
@@ -427,7 +427,7 @@ function dispatchResponse(imageUrl: string, payload: DetectionResponsePayload) {
   if (!entry) {
     return;
   }
-  console.log(LOG_PREFIX, "Dispatching response to", entry.resolvers.length, "resolver(s)");
+  console.debug(LOG_PREFIX, "Dispatching response to", entry.resolvers.length, "resolver(s)");
   entry.resolvers.forEach(({ badgeId, sendResponse }) => {
     sendResponse({ ...payload, badgeId, imageUrl });
   });
