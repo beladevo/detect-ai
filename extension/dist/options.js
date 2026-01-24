@@ -26,7 +26,7 @@ const LOCALE_MAP = {
 };
 const DEFAULTS = {
     imagionApiKey: "",
-    imagionDetectionEndpoint: "https://imagion.ai/api/detect",
+    imagionDetectionEndpoint: "http://localost:3000/api/detect",
     imagionBadgeEnabled: true,
     imagionDisabledHosts: [],
 };

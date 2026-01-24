@@ -1,5 +1,5 @@
 "use strict";
-const DEFAULT_DETECTION_ENDPOINT = "https://imagion.ai/api/detect";
+const DEFAULT_DETECTION_ENDPOINT = "http://localost:3000/api/detect";
 const REQUEST_TTL_MS = 5 * 60 * 1000;
 const MAX_CONCURRENT_DETECTIONS = 3;
 const TELEMETRY_KEY = "imagionTelemetry";

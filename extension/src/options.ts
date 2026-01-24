@@ -47,7 +47,7 @@ const LOCALE_MAP: Record<string, OptionsLocaleStrings> = {
 
 const DEFAULTS: ExtensionSettings = {
   imagionApiKey: "",
-  imagionDetectionEndpoint: "https://imagion.ai/api/detect",
+  imagionDetectionEndpoint: "http://localhost:3000/api/detect",
   imagionBadgeEnabled: true,
   imagionDisabledHosts: [],
 };

@@ -136,8 +136,8 @@
       </label>
       <label>
         Detection endpoint
-        <input type="url" id="detection-endpoint" name="detection-endpoint" placeholder="https://imagion.ai/api/detect" />
-        <span class="helper">By default the extension posts to <code>https://imagion.ai/api/detect</code>. Change this to target staging or self-hosted instances.</span>
+        <input type="url" id="detection-endpoint" name="detection-endpoint" placeholder="http://localost:3000/api/detect" />
+        <span class="helper">By default the extension posts to <code>http://localost:3000/api/detect</code>. Change this to target staging or self-hosted instances.</span>
       </label>
       <label class="toggle">
         <input type="checkbox" id="badge-enabled" checked />
@@ -156,7 +156,7 @@
       <div class="status" id="status"></div>
     </form>
     <p class="helper">
-      Need an API key? <a href="https://imagion.ai/login" target="_blank" rel="noopener noreferrer">Log in to Imagion</a> and copy the API key from your dashboard.
+      Need an API key? <a href="http://localost:3000/login" target="_blank" rel="noopener noreferrer">Log in to Imagion</a> and copy the API key from your dashboard.
     </p>
     <script type="module" src="dist/options.js"></script>
   </body>
