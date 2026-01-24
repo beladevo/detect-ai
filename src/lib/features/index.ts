@@ -1,5 +1,6 @@
 import { prisma } from '@/src/lib/prisma'
 import type { SessionUser } from '@/src/lib/auth'
+import { TIER_RATE_LIMITS, UserTier } from '@/src/lib/tierConfig'
 
 export type FeatureKey =
   | 'multiple_models'
@@ -72,18 +73,15 @@ export function hasFeatureSync(userTier: 'FREE' | 'PREMIUM' | 'ENTERPRISE' | nul
 }
 
 // Rate limiting per tier
-export function getRateLimits(tier: 'FREE' | 'PREMIUM' | 'ENTERPRISE') {
+export function getRateLimits(tier: UserTier) {
   if (GLOBAL_PREMIUM_ENABLED) {
     return { daily: Infinity, monthly: Infinity, concurrent: Infinity }
   }
 
-  switch (tier) {
-    case 'ENTERPRISE':
-      return { daily: 10000, monthly: 300000, concurrent: 50 }
-    case 'PREMIUM':
-      return { daily: 1000, monthly: 30000, concurrent: 10 }
-    case 'FREE':
-    default:
-      return { daily: 50, monthly: 1000, concurrent: 3 }
+  const tierConfig = TIER_RATE_LIMITS[tier]
+  return {
+    daily: tierConfig.daily,
+    monthly: tierConfig.monthly,
+    concurrent: tierConfig.concurrent,
   }
 }

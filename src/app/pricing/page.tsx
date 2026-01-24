@@ -14,7 +14,7 @@ import {
   PLAN_LABELS,
 } from "@/src/lib/billing"
 
-type CheckoutState = "idle" | "processing" | "error"
+type CheckoutState = "idle" | "processing" | "error" | "success"
 
 const PRICE_LABEL = (cycle: BillingCycle) => {
   const amount = getBillingAmount("premium", cycle)

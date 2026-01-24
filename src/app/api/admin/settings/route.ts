@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/src/lib/prisma'
 import { withAdminAuth, logAdminAction } from '@/src/lib/auth'
+import { createRateLimitViewSnapshot } from '@/src/lib/tierConfig'
 
 const DEFAULT_SETTINGS = {
   siteName: 'Imagion',
@@ -13,11 +14,7 @@ const DEFAULT_SETTINGS = {
   defaultBrowserModel: 'model_q4.onnx',
   maxFileSize: 10485760,
   enabledPipelineModules: ['mlEnsemble', 'frequencyForensics', 'physicsConsistency', 'visualArtifacts', 'metadataForensics', 'provenance'],
-  rateLimits: {
-    free: { daily: 50, monthly: 1000, perMinute: 10 },
-    premium: { daily: 1000, monthly: 30000, perMinute: 30 },
-    enterprise: { daily: 10000, monthly: 300000, perMinute: 100 },
-  },
+  rateLimits: createRateLimitViewSnapshot(),
 }
 
 export async function GET(request: NextRequest) {

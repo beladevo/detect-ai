@@ -26,7 +26,7 @@ let stripeInstance: Stripe | null = null
 export function getStripeClient(): Stripe {
   if (!stripeInstance) {
     const secret = requiredEnv('STRIPE_SECRET_KEY')
-    stripeInstance = new Stripe(secret, { apiVersion: '2024-11-20' })
+    stripeInstance = new Stripe(secret, { apiVersion: '2025-12-15.clover' })
   }
   return stripeInstance
 }

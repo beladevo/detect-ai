@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import type { Prisma } from "@prisma/client";
+import type { Prisma, User } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeImagePipeline } from "@/src/lib/pipeline/analyzeImagePipeline";
 import { scoreFromConfidence } from "@/src/lib/scoreUtils";
@@ -9,17 +9,12 @@ import { checkRateLimit as checkBurstRateLimit, getClientIP } from "@/src/lib/ra
 import { authenticateRequest, checkRateLimit as checkDailyRateLimit } from "@/src/lib/auth/api";
 import { prisma } from "@/src/lib/prisma";
 import { getVerdictPresentation } from "@/src/lib/verdictUi";
+import { getBurstRateLimitConfig, resolveUserTier } from "@/src/lib/tierConfig";
 
 export const runtime = "nodejs";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const SUPPORTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
-
-// Rate limit: 10 requests per minute per IP
-const RATE_LIMIT = {
-  maxRequests: 10,
-  windowMs: 60 * 1000, // 1 minute
-};
 
 const BADGE_LABEL_UPGRADE = "Upgrade";
 const BADGE_LABEL_REACHED_MAX = "Reached max";
@@ -82,7 +77,9 @@ export async function POST(request: NextRequest) {
     }, { status: 429 });
   }
 
-  const rateLimit = await checkBurstRateLimit(clientIP, RATE_LIMIT);
+  const userTier = resolveUserTier(user?.tier);
+  const burstConfig = getBurstRateLimitConfig(userTier);
+  const rateLimit = await checkBurstRateLimit(clientIP, burstConfig);
   const retryAfterSeconds = Math.max(0, Math.ceil((rateLimit.resetTime - Date.now()) / 1000));
   const rateLimitHeaders = {
     "X-RateLimit-Limit": rateLimit.limit.toString(),
@@ -296,7 +293,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const responsePayload: Prisma.JsonObject = {
+    const responsePayload = {
       score,
       verdict: result.verdict.verdict,
       presentation: getVerdictPresentation(result.verdict.verdict),
@@ -313,7 +310,7 @@ export async function POST(request: NextRequest) {
         provenance: result.provenance,
         fusion: result.fusion,
       },
-    } as Prisma.JsonObject;
+    } as unknown as Prisma.JsonObject;
 
     try {
       await prisma.processedImage.upsert({

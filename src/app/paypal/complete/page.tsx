@@ -1,6 +1,6 @@
 "use client"
 
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import GlowButton from "@/src/components/ui/GlowButton"
 import Link from "next/link"
@@ -9,14 +9,14 @@ type CaptureState = "processing" | "success" | "error"
 
 export default function PayPalCompletePage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [state, setState] = useState<CaptureState>("processing")
   const [message, setMessage] = useState<string>("Confirming your payment...")
 
   useEffect(() => {
-    const orderId = searchParams.get("token")
-    const plan = searchParams.get("plan")
-    const billingCycle = searchParams.get("billingCycle")
+    const params = new URL(window.location.href).searchParams
+    const orderId = params.get("token")
+    const plan = params.get("plan")
+    const billingCycle = params.get("billingCycle")
 
     if (!orderId) {
       setState("error")
@@ -49,7 +49,7 @@ export default function PayPalCompletePage() {
         setState("error")
         setMessage("We couldn't confirm your PayPal payment. Please contact support.")
       })
-  }, [router, searchParams])
+  }, [router])
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-gradient-to-br from-gray-900 via-purple-900 to-black px-4 text-center text-white">

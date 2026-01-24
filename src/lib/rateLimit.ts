@@ -1,4 +1,4 @@
-import { getRedisClient } from "@/src/lib/redisClient";
+import { getRedisClient, hasRedisConfigured } from "@/src/lib/redisClient";
 
 type RateLimitEntry = {
   count: number;
@@ -65,6 +65,10 @@ export async function checkRateLimit(
 ): Promise<RateLimitResult> {
   const normalizedWindowSeconds = Math.max(1, Math.ceil(config.windowMs / 1000));
   const key = `rate-limit:${identifier}`;
+
+  if (!hasRedisConfigured) {
+    return buildInMemoryRateLimit(identifier, config);
+  }
 
   try {
     const redis = await getRedisClient();

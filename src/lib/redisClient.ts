@@ -1,12 +1,16 @@
 import { createClient } from "redis";
-import type { RedisClientType } from "redis";
 
-const redisUrl = process.env.REDIS_URL?.trim() || "redis://localhost:6379";
+const redisUrl = process.env.REDIS_URL?.trim();
+let client: Awaited<ReturnType<typeof createClient>> | null = null;
+let connectPromise: Promise<Awaited<ReturnType<typeof createClient>>> | null = null;
 
-let client: RedisClientType | null = null;
-let connectPromise: Promise<RedisClientType> | null = null;
+export const hasRedisConfigured = Boolean(redisUrl);
 
-export async function getRedisClient(): Promise<RedisClientType> {
+export async function getRedisClient(): Promise<Awaited<ReturnType<typeof createClient>>> {
+  if (!redisUrl) {
+    throw new Error("Redis URL not configured");
+  }
+
   if (client && client.isOpen) {
     return client;
   }

@@ -6,7 +6,7 @@ import { AdminHeader, DataTable, Badge, Column } from "@/src/components/admin"
 import GlassCard from "@/src/components/ui/GlassCard"
 import GlowButton from "@/src/components/ui/GlowButton"
 
-interface LogEntry {
+interface LogEntry extends Record<string, unknown> {
   id: string
   level: ServerLogLevel
   source: string

@@ -1,6 +1,7 @@
 import { prisma } from '@/src/lib/prisma'
 import { NextRequest, NextResponse } from 'next/server'
 import type { User, AdminRole } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 import { verifyToken } from './jwt'
 
 export type AdminUser = User & {
@@ -101,13 +102,16 @@ export async function logAdminAction(
   ipAddress?: string
 ): Promise<void> {
   try {
+    const normalizedDetails = details
+      ? (details as Prisma.InputJsonValue)
+      : Prisma.JsonNull
     await prisma.adminAuditLog.create({
       data: {
         adminId,
         action,
         targetType,
         targetId,
-        details: details ?? null,
+        details: normalizedDetails,
         ipAddress: ipAddress ?? null,
       }
     })

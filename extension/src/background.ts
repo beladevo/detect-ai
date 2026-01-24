@@ -260,6 +260,22 @@ async function runDetection(imageUrl: string) {
     }
   }
 
+  const cacheLookupEndpoint = getCacheLookupEndpoint(imagionDetectionEndpoint);
+  if (imageHash && imagionApiKey) {
+    const remotePayload = await lookupBackendHash(imageHash, cacheLookupEndpoint, imagionApiKey);
+    if (remotePayload) {
+      recordTelemetry({
+        level: "info",
+        message: "remote_cache_hit",
+        details: { imageUrl, hash: imageHash },
+      });
+      cache.set(imageUrl, { timestamp: Date.now(), payload: remotePayload });
+      void recordHashHistory(imageHash, remotePayload);
+      dispatchResponse(imageUrl, remotePayload);
+      return;
+    }
+  }
+
   const formData = new FormData();
   const fileName = extractFileName(imageUrl);
   const file = new File([blob], fileName, { type: blob.type || "image/jpeg" });
@@ -501,6 +517,48 @@ async function hashBlobSHA256(blob: Blob): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", arrayBuffer);
   const hashArray = Array.from(new Uint8Array(digest));
   return hashArray.map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function getCacheLookupEndpoint(endpoint: string) {
+  try {
+    const url = new URL(endpoint);
+    if (url.pathname.endsWith("/api/detect")) {
+      url.pathname = url.pathname.replace(/\/api\/detect$/, "/api/cache/hash");
+    } else {
+      url.pathname = `${url.pathname.replace(/\/$/, "")}/api/cache/hash`;
+    }
+    return url.toString();
+  } catch {
+    const normalized = endpoint.replace(/\/$/, "");
+    return `${normalized}/api/cache/hash`;
+  }
+}
+
+async function lookupBackendHash(
+  hash: string,
+  endpoint: string,
+  apiKey: string
+): Promise<DetectionResponsePayload | null> {
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+      },
+      body: JSON.stringify({ hash }),
+    });
+    if (!response.ok) {
+      return null;
+    }
+    const data = await response.json();
+    if (data?.found && data.payload) {
+      return data.payload;
+    }
+  } catch (error) {
+    console.warn(LOG_PREFIX, "Backend cache lookup failed:", error);
+  }
+  return null;
 }
 
 function recordTelemetry(entry: Omit<TelemetryEntry, "timestamp">) {
