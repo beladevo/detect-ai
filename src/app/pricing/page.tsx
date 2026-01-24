@@ -13,6 +13,7 @@ import {
   getBillingAmount,
   PLAN_LABELS,
 } from "@/src/lib/billing"
+import { TIER_RATE_LIMITS } from "@/src/lib/tierConfig"
 
 type CheckoutState = "idle" | "processing" | "error" | "success"
 
@@ -20,6 +21,8 @@ const PRICE_LABEL = (cycle: BillingCycle) => {
   const amount = getBillingAmount("premium", cycle)
   return formatCurrency(amount)
 }
+
+const formatLimitValue = (value: number) => value.toLocaleString()
 
 export default function PricingPage() {
   const router = useRouter()
@@ -159,7 +162,7 @@ export default function PricingPage() {
             <ul className="mt-6 space-y-3 text-sm text-gray-300">
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-purple-300" />
-                50 detections per day
+                {formatLimitValue(TIER_RATE_LIMITS.FREE.daily)} detections per day
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-purple-300" />
@@ -198,7 +201,11 @@ export default function PricingPage() {
             <ul className="mt-6 space-y-3 text-sm text-gray-200">
               <li className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-amber-300" />
-                1,000 detections per day
+                {formatLimitValue(TIER_RATE_LIMITS.PREMIUM.daily)} detections per day
+              </li>
+              <li className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-amber-300" />
+                Up to {formatLimitValue(TIER_RATE_LIMITS.PREMIUM.monthly)} detections per month
               </li>
               <li className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-amber-300" />

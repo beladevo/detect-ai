@@ -20,7 +20,7 @@ export const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 
 export const TIER_RATE_LIMITS: Record<UserTier, TierRateLimitConfig> = {
   FREE: buildRateLimit(50, 1000, 10, 3),
-  PREMIUM: buildRateLimit(1000, 30000, 30, 10),
+  PREMIUM: buildRateLimit(1000, 2500, 30, 10),
   ENTERPRISE: buildRateLimit(10000, 300000, 100, 50),
 };
 
