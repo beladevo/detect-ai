@@ -1,3 +1,4 @@
+const LOG_PREFIX = "[Imagion Content]";
 const STYLE_ID = "imagion-badge-style";
 const MAX_TRACKED_IMAGES = 200;
 const trackedImages = new Map<HTMLImageElement, { badge: HTMLDivElement }>();
@@ -113,6 +114,7 @@ function insertBadgeStyles() {
   style.id = STYLE_ID;
   style.textContent = badgeStyle;
   document.head.appendChild(style);
+  console.log(LOG_PREFIX, "Badge styles injected");
 }
 
 function schedulePositionUpdate() {
@@ -154,14 +156,16 @@ function shouldSkipScanning() {
 
 function scanForImages() {
   if (shouldSkipScanning()) {
+    console.log(LOG_PREFIX, "Scanning skipped (disabled or host blocked)");
     removeAllBadges();
     return;
   }
   const images = Array.from(document.images) as HTMLImageElement[];
-  for (const img of images) {
-    if (!shouldTrackImage(img)) {
-      continue;
-    }
+  const newImages = images.filter((img) => shouldTrackImage(img));
+  if (newImages.length > 0) {
+    console.log(LOG_PREFIX, `Found ${newImages.length} new images to track (total on page: ${images.length})`);
+  }
+  for (const img of newImages) {
     attachBadge(img);
   }
 }
@@ -211,6 +215,7 @@ function updateBadgePosition(img: HTMLImageElement, badge: HTMLDivElement) {
 function requestDetection(img: HTMLImageElement, badge: HTMLDivElement, badgeId: string) {
   const imageUrl = img.currentSrc || img.src;
   if (!imageUrl || imageUrl.startsWith("data:")) {
+    console.log(LOG_PREFIX, `Skipping data URI for ${badgeId}`);
     updateBadgeFromResponse(badge, {
       status: "error",
       message: "Unable to analyze data URI.",
@@ -218,6 +223,8 @@ function requestDetection(img: HTMLImageElement, badge: HTMLDivElement, badgeId:
     });
     return;
   }
+
+  console.log(LOG_PREFIX, `Requesting detection for ${badgeId}:`, imageUrl.substring(0, 100));
 
   const payload = {
     type: "REQUEST_DETECTION" as const,
@@ -228,9 +235,11 @@ function requestDetection(img: HTMLImageElement, badge: HTMLDivElement, badgeId:
 
   sendDetectionRequest(payload)
     .then((response) => {
+      console.log(LOG_PREFIX, `Response for ${badgeId}:`, response.status, response.verdict || response.message);
       updateBadgeFromResponse(badge, response);
     })
     .catch((error) => {
+      console.error(LOG_PREFIX, `Error for ${badgeId}:`, error);
       updateBadgeFromResponse(badge, {
         status: "error",
         message: error?.message || "Detection request failed.",
@@ -248,6 +257,7 @@ function sendDetectionRequest(payload: {
   return new Promise((resolve) => {
     chrome.runtime.sendMessage(payload, (response) => {
       if (chrome.runtime.lastError) {
+        console.error(LOG_PREFIX, "Runtime error:", chrome.runtime.lastError.message);
         resolve({
           status: "error",
           message: chrome.runtime.lastError.message,
@@ -341,10 +351,14 @@ function createTooltip(response: BadgeResponse) {
 }
 
 function removeAllBadges() {
+  const count = trackedImages.size;
   for (const [, meta] of trackedImages) {
     meta.badge.remove();
   }
   trackedImages.clear();
+  if (count > 0) {
+    console.log(LOG_PREFIX, `Removed ${count} badges`);
+  }
 }
 
 function updateDisabledHosts(items: Record<string, unknown>) {
@@ -353,6 +367,9 @@ function updateDisabledHosts(items: Record<string, unknown>) {
     .map((host) => normalizeHostname(host))
     .filter((value): value is string => Boolean(value));
   disabledHostsSet = new Set(normalized);
+  if (normalized.length > 0) {
+    console.log(LOG_PREFIX, "Disabled hosts:", normalized);
+  }
 }
 
 function normalizeHostname(value: string): string | null {
@@ -386,6 +403,9 @@ function syncSettings() {
       const enabled = items.imagionBadgeEnabled !== false;
       state.enabled = enabled;
       updateDisabledHosts(items);
+
+      console.log(LOG_PREFIX, "Settings synced:", { enabled, hostBlocked: isHostBlocked(window.location.hostname) });
+
       if (shouldSkipScanning()) {
         removeAllBadges();
         return;
@@ -400,6 +420,8 @@ function syncSettings() {
 }
 
 function init() {
+  console.log(LOG_PREFIX, "Initializing on", window.location.hostname);
+
   insertBadgeStyles();
   syncSettings();
 
@@ -410,11 +432,14 @@ function init() {
   if (observerTarget) {
     const mutationObserver = new MutationObserver(() => scheduleScan());
     mutationObserver.observe(observerTarget, { childList: true, subtree: true });
+    console.log(LOG_PREFIX, "MutationObserver attached");
   }
 
   window.addEventListener("scroll", schedulePositionUpdate, { passive: true });
   window.addEventListener("resize", schedulePositionUpdate);
   chrome.storage.onChanged.addListener(syncSettings);
+
+  console.log(LOG_PREFIX, "Initialization complete");
 }
 
 if (document.readyState === "loading") {
