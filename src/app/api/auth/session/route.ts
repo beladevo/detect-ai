@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/src/lib/auth'
+import { getPlanForPriceId } from '@/src/lib/stripe'
 
 export async function GET() {
   try {
@@ -8,6 +9,8 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ user: null })
     }
+
+    const billing = getPlanForPriceId(user.stripePriceId)
 
     return NextResponse.json({
       user: {
@@ -23,6 +26,12 @@ export async function GET() {
         lastDetectionAt: user.lastDetectionAt,
         createdAt: user.createdAt,
         lastLoginAt: user.lastLoginAt,
+        stripeSubscriptionId: user.stripeSubscriptionId,
+        stripeCustomerId: user.stripeCustomerId,
+        stripePriceId: user.stripePriceId,
+        stripeCurrentPeriodEnd: user.stripeCurrentPeriodEnd,
+        billingPlan: billing?.plan ?? null,
+        billingCycle: billing?.billingCycle ?? null,
       },
     })
   } catch (error) {

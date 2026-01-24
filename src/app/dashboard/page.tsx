@@ -32,7 +32,7 @@ type DashboardSummary = {
 }
 
 export default function DashboardPage() {
-  const { user, loading, signOut } = useAuth()
+  const { user, loading, signOut, refreshUser } = useAuth()
   const router = useRouter()
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
@@ -40,9 +40,11 @@ export default function DashboardPage() {
   const [billingMessage, setBillingMessage] = useState<string | null>(null)
   const [billingError, setBillingError] = useState<string | null>(null)
   const [billingLoading, setBillingLoading] = useState(false)
+  const [portalLoading, setPortalLoading] = useState(false)
   const [accountLoading, setAccountLoading] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [portalError, setPortalError] = useState<string | null>(null)
   const canViewAnalytics = hasFeatureSync(user?.tier ?? null, 'advanced_analytics')
   const isPremium = user?.tier === 'PREMIUM' || user?.tier === 'ENTERPRISE'
 
@@ -113,11 +115,30 @@ export default function DashboardPage() {
         throw new Error('Cancel failed')
       }
       setBillingMessage('Plan cancelled. Your account is now Free.')
+      await refreshUser().catch(() => {})
     } catch (error) {
       console.error('Cancel plan failed:', error)
       setBillingError('Unable to cancel plan right now.')
     } finally {
       setBillingLoading(false)
+    }
+  }
+
+  async function handleManageBilling() {
+    setPortalError(null)
+    setPortalLoading(true)
+    try {
+      const response = await fetch('/api/billing/portal', { method: 'POST' })
+      const data = await response.json()
+      if (!response.ok || !data.url) {
+        throw new Error(data?.error || 'Failed to open portal')
+      }
+      window.location.assign(data.url)
+    } catch (error) {
+      console.error('Failed to open billing portal:', error)
+      setPortalError('Unable to open billing portal right now.')
+    } finally {
+      setPortalLoading(false)
     }
   }
 
@@ -444,6 +465,39 @@ export default function DashboardPage() {
               {billingError}
             </div>
           )}
+          {portalError && (
+            <div className="mt-4 rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 text-sm text-amber-100">
+              {portalError}
+            </div>
+          )}
+          <div className="mt-4 grid gap-3 rounded-2xl border border-white/5 bg-white/5 p-4 text-sm text-gray-300 sm:grid-cols-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Plan</p>
+              <p className="text-white">
+                {user.billingPlan
+                  ? user.billingPlan.charAt(0).toUpperCase() + user.billingPlan.slice(1)
+                  : user.tier}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Billing</p>
+              <p className="text-white">
+                {user.billingCycle
+                  ? user.billingCycle === 'annual'
+                    ? 'Annual'
+                    : 'Monthly'
+                  : 'Pay as you go'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Next billing</p>
+              <p className="text-white">
+                {user.stripeCurrentPeriodEnd
+                  ? new Date(user.stripeCurrentPeriodEnd).toLocaleDateString()
+                  : 'N/A'}
+              </p>
+            </div>
+          </div>
           <div className="mt-5 flex flex-wrap gap-3">
             {isPremium ? (
               <GlowButton
@@ -457,6 +511,11 @@ export default function DashboardPage() {
               <GlowButton variant="secondary" onClick={() => router.push('/pricing')}>
                 <Crown className="h-4 w-4" />
                 <span>View Premium Plans</span>
+              </GlowButton>
+            )}
+            {isPremium && (
+              <GlowButton variant="secondary" onClick={handleManageBilling} disabled={portalLoading}>
+                {portalLoading ? 'Opening...' : 'Manage billing'}
               </GlowButton>
             )}
             <GlowButton

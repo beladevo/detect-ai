@@ -13,6 +13,20 @@ enum UserTier {
   ENTERPRISE
 }
 
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  MODERATOR
+  READONLY
+}
+
+enum WaitlistStatus {
+  PENDING
+  INVITED
+  CONVERTED
+  REMOVED
+}
+
 enum DetectionStatus {
   PENDING
   PROCESSING
@@ -27,6 +41,15 @@ model User {
   name          String?
   tier          UserTier  @default(FREE)
   deletedAt     DateTime?
+
+  // Admin fields
+  isAdmin       Boolean   @default(false)
+  adminRole     AdminRole?
+  lockedAt      DateTime?
+  lockedReason  String?
+  lockedBy      String?
+  suspendedUntil DateTime?
+  tags          String[]  @default([])
 
   // Email verification
   emailVerified Boolean   @default(false)
@@ -60,6 +83,7 @@ model User {
   detections    Detection[]
   usageLogs     UsageLog[]
   refreshTokens RefreshToken[]
+  adminNotes    AdminNote[]
 
   @@index([email])
   @@index([deletedAt])
@@ -67,6 +91,7 @@ model User {
   @@index([stripeCustomerId])
   @@index([emailVerifyToken])
   @@index([passwordResetToken])
+  @@index([isAdmin])
 }
 
 model RefreshToken {
@@ -153,13 +178,68 @@ model FeatureFlag {
 }
 
 model Waitlist {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  source    String   @default("unknown")
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime @default(now())
+  id          String         @id @default(uuid())
+  email       String         @unique
+  source      String         @default("unknown")
+  ipAddress   String?
+  userAgent   String?
+  status      WaitlistStatus @default(PENDING)
+  invitedAt   DateTime?
+  convertedAt DateTime?
+  createdAt   DateTime       @default(now())
 
   @@index([email])
+  @@index([createdAt])
+  @@index([status])
+}
+
+model AdminNote {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  createdBy String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AdminAuditLog {
+  id         String   @id @default(uuid())
+  adminId    String
+  action     String
+  targetType String
+  targetId   String
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([adminId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
+
+model SecurityAlert {
+  id         String    @id @default(uuid())
+  type       String
+  severity   String
+  userId     String?
+  ipAddress  String?
+  details    Json
+  resolved   Boolean   @default(false)
+  resolvedBy String?
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([type])
+  @@index([severity])
+  @@index([resolved])
   @@index([createdAt])
 }
