@@ -1,9 +1,14 @@
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID
 const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET
 const PAYPAL_ENV = process.env.PAYPAL_ENV === "production" ? "production" : "sandbox"
+const PAYPAL_CONFIGURED = Boolean(PAYPAL_CLIENT_ID && PAYPAL_CLIENT_SECRET)
 
-if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET) {
+if (!PAYPAL_CONFIGURED) {
   console.warn("PayPal credentials missing; PayPal flow will be disabled.")
+}
+
+export function isPayPalConfigured() {
+  return PAYPAL_CONFIGURED
 }
 
 const PAYPAL_BASE_URL =
@@ -58,7 +63,7 @@ export type PayPalCaptureResponse = {
 }
 
 async function getPayPalAccessToken(): Promise<string> {
-  if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET) {
+  if (!PAYPAL_CONFIGURED) {
     throw new Error("PayPal credentials are not configured")
   }
 

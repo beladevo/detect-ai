@@ -1,7 +1,20 @@
 import Stripe from 'stripe'
 
+const resolveEnv = (key: string): string | undefined => {
+  if (process.env[key]) {
+    return process.env[key]
+  }
+  if (key.startsWith("STRIPE_")) {
+    const publicKey = `NEXT_PUBLIC_${key}`
+    if (process.env[publicKey]) {
+      return process.env[publicKey]
+    }
+  }
+  return undefined
+}
+
 const requiredEnv = (key: string): string => {
-  const value = process.env[key]
+  const value = resolveEnv(key)
   if (!value) {
     throw new Error(`Missing required Stripe environment variable: ${key}`)
   }

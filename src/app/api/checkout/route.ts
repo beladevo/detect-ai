@@ -1,113 +1,83 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/src/lib/prisma'
-import { getCurrentUser } from '@/src/lib/auth'
-import {
-  BillingCycle,
-  BillingPlanKey,
-  getPriceIdForPlan,
-  getStripeClient,
-} from '@/src/lib/stripe'
+import { NextRequest, NextResponse } from "next/server"
+import { getCurrentUser } from "@/src/lib/auth"
+import { prisma } from "@/src/lib/prisma"
+import { BillingPlanKey, BillingCycle, getBillingAmount, PLAN_LABELS } from "@/src/lib/billing"
+import { createPayPalOrder, isPayPalConfigured } from "@/src/lib/paypal"
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL ||
   process.env.BASE_URL ||
-  'http://localhost:3000'
+  "http://localhost:3000"
 
 type CheckoutPayload = {
-  plan?: string
-  billingCycle?: string
+  plan?: unknown
+  billingCycle?: unknown
 }
 
 const isBillingCycle = (value: unknown): value is BillingCycle =>
-  value === 'monthly' || value === 'annual'
+  value === "monthly" || value === "annual"
 
 const isBillingPlan = (value: unknown): value is BillingPlanKey =>
-  value === 'premium' || value === 'enterprise'
+  value === "premium" || value === "enterprise"
 
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser()
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    if (!isPayPalConfigured()) {
+      return NextResponse.json(
+        { error: "PayPal checkout is not configured" },
+        { status: 503 }
+      )
     }
 
     const payload = (await request.json().catch(() => ({}))) as CheckoutPayload
-    const plan: BillingPlanKey = isBillingPlan(payload.plan) ? payload.plan : 'premium'
+    const plan: BillingPlanKey = isBillingPlan(payload.plan) ? payload.plan : "premium"
     const billingCycle: BillingCycle = isBillingCycle(payload.billingCycle)
       ? payload.billingCycle
-      : 'monthly'
+      : "monthly"
 
-    const priceId = getPriceIdForPlan(plan, billingCycle)
-    const customerId = await ensureStripeCustomer(user)
-    const stripe = getStripeClient()
-
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity: 1 }],
-      metadata: {
-        userId: user.id,
-        plan,
-        billingCycle,
-      },
-      subscription_data: {
-        metadata: {
-          userId: user.id,
-          plan,
-          billingCycle,
+    const amount = getBillingAmount(plan, billingCycle)
+    const order = await createPayPalOrder({
+      intent: "CAPTURE",
+      purchase_units: [
+        {
+          amount: {
+            currency_code: "USD",
+            value: amount.toFixed(2),
+          },
+          description: `${PLAN_LABELS[plan]} (${billingCycle}) plan`,
         },
+      ],
+      application_context: {
+        brand_name: "Imagion",
+        user_action: "PAY_NOW",
+        return_url: `${BASE_URL}/paypal/complete?plan=${plan}&billingCycle=${billingCycle}`,
+        cancel_url: `${BASE_URL}/pricing?checkout=canceled`,
       },
-      allow_promotion_codes: true,
-      success_url: `${BASE_URL}/dashboard?checkout=success`,
-      cancel_url: `${BASE_URL}/pricing?checkout=canceled`,
     })
 
-    if (!session.url) {
+    const approvalLink = order.links.find((link) => link.rel === "approve")
+
+    if (!approvalLink) {
+      console.error("PayPal order missing approval link:", order)
       return NextResponse.json(
-        { error: 'Unable to create checkout session' },
+        { error: "Unable to initiate PayPal checkout" },
         { status: 500 }
       )
     }
 
-    if (!user.stripeCustomerId) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { stripeCustomerId: customerId },
-      })
-    }
-
-    return NextResponse.json({ url: session.url })
+    return NextResponse.json({
+      url: approvalLink.href,
+      orderId: order.id,
+    })
   } catch (error) {
-    console.error('Checkout creation failed:', error)
-    return NextResponse.json(
-      { error: 'Failed to create checkout session' },
-      { status: 500 }
-    )
+    console.error("PayPal checkout creation failed:", error)
+    const message =
+      error instanceof Error ? error.message : "Failed to initiate checkout"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
-}
-
-async function ensureStripeCustomer(user: Awaited<ReturnType<typeof getCurrentUser>>) {
-  if (!user) {
-    throw new Error("Authentication required")
-  }
-
-  if (user.stripeCustomerId) {
-    return user.stripeCustomerId
-  }
-
-  const stripe = getStripeClient()
-  const customer = await stripe.customers.create({
-    email: user.email,
-    metadata: {
-      userId: user.id,
-    },
-  })
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { stripeCustomerId: customer.id },
-  })
-
-  return customer.id
 }
