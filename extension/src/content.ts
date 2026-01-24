@@ -2,6 +2,14 @@ const LOG_PREFIX = "[Imagion Content]";
 const STYLE_ID = "imagion-badge-style";
 const MAX_TRACKED_IMAGES = 200;
 const MIN_IMAGE_SIZE = 50; // Minimum width/height to track
+
+// Skip extension on our own domains to prevent React hydration errors
+const EXCLUDED_DOMAINS = [
+  "localhost",
+  "127.0.0.1",
+  "imagion.ai",
+  "www.imagion.ai",
+];
 const trackedImages = new Map<HTMLImageElement, { badge: HTMLDivElement; wrapper: HTMLSpanElement }>();
 let badgeCounter = 0;
 let positionScheduled = false;
@@ -177,8 +185,13 @@ function removeBadgeAndWrapper(img: HTMLImageElement, meta: { badge: HTMLDivElem
   }
 }
 
+function isExcludedDomain(hostname: string) {
+  const normalized = hostname.toLowerCase();
+  return EXCLUDED_DOMAINS.some((domain) => normalized === domain || normalized.endsWith(`.${domain}`));
+}
+
 function shouldSkipScanning() {
-  return !state.enabled || isHostBlocked(window.location.hostname);
+  return !state.enabled || isHostBlocked(window.location.hostname) || isExcludedDomain(window.location.hostname);
 }
 
 function scanForImages() {
@@ -464,6 +477,12 @@ function syncSettings() {
 
 function init() {
   console.log(LOG_PREFIX, "Initializing on", window.location.hostname);
+
+  // Skip entirely on our own domains to prevent React hydration issues
+  if (isExcludedDomain(window.location.hostname)) {
+    console.log(LOG_PREFIX, "Skipping on excluded domain:", window.location.hostname);
+    return;
+  }
 
   insertBadgeStyles();
   syncSettings();

@@ -1,36 +1,38 @@
-const r = "[Imagion Background]", w = "http://localhost:3000/api/detect";
-const D = "imagionTelemetry";
+const r = "[Imagion Background]", H = "http://localhost:3000/api/detect";
+const O = "imagionTelemetry";
+const I = "recentImageHistory";
 console.log(r, "Service worker started");
-const y = /* @__PURE__ */ new Map(), E = /* @__PURE__ */ new Map(), m = [], u = [];
-let f = 0, h = null, I = 0, p = null;
-async function M() {
-  if (h)
-    return h;
+const h = /* @__PURE__ */ new Map(), A = /* @__PURE__ */ new Map(), E = [], p = [];
+let y = 0, _ = null, T = 0, m = null, i = [];
+const N = $();
+async function F() {
+  if (_)
+    return _;
   const e = await new Promise((t) => {
     chrome.storage.local.get(
       {
         imagionApiKey: "",
-        imagionDetectionEndpoint: w
+        imagionDetectionEndpoint: H
       },
       (n) => {
         t({
           imagionApiKey: typeof n.imagionApiKey == "string" ? n.imagionApiKey.trim() : "",
-          imagionDetectionEndpoint: typeof n.imagionDetectionEndpoint == "string" && n.imagionDetectionEndpoint.trim().length > 0 ? n.imagionDetectionEndpoint.trim() : w
+          imagionDetectionEndpoint: typeof n.imagionDetectionEndpoint == "string" && n.imagionDetectionEndpoint.trim().length > 0 ? n.imagionDetectionEndpoint.trim() : H
         });
       }
     );
   });
-  return h = e, console.log(r, "Config loaded:", {
+  return _ = e, console.log(r, "Config loaded:", {
     hasApiKey: !!e.imagionApiKey,
     endpoint: e.imagionDetectionEndpoint
   }), e;
 }
 chrome.storage.onChanged.addListener((e, t) => {
-  t === "local" && (e.imagionApiKey || e.imagionDetectionEndpoint) && (console.log(r, "Config changed, clearing cache"), h = null);
+  t === "local" && (e.imagionApiKey || e.imagionDetectionEndpoint) && (console.log(r, "Config changed, clearing cache"), _ = null);
 });
-chrome.runtime.onMessage.addListener((e, t, n) => !e || e.type !== "REQUEST_DETECTION" ? !1 : (console.log(r, "Received detection request:", e.badgeId, e.imageUrl?.substring(0, 80)), R(e, n), !0));
-function R(e, t) {
-  const n = S(e.imageUrl, e.pageUrl);
+chrome.runtime.onMessage.addListener((e, t, n) => !e || e.type !== "REQUEST_DETECTION" ? !1 : (console.log(r, "Received detection request:", e.badgeId, e.imageUrl?.substring(0, 80)), k(e, n), !0));
+function k(e, t) {
+  const n = P(e.imageUrl, e.pageUrl);
   if (!n) {
     console.warn(r, "Invalid URL:", e.imageUrl), t({
       status: "error",
@@ -40,19 +42,19 @@ function R(e, t) {
     });
     return;
   }
-  const i = v(n);
-  if (i) {
-    console.log(r, "Cache hit for:", e.badgeId), t({ ...i, badgeId: e.badgeId, imageUrl: n });
+  const s = B(n);
+  if (s) {
+    console.log(r, "Cache hit for:", e.badgeId), t({ ...s, badgeId: e.badgeId, imageUrl: n });
     return;
   }
-  const c = E.get(n);
-  if (c) {
-    console.log(r, "Joining existing request for:", e.badgeId), c.resolvers.push({ badgeId: e.badgeId, sendResponse: t });
+  const a = A.get(n);
+  if (a) {
+    console.log(r, "Joining existing request for:", e.badgeId), a.resolvers.push({ badgeId: e.badgeId, sendResponse: t });
     return;
   }
-  console.log(r, "Queueing new request for:", e.badgeId), E.set(n, { resolvers: [{ badgeId: e.badgeId, sendResponse: t }] }), m.push({ imageUrl: n }), _();
+  console.log(r, "Queueing new request for:", e.badgeId), A.set(n, { resolvers: [{ badgeId: e.badgeId, sendResponse: t }] }), E.push({ imageUrl: n }), S();
 }
-function S(e, t) {
+function P(e, t) {
   if (!e)
     return null;
   try {
@@ -61,67 +63,97 @@ function S(e, t) {
     return console.warn(r, "Invalid image URL", e, n), null;
   }
 }
-function v(e) {
-  const t = y.get(e);
-  return t ? Date.now() - t.timestamp > 3e5 ? (y.delete(e), null) : t.payload : null;
+function B(e) {
+  const t = h.get(e);
+  return t ? Date.now() - t.timestamp > 3e5 ? (h.delete(e), null) : t.payload : null;
 }
-function _() {
-  if (Date.now() < I) {
+function S() {
+  if (Date.now() < T) {
     console.log(r, "Rate limited, waiting...");
     return;
   }
-  for (; f < 3 && m.length > 0; ) {
-    const e = m.shift();
-    e && (f += 1, console.log(r, `Processing queue (${f}/3 running, ${m.length} pending)`), C(e.imageUrl).catch(() => {
+  for (; y < 3 && E.length > 0; ) {
+    const e = E.shift();
+    e && (y += 1, console.log(r, `Processing queue (${y}/3 running, ${E.length} pending)`), K(e.imageUrl).catch(() => {
     }).finally(() => {
-      f -= 1, _();
+      y -= 1, S();
     }));
   }
 }
-async function C(e) {
-  const { imagionApiKey: t, imagionDetectionEndpoint: n } = await M();
+async function K(e) {
+  const { imagionApiKey: t, imagionDetectionEndpoint: n } = await F();
   if (!t) {
-    console.warn(r, "No API key configured"), d({
+    console.warn(r, "No API key configured"), l({
       level: "warning",
       message: "missing_api_key",
       details: { imageUrl: e }
-    }), l(e, {
+    }), c(e, {
       status: "missing-key",
       message: "Please provide an Imagion API key in the options page."
     });
     return;
   }
-  let i;
+  let s;
   try {
-    console.log(r, "Fetching image:", e.substring(0, 80)), i = await N(e), console.log(r, "Image fetched, size:", i.size, "bytes");
+    console.log(r, "Fetching image:", e.substring(0, 80)), s = await j(e), console.log(r, "Image fetched, size:", s.size, "bytes");
   } catch (o) {
-    console.error(r, "Failed to fetch image:", o), d({
+    console.error(r, "Failed to fetch image:", o), l({
       level: "error",
       message: "fetch_image_failed",
       details: { imageUrl: e, error: o instanceof Error ? o.message : String(o) }
-    }), l(e, {
+    }), c(e, {
       status: "error",
       message: o instanceof Error ? o.message : "Unable to fetch the image."
     });
     return;
   }
-  const c = new FormData(), A = F(e), b = new File([i], A, { type: i.type || "image/jpeg" });
-  c.append("file", b);
-  let s;
+  let a = null;
   try {
-    console.log(r, "Sending to API:", n), s = await fetch(n, {
+    a = await J(s);
+  } catch (o) {
+    console.warn(r, "Failed to hash image:", o);
+  }
+  if (a) {
+    const o = await q(a);
+    if (o) {
+      l({
+        level: "info",
+        message: "local_history_hit",
+        details: { imageUrl: e, hash: a }
+      }), h.set(e, { timestamp: Date.now(), payload: o.payload }), c(e, o.payload);
+      return;
+    }
+  }
+  const D = G(n);
+  if (a && t) {
+    const o = await U(a, D, t);
+    if (o) {
+      l({
+        level: "info",
+        message: "remote_cache_hit",
+        details: { imageUrl: e, hash: a }
+      }), h.set(e, { timestamp: Date.now(), payload: o }), R(a, o), c(e, o);
+      return;
+    }
+  }
+  const b = new FormData(), v = X(e), C = new File([s], v, { type: s.type || "image/jpeg" });
+  b.append("file", C);
+  let d;
+  try {
+    console.log(r, "Sending to API:", n), d = await fetch(n, {
       method: "POST",
       headers: {
-        "x-api-key": t
+        "x-api-key": t,
+        "x-detection-source": "extension"
       },
-      body: c
-    }), console.log(r, "API response status:", s.status);
+      body: b
+    }), console.log(r, "API response status:", d.status);
   } catch (o) {
-    console.error(r, "API request failed:", o), d({
+    console.error(r, "API request failed:", o), l({
       level: "error",
       message: "detection_request_failed",
       details: { imageUrl: e, error: o instanceof Error ? o.message : String(o) }
-    }), l(e, {
+    }), c(e, {
       status: "error",
       message: o instanceof Error ? o.message : "Detection request failed."
     });
@@ -129,57 +161,58 @@ async function C(e) {
   }
   let g;
   try {
-    g = await s.json(), console.log(r, "API response payload:", g);
+    g = await d.json(), console.log(r, "API response payload:", g);
   } catch (o) {
-    console.error(r, "Failed to parse JSON:", o), d({
+    console.error(r, "Failed to parse JSON:", o), l({
       level: "error",
       message: "invalid_json",
       details: { imageUrl: e, error: o instanceof Error ? o.message : String(o) }
-    }), l(e, {
+    }), c(e, {
       status: "error",
       message: o instanceof Error ? o.message : "Unable to parse detection response."
     });
     return;
   }
-  if (s.status === 429) {
-    const o = O(s.headers.get("Retry-After"));
-    L(o), console.warn(r, "Rate limited, retry after:", o, "seconds"), d({
+  if (d.status === 429) {
+    const o = g, L = Y(d.headers.get("Retry-After")), f = o.retryAfter ?? L;
+    x(f), console.warn(r, "Rate limited, retry after:", f, "seconds"), l({
       level: "warning",
       message: "rate_limited",
-      details: { imageUrl: e, retryAfter: o }
-    }), l(e, {
+      details: { imageUrl: e, retryAfter: f, badgeLabel: o.badgeLabel }
+    }), c(e, {
       status: "rate-limit",
-      message: `Rate limit exceeded. Retrying in ${o} seconds.`,
-      retryAfterSeconds: o
+      message: o.message ?? `Rate limit exceeded. Retrying in ${f} seconds.`,
+      retryAfterSeconds: f,
+      badgeLabel: o.badgeLabel
     });
     return;
   }
-  if (!s.ok) {
+  if (!d.ok) {
     const o = g?.message || "Detection failed";
-    console.error(r, "API error:", s.status, o), d({
+    console.error(r, "API error:", d.status, o), l({
       level: "error",
       message: "detection_error",
-      details: { imageUrl: e, responseStatus: s.status, message: o }
-    }), l(e, {
+      details: { imageUrl: e, responseStatus: d.status, message: o }
+    }), c(e, {
       status: "error",
       message: o
     });
     return;
   }
-  const a = g, T = {
+  const u = g, w = {
     status: "success",
-    verdict: a.verdict,
-    score: a.score,
-    confidence: a.confidence,
-    presentation: a.presentation
+    verdict: u.verdict,
+    score: u.score,
+    confidence: u.confidence,
+    presentation: u.presentation
   };
-  console.log(r, "Detection success:", a.verdict, "score:", a.score), d({
+  console.log(r, "Detection success:", u.verdict, "score:", u.score), l({
     level: "info",
     message: "detection_success",
-    details: { imageUrl: e, score: a.score, verdict: a.verdict }
-  }), y.set(e, { timestamp: Date.now(), payload: T }), l(e, T);
+    details: { imageUrl: e, score: u.score, verdict: u.verdict }
+  }), h.set(e, { timestamp: Date.now(), payload: w }), a && R(a, w), c(e, w);
 }
-async function N(e) {
+async function j(e) {
   const t = await fetch(e, {
     method: "GET",
     credentials: "omit"
@@ -191,7 +224,7 @@ async function N(e) {
     throw new Error("Image payload was empty.");
   return n;
 }
-function F(e) {
+function X(e) {
   try {
     const n = new URL(e).pathname.split("/").filter(Boolean);
     return n[n.length - 1] || "imagion-image.jpg";
@@ -199,25 +232,83 @@ function F(e) {
     return "imagion-image.jpg";
   }
 }
-function l(e, t) {
-  const n = E.get(e);
-  n && (console.log(r, "Dispatching response to", n.resolvers.length, "resolver(s)"), n.resolvers.forEach(({ badgeId: i, sendResponse: c }) => {
-    c({ ...t, badgeId: i, imageUrl: e });
-  }), E.delete(e));
+function c(e, t) {
+  const n = A.get(e);
+  n && (console.log(r, "Dispatching response to", n.resolvers.length, "resolver(s)"), n.resolvers.forEach(({ badgeId: s, sendResponse: a }) => {
+    a({ ...t, badgeId: s, imageUrl: e });
+  }), A.delete(e));
 }
-function O(e) {
+function Y(e) {
   if (!e)
     return 15e3 / 1e3;
   const t = Number.parseInt(e, 10);
   return Number.isFinite(t) && t > 0 ? t : 15e3 / 1e3;
 }
-function L(e) {
+function x(e) {
   const t = Math.min(Math.max(e * 1e3, 15e3), 6e4);
-  I = Date.now() + t, p && clearTimeout(p), p = setTimeout(() => {
-    I = 0, p = null, _();
+  T = Date.now() + t, m && clearTimeout(m), m = setTimeout(() => {
+    T = 0, m = null, S();
   }, t);
 }
-function d(e) {
-  u.push({ timestamp: Date.now(), ...e }), u.length > 40 && u.shift(), chrome.storage.local.set({ [D]: u });
+async function $() {
+  return new Promise((e) => {
+    chrome.storage.local.get(I, (t) => {
+      const n = t[I];
+      Array.isArray(n) ? (i = n.filter(Q), i.length > 250 && (i = i.slice(0, 250))) : i = [], e();
+    });
+  });
+}
+async function M() {
+  await N;
+}
+async function q(e) {
+  return await M(), i.find((t) => t.hash === e);
+}
+async function R(e, t) {
+  await M(), i = i.filter((n) => n.hash !== e), i.unshift({ hash: e, payload: t, createdAt: Date.now() }), i.length > 250 && (i.length = 250), z();
+}
+function z() {
+  chrome.storage.local.set({ [I]: i });
+}
+function Q(e) {
+  if (typeof e != "object" || e === null)
+    return !1;
+  const t = e;
+  return typeof t.hash == "string" && t.hash.length > 0 && typeof t.createdAt == "number" && typeof t.payload == "object" && t.payload !== null && typeof t.payload.status == "string";
+}
+async function J(e) {
+  const t = await e.arrayBuffer(), n = await crypto.subtle.digest("SHA-256", t);
+  return Array.from(new Uint8Array(n)).map((a) => a.toString(16).padStart(2, "0")).join("");
+}
+function G(e) {
+  try {
+    const t = new URL(e);
+    return t.pathname.endsWith("/api/detect") ? t.pathname = t.pathname.replace(/\/api\/detect$/, "/api/cache/hash") : t.pathname = `${t.pathname.replace(/\/$/, "")}/api/cache/hash`, t.toString();
+  } catch {
+    return `${e.replace(/\/$/, "")}/api/cache/hash`;
+  }
+}
+async function U(e, t, n) {
+  try {
+    const s = await fetch(t, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": n
+      },
+      body: JSON.stringify({ hash: e })
+    });
+    if (!s.ok)
+      return null;
+    const a = await s.json();
+    if (a?.found && a.payload)
+      return a.payload;
+  } catch (s) {
+    console.warn(r, "Backend cache lookup failed:", s);
+  }
+  return null;
+}
+function l(e) {
+  p.push({ timestamp: Date.now(), ...e }), p.length > 40 && p.shift(), chrome.storage.local.set({ [O]: p });
 }
 //# sourceMappingURL=background.js.map
