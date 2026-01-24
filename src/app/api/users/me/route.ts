@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/src/lib/auth'
+import { getPlanForPriceId } from '@/src/lib/stripe'
 
 export async function GET() {
   try {
@@ -8,6 +9,8 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const billing = getPlanForPriceId(user.stripePriceId)
 
     return NextResponse.json({
       id: user.id,
@@ -27,6 +30,8 @@ export async function GET() {
       stripeSubscriptionId: user.stripeSubscriptionId,
       stripePriceId: user.stripePriceId,
       stripeCurrentPeriodEnd: user.stripeCurrentPeriodEnd,
+      billingPlan: billing?.plan ?? null,
+      billingCycle: billing?.billingCycle ?? null,
     })
   } catch (error) {
     console.error('Get user failed:', error)

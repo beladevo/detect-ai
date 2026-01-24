@@ -5,6 +5,11 @@
       "Bash(npm run lint)",
       "Bash(npx tsx:*)",
       "Bash(tree:*)"
+    ],
+    "additionalDirectories": [
+      "f:\\repos\\ai-detector\\ai-detector\\src\\app\\admin\\users",
+      "f:\\repos\\ai-detector\\ai-detector\\src\\app\\api\\admin\\users",
+      "f:\\repos\\ai-detector\\ai-detector\\src\\app\\api\\admin\\users\\[id]\\lock"
     ]
   }
 }
