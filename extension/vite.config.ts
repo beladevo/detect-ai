@@ -1,7 +1,9 @@
 import { defineConfig, UserConfig } from "vite";
-import { resolve } from "path";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
 
-const isWatch = process.argv.includes("--watch");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Content scripts and options need IIFE format (no ES modules support)
 const contentConfig: UserConfig = {

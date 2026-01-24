@@ -1,7 +1,10 @@
 import { build } from "vite";
-import { resolve } from "path";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
 import { rmSync, mkdirSync } from "fs";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const rootDir = resolve(__dirname, "..");
 
 async function runBuild() {
@@ -9,41 +12,67 @@ async function runBuild() {
   rmSync(resolve(rootDir, "dist"), { recursive: true, force: true });
   mkdirSync(resolve(rootDir, "dist"), { recursive: true });
 
-  console.log("Building content scripts (IIFE)...");
+  const isDev = process.env.NODE_ENV !== "production";
+
+  // Build content script (IIFE)
+  console.log("Building content.js (IIFE)...");
   await build({
     configFile: false,
     root: rootDir,
     build: {
       outDir: "dist",
       emptyOutDir: false,
-      sourcemap: process.env.NODE_ENV !== "production",
+      sourcemap: isDev,
       minify: "esbuild",
       lib: {
-        entry: {
-          content: resolve(rootDir, "src/content.ts"),
-          options: resolve(rootDir, "src/options.ts"),
-        },
+        entry: resolve(rootDir, "src/content.ts"),
         formats: ["iife"],
-        name: "ImagionExtension",
+        name: "ImagionContent",
+        fileName: () => "content.js",
       },
       rollupOptions: {
         output: {
-          entryFileNames: "[name].js",
-          extend: true,
+          entryFileNames: "content.js",
         },
       },
       target: "esnext",
     },
   });
 
-  console.log("Building background service worker (ESM)...");
+  // Build options script (IIFE)
+  console.log("Building options.js (IIFE)...");
   await build({
     configFile: false,
     root: rootDir,
     build: {
       outDir: "dist",
       emptyOutDir: false,
-      sourcemap: process.env.NODE_ENV !== "production",
+      sourcemap: isDev,
+      minify: "esbuild",
+      lib: {
+        entry: resolve(rootDir, "src/options.ts"),
+        formats: ["iife"],
+        name: "ImagionOptions",
+        fileName: () => "options.js",
+      },
+      rollupOptions: {
+        output: {
+          entryFileNames: "options.js",
+        },
+      },
+      target: "esnext",
+    },
+  });
+
+  // Build background service worker (ESM)
+  console.log("Building background.js (ESM)...");
+  await build({
+    configFile: false,
+    root: rootDir,
+    build: {
+      outDir: "dist",
+      emptyOutDir: false,
+      sourcemap: isDev,
       minify: "esbuild",
       lib: {
         entry: resolve(rootDir, "src/background.ts"),
