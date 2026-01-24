@@ -1,9 +1,28 @@
 import { prisma } from '@/src/lib/prisma'
 import { verifyToken, getTokensFromCookies, createAccessToken, createRefreshToken, setAuthCookies, type TokenPayload } from './jwt'
-import type { User } from '@prisma/client'
+import type { UserTier } from '@prisma/client'
 import crypto from 'crypto'
 
-export type SessionUser = Omit<User, 'passwordHash' | 'emailVerifyToken' | 'passwordResetToken' | 'passwordResetExpires'>
+export type SessionUser = {
+  id: string
+  email: string
+  name: string | null
+  tier: UserTier
+  deletedAt: Date | null
+  emailVerified: boolean
+  stripeCustomerId: string | null
+  stripeSubscriptionId: string | null
+  stripePriceId: string | null
+  stripeCurrentPeriodEnd: Date | null
+  apiKey: string | null
+  apiKeyEnabled: boolean
+  monthlyDetections: number
+  totalDetections: number
+  lastDetectionAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+  lastLoginAt: Date | null
+}
 
 export async function getCurrentUser(): Promise<SessionUser | null> {
   const { accessToken, refreshToken } = await getTokensFromCookies()
