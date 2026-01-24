@@ -64,6 +64,31 @@ async function runBuild() {
     },
   });
 
+  // Build popup script (IIFE)
+  console.log("Building popup.js (IIFE)...");
+  await build({
+    configFile: false,
+    root: rootDir,
+    build: {
+      outDir: "dist",
+      emptyOutDir: false,
+      sourcemap: isDev,
+      minify: "esbuild",
+      lib: {
+        entry: resolve(rootDir, "src/popup.ts"),
+        formats: ["iife"],
+        name: "ImagionPopup",
+        fileName: () => "popup.js",
+      },
+      rollupOptions: {
+        output: {
+          entryFileNames: "popup.js",
+        },
+      },
+      target: "esnext",
+    },
+  });
+
   // Build background service worker (ESM)
   console.log("Building background.js (ESM)...");
   await build({

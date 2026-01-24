@@ -31,6 +31,7 @@
     "default_icon": {
       "48": "icons/icon-48.svg"
     },
-    "default_title": "Imagion AI detection"
+    "default_title": "Imagion AI detection",
+    "default_popup": "popup.html"
   }
 }

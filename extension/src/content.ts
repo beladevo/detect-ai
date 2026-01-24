@@ -1,7 +1,8 @@
 const LOG_PREFIX = "[Imagion Content]";
 const STYLE_ID = "imagion-badge-style";
 const MAX_TRACKED_IMAGES = 200;
-const trackedImages = new Map<HTMLImageElement, { badge: HTMLDivElement }>();
+const MIN_IMAGE_SIZE = 50; // Minimum width/height to track
+const trackedImages = new Map<HTMLImageElement, { badge: HTMLDivElement; wrapper: HTMLSpanElement }>();
 let badgeCounter = 0;
 let positionScheduled = false;
 let scanScheduled = false;
@@ -59,50 +60,67 @@ const localeCode = navigator.language.split("-")[0];
 const localized = TRANSLATIONS[localeCode] ?? TRANSLATIONS.en;
 
 const badgeStyle = `
+.imagion-wrapper {
+  position: relative !important;
+  display: inline-block !important;
+}
 .imagion-badge {
-  position: absolute;
-  pointer-events: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
-  font-size: 10px;
-  font-weight: 600;
-  border-radius: 999px;
-  background: rgba(44, 120, 255, 0.85);
-  color: #fff;
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
-  z-index: 2147483647;
-  letter-spacing: 0.02em;
-  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
-  text-transform: uppercase;
+  position: absolute !important;
+  top: 6px !important;
+  right: 6px !important;
+  pointer-events: auto !important;
+  cursor: default !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 3px 8px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  border-radius: 4px !important;
+  background: rgba(100, 100, 100, 0.9) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+  letter-spacing: 0.02em !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+  margin: 0 !important;
+  border: none !important;
+  text-decoration: none !important;
+  line-height: 1.2 !important;
 }
 .imagion-badge__logo {
-  width: 14px;
-  height: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: #fff;
-  color: #1c1c1c;
-  font-size: 9px;
+  width: 14px !important;
+  height: 14px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 3px !important;
+  background: #fff !important;
+  color: #1a1a2e !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 .imagion-badge__label {
-  line-height: 1;
+  line-height: 1 !important;
+}
+.imagion-badge--pending {
+  background: rgba(100, 100, 100, 0.9) !important;
 }
 .imagion-badge--ai {
-  background: rgba(124, 77, 255, 0.95);
+  background: rgba(220, 53, 69, 0.95) !important;
 }
 .imagion-badge--real {
-  background: rgba(0, 200, 138, 0.95);
+  background: rgba(40, 167, 69, 0.95) !important;
 }
 .imagion-badge--error {
-  background: rgba(255, 69, 96, 0.95);
+  background: rgba(255, 69, 96, 0.9) !important;
 }
 .imagion-badge--missing-key {
-  background: rgba(255, 195, 0, 0.95);
-  color: #2b2b2b;
+  background: rgba(255, 193, 7, 0.95) !important;
+  color: #1a1a1a !important;
 }
 `;
 
@@ -113,7 +131,7 @@ function insertBadgeStyles() {
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = badgeStyle;
-  document.head.appendChild(style);
+  (document.head || document.documentElement).appendChild(style);
   console.log(LOG_PREFIX, "Badge styles injected");
 }
 
@@ -142,11 +160,19 @@ function scheduleScan() {
 function updateAllBadgePositions() {
   for (const [img, meta] of trackedImages) {
     if (!img.isConnected) {
-      meta.badge.remove();
+      removeBadgeAndWrapper(img, meta);
       trackedImages.delete(img);
-      continue;
     }
-    updateBadgePosition(img, meta.badge);
+  }
+}
+
+function removeBadgeAndWrapper(img: HTMLImageElement, meta: { badge: HTMLDivElement; wrapper: HTMLSpanElement }) {
+  const { badge, wrapper } = meta;
+  badge.remove();
+  // Restore image to its original position
+  if (wrapper.parentNode) {
+    wrapper.parentNode.insertBefore(img, wrapper);
+    wrapper.remove();
   }
 }
 
@@ -180,36 +206,54 @@ function shouldTrackImage(img: HTMLImageElement) {
   if (!img.src) {
     return false;
   }
+  // Skip data URIs
+  if (img.src.startsWith("data:")) {
+    return false;
+  }
+  // Skip tiny images (icons, avatars, etc.)
+  const rect = img.getBoundingClientRect();
+  if (rect.width < MIN_IMAGE_SIZE || rect.height < MIN_IMAGE_SIZE) {
+    return false;
+  }
+  // Skip images that are not visible
+  if (rect.width === 0 || rect.height === 0) {
+    return false;
+  }
   return true;
 }
 
 function attachBadge(img: HTMLImageElement) {
   const badge = document.createElement("div");
-  badge.className = "imagion-badge";
+  badge.className = "imagion-badge imagion-badge--pending";
   badge.setAttribute("role", "status");
   badge.setAttribute("lang", localeCode);
-  badge.innerHTML = `<span class="imagion-badge__logo">I</span><span class="imagion-badge__label">${localized.badgePrefix}</span>`;
-  updateBadgeAria(badge, localized.badgePrefix);
+  badge.innerHTML = `<span class="imagion-badge__logo">I</span><span class="imagion-badge__label">...</span>`;
+  updateBadgeAria(badge, "Analyzing");
   badge.dataset.requestState = "pending";
   const badgeId = `imagion-${++badgeCounter}`;
   badge.dataset.requestId = badgeId;
-  document.body.appendChild(badge);
-  trackedImages.set(img, { badge });
-  schedulePositionUpdate();
-  requestDetection(img, badge, badgeId);
-}
 
-function updateBadgePosition(img: HTMLImageElement, badge: HTMLDivElement) {
-  const rect = img.getBoundingClientRect();
-  if (rect.width === 0 || rect.height === 0) {
-    badge.style.display = "none";
-    return;
+  // Wrap image in a container and insert badge as sibling
+  const wrapper = document.createElement("span");
+  wrapper.className = "imagion-wrapper";
+
+  // Match the image's z-index
+  const computedStyle = window.getComputedStyle(img);
+  const imgZIndex = computedStyle.zIndex;
+  if (imgZIndex && imgZIndex !== "auto") {
+    wrapper.style.zIndex = imgZIndex;
   }
-  badge.style.display = "inline-flex";
-  const offset = 6;
-  const x = window.scrollX + rect.left + rect.width - badge.offsetWidth - offset;
-  const y = window.scrollY + rect.top + offset;
-  badge.style.transform = `translate(${x}px, ${y}px)`;
+
+  const parent = img.parentNode;
+  if (parent) {
+    parent.insertBefore(wrapper, img);
+    wrapper.appendChild(img);
+    wrapper.appendChild(badge);
+  }
+
+  trackedImages.set(img, { badge, wrapper });
+
+  requestDetection(img, badge, badgeId);
 }
 
 function requestDetection(img: HTMLImageElement, badge: HTMLDivElement, badgeId: string) {
@@ -285,6 +329,7 @@ function updateBadgeFromResponse(badge: HTMLDivElement, response: BadgeResponse)
   }
 
   badge.classList.remove(
+    "imagion-badge--pending",
     "imagion-badge--ai",
     "imagion-badge--real",
     "imagion-badge--error",
@@ -293,14 +338,10 @@ function updateBadgeFromResponse(badge: HTMLDivElement, response: BadgeResponse)
 
   if (response.status === "success" && response.verdict) {
     const verdict = response.verdict.toLowerCase();
-    if (verdict === "ai" || verdict === "fake") {
+    if (verdict === "ai" || verdict === "fake" || verdict === "ai_generated" || verdict === "likely_ai") {
       badge.classList.add("imagion-badge--ai");
       label.textContent = localized.aiLabel;
       updateBadgeAria(badge, localized.aiLabel);
-    } else if (verdict === "real") {
-      badge.classList.add("imagion-badge--real");
-      label.textContent = localized.realLabel;
-      updateBadgeAria(badge, localized.realLabel);
     } else {
       badge.classList.add("imagion-badge--real");
       label.textContent = localized.realLabel;
@@ -312,7 +353,7 @@ function updateBadgeFromResponse(badge: HTMLDivElement, response: BadgeResponse)
     badge.classList.add("imagion-badge--missing-key");
     label.textContent = localized.loginLabel;
     updateBadgeAria(badge, localized.loginLabel);
-    badge.title = response.message || "Add your API key via the Imagion extension options.";
+    badge.title = response.message || "Click the Imagion icon to sign in.";
     badge.dataset.requestState = "key-required";
   } else if (response.status === "rate-limit") {
     badge.classList.add("imagion-badge--error");
@@ -335,25 +376,25 @@ function updateBadgeAria(badge: HTMLDivElement, text: string) {
 
 function createTooltip(response: BadgeResponse) {
   const parts: string[] = [];
+  if (response.verdict) {
+    parts.push(`Verdict: ${response.verdict}`);
+  }
   if (response.score != null) {
-    parts.push(`Score ${Number(response.score).toFixed(2)}`);
+    parts.push(`Score: ${(Number(response.score) * 100).toFixed(0)}%`);
   }
   if (response.confidence != null) {
-    parts.push(`Confidence ${Number(response.confidence).toFixed(2)}`);
+    parts.push(`Confidence: ${(Number(response.confidence) * 100).toFixed(0)}%`);
   }
   if (response.presentation) {
     parts.push(response.presentation);
   }
-  if (response.retryAfterSeconds) {
-    parts.push(`Retry in ${response.retryAfterSeconds}s`);
-  }
-  return parts.length ? parts.join(" | ") : localized.tooltipFallback;
+  return parts.length ? parts.join("\n") : localized.tooltipFallback;
 }
 
 function removeAllBadges() {
   const count = trackedImages.size;
-  for (const [, meta] of trackedImages) {
-    meta.badge.remove();
+  for (const [img, meta] of trackedImages) {
+    removeBadgeAndWrapper(img, meta);
   }
   trackedImages.clear();
   if (count > 0) {
@@ -425,8 +466,11 @@ function init() {
   insertBadgeStyles();
   syncSettings();
 
-  scanForImages();
-  schedulePositionUpdate();
+  // Initial scan after a short delay to let images load
+  setTimeout(() => {
+    scanForImages();
+    schedulePositionUpdate();
+  }, 500);
 
   const observerTarget = document.documentElement || document.body;
   if (observerTarget) {
