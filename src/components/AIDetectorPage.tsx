@@ -14,6 +14,7 @@ import PrivacySection from "@/src/components/PrivacySection";
 import FAQSection from "@/src/components/FAQSection";
 import Footer from "@/src/components/Footer";
 import ModelSelector from "@/src/components/ui/ModelSelector";
+import { PerformanceMonitor } from "@/src/components/PerformanceMonitor";
 import { useAuth } from "@/src/context/AuthContext";
 import { useToast } from "@/src/context/ToastContext";
 const ResultsDisplay = dynamic(() => import("@/src/components/ResultsDisplay"), {
@@ -378,6 +379,8 @@ export default function AIDetectorPage() {
                 </div>
               </div>
             </div>
+
+            <PerformanceMonitor isActive={isUploading} />
 
             <div ref={historyCardRef}>
               <HistoryList
