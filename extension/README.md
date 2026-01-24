@@ -1,30 +1,35 @@
-﻿# Imagion Detection Badge Extension Plan
+# Imagion Detection Badge Extension
 
-This folder contains the Chromium-compatible browser extension that will run alongside Imagion's web app. The detection logic is authored in TypeScript, compiled to `dist/`, and remains a lightweight proof-of-concept that checks images on visited pages and annotates them with Imagion's verdict using the same `/api/detect` endpoint already served by the main app.
+This folder contains the TypeScript-first browser extension that surfaces Imagion's AI detection verdicts directly on any website. The MV3 extension loads the compiled scripts from `dist/`, overlays badges on `<img>` tags, consults Imagion's `/api/detect` endpoint, and lets the user configure API keys, endpoints, badge visibility, and per-host blocking via the options page.
 
-## Architecture
-1. **Content script (`content.js`)** scans for `<img>` elements, attaches badge containers, and keeps a mutation observer alive so dynamically added images get inspected.
-2. **Background service worker (`background.js`)** orchestrates fetching the actual image bytes, runs detection against the backend, caches results (by image URL hash), and enforces a simple concurrency limit plus rate awareness.
-3. **Options UI (`options.html` + `options.js`)** lets the user paste an Imagion API key (retrieved from the logged-in dashboard) and configure badge visibility/debounce settings.
-4. **Messaging channel**: content scripts request detections via `chrome.runtime.sendMessage`, background resolves the request and replies with the badge metadata once analysis is complete.
+## What's inside
 
-## Authentication & API Key Storage
-- The extension stores the Imagion API key in `chrome.storage.local` under `imagionApiKey`. The background worker appends it to the configured detection endpoint as `x-api-key`, matching the backend's existing expectations.
-- The options page also lets the user override the detection endpoint (`imagionDetectionEndpoint`) in case they run a staging server or want to point to `localhost`.
-- A badge toggle (`imagionBadgeEnabled`) is exposed in the options page so the user can pause annotations while browsing without uninstalling the extension.
-- Until the user provides a key, the extension runs in "preview only" mode where it avoids calling the detection pipeline and instead shows a hint badge that prompts the user to log in.
+- `manifest.json`: Declares the MV3 metadata, permissions (`storage`, `scripting`, `activeTab`, `<all_urls>`), icons, options page, service worker (`dist/background.js`), and content script (`dist/content.js`).
+- `src/background.ts`: Service worker that normalizes URLs, enforces caching, serializes `/api/detect` submissions, adds rate-limit backoff, records telemetry, and dispatches responses to every badge that requested the same image.
+- `src/content.ts`: Tracks images, injects status badges, repositions them on scroll/mutation, checks per-host blocking, and localizes dynamic badge labels/tooltips with ARIA-friendly attributes.
+- `src/options.ts` + `options.html`: Settings UI where the user can paste their Imagion API key, override the detection endpoint, toggle badges, and maintain a list of hosts that temporarily suppress badges. All values persist in `chrome.storage.local`.
+- `package.json` & `tsconfig.json`: TypeScript build tooling (`tsc -p tsconfig.json`) plus Chrome typings (`@types/chrome`). Build outputs land in `dist/`, which is referenced by the manifest.
+- `dist/`: Generated artifacts (`background.js`, `content.js`, `options.js`) produced via `npm run build`. This directory is ignored by Git.
+- `.gitignore`: Keeps `node_modules/` out of the repo so each developer installs dependencies inside the extension folder.
 
-## Detection Workflow
-1. Background worker keeps a queue of pending images, deduplicates by URL, and handles up to 3 simultaneous fetches.
-2. Each image fetch runs `fetch(url)` under the extension context (requires `<all_urls>` host permission), converts the blob to `FormData`, and submits `POST /api/detect` using the stored API key.
-3. Successful responses are cached for 5 minutes (configurable in future) to avoid repeated hits on pages that reuse the same image.
-4. Every response carries `verdict`, `score`, and `confidence`; the content script renders a badge with the Imagion mark plus "AI", "Real", or "Unknown".
+## Key features
 
-## Badge & UX Notes
-- Badges are absolutely positioned in the top-right corner of each image container, with a subtle `box-shadow` and translucent background so they do not disrupt the layout.
-- Clicking or hovering a badge reveals a tooltip with the score/confidence to keep the UI unobtrusive.
-- Options let the user disable badges or pause detection on a per-domain basis to respect performance concerns.
+1. **Localized, accessible badges** - Colored badges use ARIA `status` roles, carry localized labels (`AI`, `Real`, `Error`, `Log in`), and show tooltips with score/confidence/presentation/retry hints.
+2. **Per-host opt-out** - The options page lets the user add hosts to a block list so the content script skips badge injection on those domains (stored as normalized hostnames).
+3. **Rate-limit resilience** - The background worker detects `429` responses, applies a capped backoff window (15-60 seconds), and re-runs the queue when the window expires.
+4. **Telemetry logging** - Detection successes/failures, missing-key warnings, and rate-limit events are stored in `chrome.storage.local.imagionTelemetry` (capped to 40 entries) for future debugging or surface-level telemetry.
+5. **Simple TypeScript build** - TS sources compile directly to the `dist/` folder with `tsc`, keeping the runtime code small and dependency-free.
 
-## Next Steps
-- Run `npm install` inside `extension/` and then `npm run build` to compile TypeScript sources into `dist/`.
-- Package the `extension/` directory (including `manifest.json` and `dist/`) for Chrome/Firefox deployment or load it via developer mode to test in-browser.
+## Development
+
+1. `cd extension && npm install` - installs `typescript` and `@types/chrome`.
+2. `npm run build` - compiles `src/*.ts` -> `dist/*.js`. The manifest and options page both point at the `dist/` outputs.
+3. Load the folder via Chrome/Firefox developer mode (or bundle it) and confirm the options page stores a valid Imagion `x-api-key`. Use the domain block list to pause badges on sensitive hosts.
+
+## Testing & validation
+
+- Manual: Navigate to a site with images, confirm badges appear with the right colors/labels, hover to see tooltips, and note the telemetry entries under `chrome.storage.local.imagionTelemetry`.
+- API failures: Without an API key, badges show the "Log in" state. When the backend returns `429`, badges switch to "Rate limited" and display how long until the next attempt.
+- Domain blocking: Add a host to the block list via the options page. Reload that host; the extension should remove all badges and leave a tooltip explaining that the host is paused.
+
+Telemetry storage can be probed via the Chrome/Firefox extension inspector (Application -> Storage -> Local Storage) or by reading `chrome.storage.local.imagionTelemetry` programmatically from another page or devtools snippet.

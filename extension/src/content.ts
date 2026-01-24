@@ -9,7 +9,7 @@ const state = {
 };
 
 type BadgeResponse = {
-  status?: "success" | "missing-key" | "error";
+  status?: "success" | "missing-key" | "error" | "rate-limit";
   verdict?: string;
   score?: number;
   confidence?: number;
@@ -17,7 +17,45 @@ type BadgeResponse = {
   message?: string;
   badgeId: string;
   imageUrl?: string;
+  retryAfterSeconds?: number;
 };
+
+type ContentLocaleStrings = {
+  aiLabel: string;
+  realLabel: string;
+  errorLabel: string;
+  loginLabel: string;
+  badgePrefix: string;
+  tooltipFallback: string;
+  rateLimitLabel: string;
+  disabledHostMessage: string;
+};
+
+const TRANSLATIONS: Record<string, ContentLocaleStrings> = {
+  en: {
+    aiLabel: "AI",
+    realLabel: "Real",
+    errorLabel: "Error",
+    loginLabel: "Log in",
+    badgePrefix: "Imagion badge",
+    tooltipFallback: "Imagion verdict",
+    rateLimitLabel: "Rate limited",
+    disabledHostMessage: "Badges paused on this host.",
+  },
+  es: {
+    aiLabel: "IA",
+    realLabel: "Real",
+    errorLabel: "Error",
+    loginLabel: "Iniciar sesión",
+    badgePrefix: "Insignia Imagion",
+    tooltipFallback: "Veredicto de Imagion",
+    rateLimitLabel: "Límite de velocidad",
+    disabledHostMessage: "Insignias pausadas en este host.",
+  },
+};
+
+const localeCode = navigator.language.split("-")[0];
+const localized = TRANSLATIONS[localeCode] ?? TRANSLATIONS.en;
 
 const badgeStyle = `
 .imagion-badge {
@@ -100,7 +138,7 @@ function scheduleScan() {
 }
 
 function updateAllBadgePositions() {
-  for (const [img, meta] of trackedImages.entries()) {
+  for (const [img, meta] of trackedImages) {
     if (!img.isConnected) {
       meta.badge.remove();
       trackedImages.delete(img);
@@ -110,8 +148,13 @@ function updateAllBadgePositions() {
   }
 }
 
+function shouldSkipScanning() {
+  return !state.enabled || isHostBlocked(window.location.hostname);
+}
+
 function scanForImages() {
-  if (!state.enabled) {
+  if (shouldSkipScanning()) {
+    removeAllBadges();
     return;
   }
   const images = Array.from(document.images) as HTMLImageElement[];
@@ -139,7 +182,10 @@ function shouldTrackImage(img: HTMLImageElement) {
 function attachBadge(img: HTMLImageElement) {
   const badge = document.createElement("div");
   badge.className = "imagion-badge";
-  badge.innerHTML = `<span class="imagion-badge__logo">I</span><span class="imagion-badge__label">Imagion</span>`;
+  badge.setAttribute("role", "status");
+  badge.setAttribute("lang", localeCode);
+  badge.innerHTML = `<span class="imagion-badge__logo">I</span><span class="imagion-badge__label">${localized.badgePrefix}</span>`;
+  updateBadgeAria(badge, localized.badgePrefix);
   badge.dataset.requestState = "pending";
   const badgeId = `imagion-${++badgeCounter}`;
   badge.dataset.requestId = badgeId;
@@ -228,33 +274,53 @@ function updateBadgeFromResponse(badge: HTMLDivElement, response: BadgeResponse)
     return;
   }
 
-  badge.classList.remove("imagion-badge--ai", "imagion-badge--real", "imagion-badge--error", "imagion-badge--missing-key");
+  badge.classList.remove(
+    "imagion-badge--ai",
+    "imagion-badge--real",
+    "imagion-badge--error",
+    "imagion-badge--missing-key"
+  );
 
   if (response.status === "success" && response.verdict) {
     const verdict = response.verdict.toLowerCase();
     if (verdict === "ai" || verdict === "fake") {
       badge.classList.add("imagion-badge--ai");
-      label.textContent = "AI";
+      label.textContent = localized.aiLabel;
+      updateBadgeAria(badge, localized.aiLabel);
     } else if (verdict === "real") {
       badge.classList.add("imagion-badge--real");
-      label.textContent = "Real";
+      label.textContent = localized.realLabel;
+      updateBadgeAria(badge, localized.realLabel);
     } else {
       badge.classList.add("imagion-badge--real");
-      label.textContent = "Real";
+      label.textContent = localized.realLabel;
+      updateBadgeAria(badge, localized.realLabel);
     }
     badge.title = createTooltip(response);
     badge.dataset.requestState = "success";
   } else if (response.status === "missing-key") {
     badge.classList.add("imagion-badge--missing-key");
-    label.textContent = "Log in";
+    label.textContent = localized.loginLabel;
+    updateBadgeAria(badge, localized.loginLabel);
     badge.title = response.message || "Add your API key via the Imagion extension options.";
     badge.dataset.requestState = "key-required";
+  } else if (response.status === "rate-limit") {
+    badge.classList.add("imagion-badge--error");
+    label.textContent = localized.rateLimitLabel;
+    updateBadgeAria(badge, localized.rateLimitLabel);
+    badge.title = response.message || localized.disabledHostMessage;
+    badge.dataset.requestState = "rate-limit";
   } else {
     badge.classList.add("imagion-badge--error");
-    label.textContent = "Error";
+    label.textContent = localized.errorLabel;
+    updateBadgeAria(badge, localized.errorLabel);
     badge.title = response.message || "Detection failed.";
     badge.dataset.requestState = "error";
   }
+}
+
+function updateBadgeAria(badge: HTMLDivElement, text: string) {
+  badge.setAttribute("aria-label", `${localized.badgePrefix}: ${text}`);
 }
 
 function createTooltip(response: BadgeResponse) {
@@ -268,7 +334,10 @@ function createTooltip(response: BadgeResponse) {
   if (response.presentation) {
     parts.push(response.presentation);
   }
-  return parts.length ? parts.join(" | ") : "Imagion verdict";
+  if (response.retryAfterSeconds) {
+    parts.push(`Retry in ${response.retryAfterSeconds}s`);
+  }
+  return parts.length ? parts.join(" | ") : localized.tooltipFallback;
 }
 
 function removeAllBadges() {
@@ -278,19 +347,56 @@ function removeAllBadges() {
   trackedImages.clear();
 }
 
+function updateDisabledHosts(items: Record<string, unknown>) {
+  const storedHosts = Array.isArray(items.imagionDisabledHosts) ? items.imagionDisabledHosts : [];
+  const normalized = storedHosts
+    .map((host) => normalizeHostname(host))
+    .filter((value): value is string => Boolean(value));
+  disabledHostsSet = new Set(normalized);
+}
+
+function normalizeHostname(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  try {
+    const parsed = trimmed.includes("://") ? new URL(trimmed) : new URL(`https://${trimmed}`);
+    return parsed.hostname.toLowerCase();
+  } catch {
+    return trimmed.toLowerCase();
+  }
+}
+
+function isHostBlocked(host: string) {
+  const normalized = normalizeHostname(host);
+  if (!normalized) {
+    return false;
+  }
+  const candidate = normalized.startsWith("www.") ? normalized.slice(4) : normalized;
+  return disabledHostsSet.has(normalized) || disabledHostsSet.has(candidate);
+}
+
+let disabledHostsSet = new Set<string>();
+
 function syncSettings() {
-  chrome.storage.local.get({ imagionBadgeEnabled: true }, (items) => {
-    const enabled = items.imagionBadgeEnabled !== false;
-    if (state.enabled === enabled) {
-      return;
+  chrome.storage.local.get(
+    { imagionBadgeEnabled: true, imagionDisabledHosts: [] },
+    (items) => {
+      const enabled = items.imagionBadgeEnabled !== false;
+      state.enabled = enabled;
+      updateDisabledHosts(items);
+      if (shouldSkipScanning()) {
+        removeAllBadges();
+        return;
+      }
+      if (state.enabled) {
+        scheduleScan();
+      } else {
+        removeAllBadges();
+      }
     }
-    state.enabled = enabled;
-    if (state.enabled) {
-      scheduleScan();
-    } else {
-      removeAllBadges();
-    }
-  });
+  );
 }
 
 function init() {
@@ -316,3 +422,5 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
+export {};

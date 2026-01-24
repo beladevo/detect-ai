@@ -1,4 +1,5 @@
 import { getMongoClient } from "@/src/lib/mongodb";
+import { prisma } from "@/src/lib/prisma";
 
 export type ServerLogLevel = "Error" | "Warn" | "Info" | "Log" | "System";
 
@@ -35,30 +36,44 @@ export async function logServerEvent(payload: ServerLogPayload) {
   const ip = resolveIp(payload.request);
   const timestamp = new Date().toISOString();
   const line = `[${level}] ${source}${service ? ` - ${service}` : ""}: ${message} - ${ip} - ${userAgent} - ${additional || "-"} - ${timestamp}\n`;
+
   if (process.env.NODE_ENV === "development") {
     console.log(line.trim());
-    return;
-  }
-  
-  const client = getMongoClient();
-  if (!client) {
-    return;
+  } else {
+    const client = getMongoClient();
+    if (client) {
+      const dbName = process.env.MONGODB_DB || "imagion";
+      const collectionName = process.env.MONGODB_LOGS_COLLECTION || "logs";
+
+      await client.connect();
+      const collection = client.db(dbName).collection(collectionName);
+      await collection.insertOne({
+        level,
+        source,
+        service,
+        message,
+        additional,
+        ip,
+        userAgent,
+        timestamp,
+        line,
+      });
+    }
   }
 
-  const dbName = process.env.MONGODB_DB || "imagion";
-  const collectionName = process.env.MONGODB_LOGS_COLLECTION || "logs";
-
-  await client.connect();
-  const collection = client.db(dbName).collection(collectionName);
-  await collection.insertOne({
-    level,
-    source,
-    service,
-    message,
-    additional,
-    ip,
-    userAgent,
-    timestamp,
-    line,
-  });
+  try {
+    await prisma.serverLog.create({
+      data: {
+        level: level as ServerLogLevel,
+        source,
+        service: service || null,
+        message,
+        details: additional || null,
+        ipAddress: ip || null,
+        userAgent: userAgent || null,
+      },
+    });
+  } catch (error) {
+    console.warn("Server log persistence failed:", error);
+  }
 }

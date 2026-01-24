@@ -243,3 +243,26 @@ model SecurityAlert {
   @@index([resolved])
   @@index([createdAt])
 }
+
+enum ServerLogLevel {
+  Error
+  Warn
+  Info
+  Log
+  System
+}
+
+model ServerLog {
+  id         String         @id @default(uuid())
+  level      ServerLogLevel
+  source     String
+  service    String?
+  message    String
+  details    String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime       @default(now())
+
+  @@index([level])
+  @@index([createdAt])
+}

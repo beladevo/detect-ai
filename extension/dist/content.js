@@ -1,4 +1,3 @@
-"use strict";
 const STYLE_ID = "imagion-badge-style";
 const MAX_TRACKED_IMAGES = 200;
 const trackedImages = new Map();
@@ -8,6 +7,30 @@ let scanScheduled = false;
 const state = {
     enabled: true,
 };
+const TRANSLATIONS = {
+    en: {
+        aiLabel: "AI",
+        realLabel: "Real",
+        errorLabel: "Error",
+        loginLabel: "Log in",
+        badgePrefix: "Imagion badge",
+        tooltipFallback: "Imagion verdict",
+        rateLimitLabel: "Rate limited",
+        disabledHostMessage: "Badges paused on this host.",
+    },
+    es: {
+        aiLabel: "IA",
+        realLabel: "Real",
+        errorLabel: "Error",
+        loginLabel: "Iniciar sesión",
+        badgePrefix: "Insignia Imagion",
+        tooltipFallback: "Veredicto de Imagion",
+        rateLimitLabel: "Límite de velocidad",
+        disabledHostMessage: "Insignias pausadas en este host.",
+    },
+};
+const localeCode = navigator.language.split("-")[0];
+const localized = TRANSLATIONS[localeCode] ?? TRANSLATIONS.en;
 const badgeStyle = `
 .imagion-badge {
   position: absolute;
@@ -85,7 +108,7 @@ function scheduleScan() {
     });
 }
 function updateAllBadgePositions() {
-    for (const [img, meta] of trackedImages.entries()) {
+    for (const [img, meta] of trackedImages) {
         if (!img.isConnected) {
             meta.badge.remove();
             trackedImages.delete(img);
@@ -94,8 +117,12 @@ function updateAllBadgePositions() {
         updateBadgePosition(img, meta.badge);
     }
 }
+function shouldSkipScanning() {
+    return !state.enabled || isHostBlocked(window.location.hostname);
+}
 function scanForImages() {
-    if (!state.enabled) {
+    if (shouldSkipScanning()) {
+        removeAllBadges();
         return;
     }
     const images = Array.from(document.images);
@@ -121,7 +148,10 @@ function shouldTrackImage(img) {
 function attachBadge(img) {
     const badge = document.createElement("div");
     badge.className = "imagion-badge";
-    badge.innerHTML = `<span class="imagion-badge__logo">I</span><span class="imagion-badge__label">Imagion</span>`;
+    badge.setAttribute("role", "status");
+    badge.setAttribute("lang", localeCode);
+    badge.innerHTML = `<span class="imagion-badge__logo">I</span><span class="imagion-badge__label">${localized.badgePrefix}</span>`;
+    updateBadgeAria(badge, localized.badgePrefix);
     badge.dataset.requestState = "pending";
     const badgeId = `imagion-${++badgeCounter}`;
     badge.dataset.requestId = badgeId;
@@ -201,31 +231,46 @@ function updateBadgeFromResponse(badge, response) {
         const verdict = response.verdict.toLowerCase();
         if (verdict === "ai" || verdict === "fake") {
             badge.classList.add("imagion-badge--ai");
-            label.textContent = "AI";
+            label.textContent = localized.aiLabel;
+            updateBadgeAria(badge, localized.aiLabel);
         }
         else if (verdict === "real") {
             badge.classList.add("imagion-badge--real");
-            label.textContent = "Real";
+            label.textContent = localized.realLabel;
+            updateBadgeAria(badge, localized.realLabel);
         }
         else {
             badge.classList.add("imagion-badge--real");
-            label.textContent = "Real";
+            label.textContent = localized.realLabel;
+            updateBadgeAria(badge, localized.realLabel);
         }
         badge.title = createTooltip(response);
         badge.dataset.requestState = "success";
     }
     else if (response.status === "missing-key") {
         badge.classList.add("imagion-badge--missing-key");
-        label.textContent = "Log in";
+        label.textContent = localized.loginLabel;
+        updateBadgeAria(badge, localized.loginLabel);
         badge.title = response.message || "Add your API key via the Imagion extension options.";
         badge.dataset.requestState = "key-required";
     }
+    else if (response.status === "rate-limit") {
+        badge.classList.add("imagion-badge--error");
+        label.textContent = localized.rateLimitLabel;
+        updateBadgeAria(badge, localized.rateLimitLabel);
+        badge.title = response.message || localized.disabledHostMessage;
+        badge.dataset.requestState = "rate-limit";
+    }
     else {
         badge.classList.add("imagion-badge--error");
-        label.textContent = "Error";
+        label.textContent = localized.errorLabel;
+        updateBadgeAria(badge, localized.errorLabel);
         badge.title = response.message || "Detection failed.";
         badge.dataset.requestState = "error";
     }
+}
+function updateBadgeAria(badge, text) {
+    badge.setAttribute("aria-label", `${localized.badgePrefix}: ${text}`);
 }
 function createTooltip(response) {
     const parts = [];
@@ -238,7 +283,10 @@ function createTooltip(response) {
     if (response.presentation) {
         parts.push(response.presentation);
     }
-    return parts.length ? parts.join(" | ") : "Imagion verdict";
+    if (response.retryAfterSeconds) {
+        parts.push(`Retry in ${response.retryAfterSeconds}s`);
+    }
+    return parts.length ? parts.join(" | ") : localized.tooltipFallback;
 }
 function removeAllBadges() {
     for (const [, meta] of trackedImages) {
@@ -246,13 +294,44 @@ function removeAllBadges() {
     }
     trackedImages.clear();
 }
+function updateDisabledHosts(items) {
+    const storedHosts = Array.isArray(items.imagionDisabledHosts) ? items.imagionDisabledHosts : [];
+    const normalized = storedHosts
+        .map((host) => normalizeHostname(host))
+        .filter((value) => Boolean(value));
+    disabledHostsSet = new Set(normalized);
+}
+function normalizeHostname(value) {
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return null;
+    }
+    try {
+        const parsed = trimmed.includes("://") ? new URL(trimmed) : new URL(`https://${trimmed}`);
+        return parsed.hostname.toLowerCase();
+    }
+    catch {
+        return trimmed.toLowerCase();
+    }
+}
+function isHostBlocked(host) {
+    const normalized = normalizeHostname(host);
+    if (!normalized) {
+        return false;
+    }
+    const candidate = normalized.startsWith("www.") ? normalized.slice(4) : normalized;
+    return disabledHostsSet.has(normalized) || disabledHostsSet.has(candidate);
+}
+let disabledHostsSet = new Set();
 function syncSettings() {
-    chrome.storage.local.get({ imagionBadgeEnabled: true }, (items) => {
+    chrome.storage.local.get({ imagionBadgeEnabled: true, imagionDisabledHosts: [] }, (items) => {
         const enabled = items.imagionBadgeEnabled !== false;
-        if (state.enabled === enabled) {
+        state.enabled = enabled;
+        updateDisabledHosts(items);
+        if (shouldSkipScanning()) {
+            removeAllBadges();
             return;
         }
-        state.enabled = enabled;
         if (state.enabled) {
             scheduleScan();
         }
@@ -281,3 +360,4 @@ if (document.readyState === "loading") {
 else {
     init();
 }
+export {};

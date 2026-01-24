@@ -36,6 +36,48 @@
         font-size: 0.9rem;
         color: #cbd5f5;
       }
+      .domain-blocker {
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        border-radius: 10px;
+        padding: 16px;
+        background: rgba(15, 23, 42, 0.55);
+      }
+      .domain-input-group {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .domain-input-group input {
+        flex: 1;
+      }
+      #domain-list {
+        margin: 8px 0;
+        padding: 0;
+        list-style: none;
+        max-height: 160px;
+        overflow-y: auto;
+        border-top: 1px solid rgba(148, 163, 184, 0.3);
+        padding-top: 8px;
+      }
+      #domain-list li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 0;
+        border-bottom: 1px dashed rgba(148, 163, 184, 0.3);
+        font-size: 0.9rem;
+        color: #e2e8f0;
+      }
+      #domain-list li:last-child {
+        border-bottom: none;
+      }
+      .remove-domain {
+        border: none;
+        background: transparent;
+        color: #f87171;
+        font-size: 0.8rem;
+        cursor: pointer;
+      }
       input[type="text"],
       input[type="password"],
       input[type="url"] {
@@ -101,6 +143,15 @@
         <input type="checkbox" id="badge-enabled" checked />
         <span>Show badges while browsing</span>
       </label>
+      <div class="domain-blocker">
+        <label for="domain-input">Disable badges on specific hosts</label>
+        <div class="domain-input-group">
+          <input type="text" id="domain-input" placeholder="example.com" />
+          <button id="add-domain-btn" type="button">Add</button>
+        </div>
+        <ul id="domain-list" aria-live="polite"></ul>
+        <p class="helper">Specify hostnames (one per entry). Badges are suppressed while browsing those hosts.</p>
+      </div>
       <button type="submit" id="save-button">Save settings</button>
       <div class="status" id="status"></div>
     </form>

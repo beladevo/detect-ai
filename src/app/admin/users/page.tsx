@@ -15,7 +15,7 @@ import GlowButton from "@/src/components/ui/GlowButton"
 import Modal from "@/src/components/ui/Modal"
 import { useAdmin } from "@/src/context/AdminContext"
 
-interface User {
+interface User extends Record<string, unknown> {
   id: string
   email: string
   name: string | null
@@ -300,7 +300,7 @@ export default function UsersPage() {
         </GlassCard>
 
         {/* Users Table */}
-        <DataTable
+        <DataTable<User>
           columns={columns}
           data={users}
           keyField="id"

@@ -88,6 +88,10 @@ export async function POST(request: NextRequest) {
 }
 
 async function ensureStripeCustomer(user: Awaited<ReturnType<typeof getCurrentUser>>) {
+  if (!user) {
+    throw new Error("Authentication required")
+  }
+
   if (user.stripeCustomerId) {
     return user.stripeCustomerId
   }

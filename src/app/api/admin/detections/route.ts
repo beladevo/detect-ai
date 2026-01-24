@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       prisma.detection.groupBy({
         by: ['verdict'],
         _count: true,
-        orderBy: { _count: 'desc' },
+        orderBy: { _count: { verdict: 'desc' } },
         where,
       }),
     ])

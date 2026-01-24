@@ -2,11 +2,18 @@
 const DEFAULT_DETECTION_ENDPOINT = "https://imagion.ai/api/detect";
 const REQUEST_TTL_MS = 5 * 60 * 1000;
 const MAX_CONCURRENT_DETECTIONS = 3;
+const TELEMETRY_KEY = "imagionTelemetry";
+const TELEMETRY_LIMIT = 40;
+const BACKOFF_MIN_MS = 15000;
+const BACKOFF_MAX_MS = 60000;
 const cache = new Map();
 const pendingRequests = new Map();
 const detectionQueue = [];
+const telemetryEntries = [];
 let runningDetections = 0;
 let cachedConfig = null;
+let nextAllowedTimestamp = 0;
+let backoffTimer = null;
 async function getConfig() {
     if (cachedConfig) {
         return cachedConfig;
@@ -91,6 +98,9 @@ function getCachedResult(imageUrl) {
     return entry.payload;
 }
 function processQueue() {
+    if (Date.now() < nextAllowedTimestamp) {
+        return;
+    }
     while (runningDetections < MAX_CONCURRENT_DETECTIONS && detectionQueue.length > 0) {
         const job = detectionQueue.shift();
         if (!job) {
@@ -110,7 +120,12 @@ function processQueue() {
 async function runDetection(imageUrl) {
     const { imagionApiKey, imagionDetectionEndpoint } = await getConfig();
     if (!imagionApiKey) {
-        dispatchResult(imageUrl, {
+        recordTelemetry({
+            level: "warning",
+            message: "missing_api_key",
+            details: { imageUrl },
+        });
+        dispatchResponse(imageUrl, {
             status: "missing-key",
             message: "Please provide an Imagion API key in the options page.",
         });
@@ -121,7 +136,15 @@ async function runDetection(imageUrl) {
         blob = await fetchImageBytes(imageUrl);
     }
     catch (error) {
-        dispatchError(imageUrl, error);
+        recordTelemetry({
+            level: "error",
+            message: "fetch_image_failed",
+            details: { imageUrl, error: error instanceof Error ? error.message : String(error) },
+        });
+        dispatchResponse(imageUrl, {
+            status: "error",
+            message: error instanceof Error ? error.message : "Unable to fetch the image.",
+        });
         return;
     }
     const formData = new FormData();
@@ -139,7 +162,15 @@ async function runDetection(imageUrl) {
         });
     }
     catch (error) {
-        dispatchError(imageUrl, error);
+        recordTelemetry({
+            level: "error",
+            message: "detection_request_failed",
+            details: { imageUrl, error: error instanceof Error ? error.message : String(error) },
+        });
+        dispatchResponse(imageUrl, {
+            status: "error",
+            message: error instanceof Error ? error.message : "Detection request failed.",
+        });
         return;
     }
     let payload;
@@ -147,12 +178,43 @@ async function runDetection(imageUrl) {
         payload = await response.json();
     }
     catch (error) {
-        dispatchError(imageUrl, error);
+        recordTelemetry({
+            level: "error",
+            message: "invalid_json",
+            details: { imageUrl, error: error instanceof Error ? error.message : String(error) },
+        });
+        dispatchResponse(imageUrl, {
+            status: "error",
+            message: error instanceof Error ? error.message : "Unable to parse detection response.",
+        });
+        return;
+    }
+    if (response.status === 429) {
+        const retryAfter = parseRetryAfter(response.headers.get("Retry-After"));
+        applyRateLimitBackoff(retryAfter);
+        recordTelemetry({
+            level: "warning",
+            message: "rate_limited",
+            details: { imageUrl, retryAfter },
+        });
+        dispatchResponse(imageUrl, {
+            status: "rate-limit",
+            message: `Rate limit exceeded. Retrying in ${retryAfter} seconds.`,
+            retryAfterSeconds: retryAfter,
+        });
         return;
     }
     if (!response.ok) {
         const message = payload?.message || "Detection failed";
-        dispatchError(imageUrl, new Error(message));
+        recordTelemetry({
+            level: "error",
+            message: "detection_error",
+            details: { imageUrl, responseStatus: response.status, message },
+        });
+        dispatchResponse(imageUrl, {
+            status: "error",
+            message,
+        });
         return;
     }
     const structuredPayload = payload;
@@ -163,8 +225,13 @@ async function runDetection(imageUrl) {
         confidence: structuredPayload.confidence,
         presentation: structuredPayload.presentation,
     };
+    recordTelemetry({
+        level: "info",
+        message: "detection_success",
+        details: { imageUrl, score: structuredPayload.score, verdict: structuredPayload.verdict },
+    });
     cache.set(imageUrl, { timestamp: Date.now(), payload: successPayload });
-    dispatchResult(imageUrl, successPayload);
+    dispatchResponse(imageUrl, successPayload);
 }
 async function fetchImageBytes(url) {
     const response = await fetch(url, {
@@ -191,7 +258,7 @@ function extractFileName(url) {
         return "imagion-image.jpg";
     }
 }
-function dispatchResult(imageUrl, payload) {
+function dispatchResponse(imageUrl, payload) {
     const entry = pendingRequests.get(imageUrl);
     if (!entry) {
         return;
@@ -201,19 +268,32 @@ function dispatchResult(imageUrl, payload) {
     });
     pendingRequests.delete(imageUrl);
 }
-function dispatchError(imageUrl, error) {
-    const entry = pendingRequests.get(imageUrl);
-    if (!entry) {
-        return;
+function parseRetryAfter(header) {
+    if (!header) {
+        return BACKOFF_MIN_MS / 1000;
     }
-    const message = error instanceof Error ? error.message : "Detection failed.";
-    entry.resolvers.forEach(({ badgeId, sendResponse }) => {
-        sendResponse({
-            status: "error",
-            message,
-            badgeId,
-            imageUrl,
-        });
-    });
-    pendingRequests.delete(imageUrl);
+    const parsed = Number.parseInt(header, 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+        return parsed;
+    }
+    return BACKOFF_MIN_MS / 1000;
+}
+function applyRateLimitBackoff(seconds) {
+    const waitMs = Math.min(Math.max(seconds * 1000, BACKOFF_MIN_MS), BACKOFF_MAX_MS);
+    nextAllowedTimestamp = Date.now() + waitMs;
+    if (backoffTimer) {
+        clearTimeout(backoffTimer);
+    }
+    backoffTimer = setTimeout(() => {
+        nextAllowedTimestamp = 0;
+        backoffTimer = null;
+        processQueue();
+    }, waitMs);
+}
+function recordTelemetry(entry) {
+    telemetryEntries.push({ timestamp: Date.now(), ...entry });
+    if (telemetryEntries.length > TELEMETRY_LIMIT) {
+        telemetryEntries.shift();
+    }
+    chrome.storage.local.set({ [TELEMETRY_KEY]: telemetryEntries });
 }
