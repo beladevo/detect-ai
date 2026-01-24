@@ -40,16 +40,20 @@ export function usePerformanceMonitor(
 
   const estimatorRef = useRef<PerformanceEstimator | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const isMonitoringRef = useRef(false);
+  const isInitializedRef = useRef(false);
 
   const start = useCallback(async () => {
-    if (isMonitoring) return;
+    // Use ref to avoid stale closure
+    if (isMonitoringRef.current) return;
 
     if (!estimatorRef.current) {
       estimatorRef.current = getPerformanceEstimator();
     }
 
-    if (!isInitialized) {
+    if (!isInitializedRef.current) {
       await estimatorRef.current.init();
+      isInitializedRef.current = true;
       setIsInitialized(true);
     }
 
@@ -59,11 +63,13 @@ export function usePerformanceMonitor(
     });
 
     estimatorRef.current.start(updateInterval);
+    isMonitoringRef.current = true;
     setIsMonitoring(true);
-  }, [isMonitoring, isInitialized, updateInterval]);
+  }, [updateInterval]);
 
   const stop = useCallback(() => {
-    if (!isMonitoring) return;
+    // Use ref to avoid stale closure
+    if (!isMonitoringRef.current) return;
 
     if (unsubscribeRef.current) {
       unsubscribeRef.current();
@@ -71,24 +77,29 @@ export function usePerformanceMonitor(
     }
 
     estimatorRef.current?.stop();
+    isMonitoringRef.current = false;
     setIsMonitoring(false);
-  }, [isMonitoring]);
+
+    // Reset metrics when stopped
+    setMetrics(defaultMetrics);
+  }, []);
 
   // Auto-start if enabled
   useEffect(() => {
     if (autoStart) {
       start();
     }
-  }, [autoStart]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [autoStart, start]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (unsubscribeRef.current) {
         unsubscribeRef.current();
+        unsubscribeRef.current = null;
       }
-      // Don't destroy the singleton, just stop monitoring
       estimatorRef.current?.stop();
+      isMonitoringRef.current = false;
     };
   }, []);
 

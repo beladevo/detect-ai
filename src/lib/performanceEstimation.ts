@@ -394,6 +394,7 @@ export class PerformanceEstimator {
   };
   private listeners: Set<(metrics: PerformanceMetrics) => void> = new Set();
   private initialized = false;
+  private running = false;
 
   async init(): Promise<void> {
     if (this.initialized) return;
@@ -409,16 +410,29 @@ export class PerformanceEstimator {
       return;
     }
 
+    // Stop any existing interval first
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+
+    this.running = true;
     this.longTaskMonitor.start();
     this.rafMonitor.start();
     this.webglMonitor.start();
 
-    this.intervalId = setInterval(async () => {
-      await this.updateMetrics();
+    // Fire immediately to get instant feedback
+    this.updateMetrics();
+
+    this.intervalId = setInterval(() => {
+      if (this.running) {
+        this.updateMetrics();
+      }
     }, intervalMs);
   }
 
   stop(): void {
+    this.running = false;
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
@@ -426,6 +440,16 @@ export class PerformanceEstimator {
     this.longTaskMonitor.stop();
     this.rafMonitor.stop();
     this.webglMonitor.stop();
+
+    // Reset metrics on stop
+    this.latestMetrics = {
+      cpu: 0,
+      gpu: 0,
+      fps: 60,
+      eventLoopLag: 0,
+      longTaskCount: 0,
+      frameDrops: 0
+    };
   }
 
   destroy(): void {
@@ -440,27 +464,33 @@ export class PerformanceEstimator {
     return () => this.listeners.delete(listener);
   }
 
-  private async updateMetrics(): Promise<void> {
-    const eventLoopLag = await measureEventLoopLag();
+  private updateMetrics(): void {
+    // Use sync version for immediate updates
+    const eventLoopLagPromise = measureEventLoopLag();
     const longTaskCount = this.longTaskMonitor.getCount();
     const frameDrops = this.rafMonitor.getFrameDrops();
     const fps = this.rafMonitor.getFPS();
     const webglLoad = this.webglMonitor.getGPULoad();
 
-    const cpu = await estimateCPULoad(eventLoopLag, longTaskCount, frameDrops, fps);
-    const gpu = estimateGPULoad(webglLoad, fps);
+    // Calculate with current values, update lag async
+    eventLoopLagPromise.then(async (eventLoopLag) => {
+      if (!this.running) return;
 
-    this.latestMetrics = {
-      cpu,
-      gpu,
-      fps,
-      eventLoopLag,
-      longTaskCount,
-      frameDrops
-    };
+      const cpu = await estimateCPULoad(eventLoopLag, longTaskCount, frameDrops, fps);
+      const gpu = estimateGPULoad(webglLoad, fps);
 
-    // Notify listeners
-    this.listeners.forEach(listener => listener(this.latestMetrics));
+      this.latestMetrics = {
+        cpu,
+        gpu,
+        fps,
+        eventLoopLag,
+        longTaskCount,
+        frameDrops
+      };
+
+      // Notify listeners
+      this.listeners.forEach(listener => listener(this.latestMetrics));
+    });
   }
 
   getMetrics(): PerformanceMetrics {

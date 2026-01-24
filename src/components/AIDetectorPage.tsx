@@ -380,7 +380,7 @@ export default function AIDetectorPage() {
               </div>
             </div>
 
-            <PerformanceMonitor isActive={isUploading} />
+            {/* <PerformanceMonitor isActive={isUploading} /> */}
 
             <div ref={historyCardRef}>
               <HistoryList
