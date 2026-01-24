@@ -22,6 +22,9 @@ export type SessionUser = {
   createdAt: Date
   updatedAt: Date
   lastLoginAt: Date | null
+  firstName: string | null
+  registerIp: string | null
+  lastLoginIp: string | null
 }
 
 export async function getCurrentUser(): Promise<SessionUser | null> {
@@ -52,6 +55,7 @@ async function getUserById(userId: string): Promise<SessionUser | null> {
         id: true,
         email: true,
         name: true,
+        firstName: true,
         tier: true,
         emailVerified: true,
         stripeCustomerId: true,
@@ -67,6 +71,8 @@ async function getUserById(userId: string): Promise<SessionUser | null> {
       createdAt: true,
         updatedAt: true,
         lastLoginAt: true,
+        registerIp: true,
+        lastLoginIp: true,
       },
     })
     return user
@@ -115,7 +121,10 @@ async function refreshSession(refreshToken: string): Promise<{ user: SessionUser
   return { user, accessToken: newAccessToken }
 }
 
-export async function createSession(user: { id: string; email: string }): Promise<{ accessToken: string; refreshToken: string }> {
+export async function createSession(
+  user: { id: string; email: string },
+  options?: { ipAddress?: string }
+): Promise<{ accessToken: string; refreshToken: string }> {
   const accessToken = await createAccessToken({ userId: user.id, email: user.email })
   const refreshToken = await createRefreshToken({ userId: user.id, email: user.email })
 
@@ -129,9 +138,17 @@ export async function createSession(user: { id: string; email: string }): Promis
 
   await setAuthCookies(accessToken, refreshToken)
 
+  const updateData: { lastLoginAt: Date; lastLoginIp?: string | null } = {
+    lastLoginAt: new Date(),
+  }
+
+  if (options?.ipAddress) {
+    updateData.lastLoginIp = options.ipAddress
+  }
+
   await prisma.user.update({
     where: { id: user.id },
-    data: { lastLoginAt: new Date() },
+    data: updateData,
   })
 
   return { accessToken, refreshToken }

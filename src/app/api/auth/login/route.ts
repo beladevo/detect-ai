@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/src/lib/prisma'
 import { verifyPassword, createSession } from '@/src/lib/auth'
+import { getClientIp } from '@/src/lib/utils/getClientIp'
 
 export async function POST(request: Request) {
   try {
@@ -35,7 +36,32 @@ export async function POST(request: Request) {
       )
     }
 
-    await createSession({ id: user.id, email: user.email })
+    const verificationSetting = await prisma.systemSetting.findUnique({
+      where: { key: 'emailVerificationRequired' },
+    })
+    let emailVerificationRequired = false
+    if (verificationSetting) {
+      const value = verificationSetting.value
+      if (typeof value === 'boolean') {
+        emailVerificationRequired = value
+      } else if (typeof value === 'string') {
+        emailVerificationRequired = value === 'true'
+      }
+    }
+
+    if (emailVerificationRequired && !user.emailVerified) {
+      return NextResponse.json(
+        { error: 'Please verify your email before logging in.' },
+        { status: 403 }
+      )
+    }
+
+    const ipAddress = getClientIp(request)
+
+    await createSession(
+      { id: user.id, email: user.email },
+      { ipAddress: ipAddress ?? undefined }
+    )
 
     return NextResponse.json({
       success: true,
@@ -43,6 +69,10 @@ export async function POST(request: Request) {
         id: user.id,
         email: user.email,
         name: user.name,
+        firstName: user.firstName,
+        emailVerified: user.emailVerified,
+        registerIp: user.registerIp,
+        lastLoginIp: user.lastLoginIp,
         tier: user.tier,
       },
     })

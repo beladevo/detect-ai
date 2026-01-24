@@ -25,7 +25,14 @@ export async function GET(request: NextRequest) {
       prisma.detection.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        include: {
+        select: {
+          id: true,
+          verdict: true,
+          score: true,
+          confidence: true,
+          status: true,
+          createdAt: true,
+          modelUsed: true,
           user: {
             select: { id: true, email: true, name: true },
           },

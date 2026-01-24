@@ -39,6 +39,7 @@ model User {
   email         String    @unique
   passwordHash  String
   name          String?
+  firstName     String?
   tier          UserTier  @default(FREE)
   deletedAt     DateTime?
 
@@ -78,6 +79,8 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   lastLoginAt   DateTime?
+  registerIp    String?
+  lastLoginIp   String?
 
   // Relations
   detections    Detection[]
@@ -133,8 +136,11 @@ model Detection {
 
   createdAt   DateTime        @default(now())
 
+  detectionSource String     @default("website")
+
   @@index([userId, createdAt])
   @@index([fileHash])
+  @@index([detectionSource, createdAt])
 }
 
 model ProcessedImage {

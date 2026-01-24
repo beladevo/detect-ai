@@ -288,6 +288,7 @@ async function runDetection(imageUrl: string) {
       method: "POST",
       headers: {
         "x-api-key": imagionApiKey,
+        "x-detection-source": "extension",
       },
       body: formData,
     });

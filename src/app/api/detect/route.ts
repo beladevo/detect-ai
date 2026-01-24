@@ -110,11 +110,15 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  const requestedDetectionSource = request.headers.get("x-detection-source")?.toLowerCase();
+  const detectionSource = requestedDetectionSource === "extension" ? "extension" : "website";
+
   await logServerEvent({
     level: "Info",
     source: "Backend",
     service: "Detect",
     message: "Request received",
+    additional: JSON.stringify({ detectionSource }),
     request,
   });
   const formData = await request.formData();
@@ -276,6 +280,7 @@ export async function POST(request: NextRequest) {
               status: "COMPLETED",
               processingTime: processingTimeMs,
               modelUsed: safeModel || MODEL_NAME,
+              detectionSource,
               pipelineData: pipelineSummary,
             },
           }),
