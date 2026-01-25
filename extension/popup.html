@@ -296,6 +296,34 @@
         text-align: center;
       }
 
+      .usage-details {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .usage-detail {
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 12px;
+        padding: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        text-align: center;
+      }
+
+      .usage-label {
+        font-size: 11px;
+        color: var(--text-muted);
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .usage-value {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--brand-mint);
+      }
+
       .stat-value {
         font-size: 20px;
         font-weight: 600;
@@ -502,17 +530,27 @@
           <div class="glass-panel user-card">
             <div class="user-email" id="user-email">user@example.com</div>
             <div class="user-tier" id="user-tier">FREE</div>
-            <div class="stats">
-              <div class="stat">
-                <div class="stat-value" id="monthly-detections">0</div>
-                <div class="stat-label">This month</div>
-              </div>
-              <div class="stat">
-                <div class="stat-value" id="total-detections">0</div>
-                <div class="stat-label">All time</div>
-              </div>
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-value" id="monthly-detections">0</div>
+              <div class="stat-label">This month</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value" id="total-detections">0</div>
+              <div class="stat-label">All time</div>
             </div>
           </div>
+          <div class="usage-details">
+            <div class="usage-detail">
+              <span class="usage-label">Monthly limit</span>
+              <span class="usage-value" id="monthly-limit">∞</span>
+            </div>
+            <div class="usage-detail">
+              <span class="usage-label">Daily limit</span>
+              <span class="usage-value" id="daily-limit">∞</span>
+            </div>
+          </div>
+        </div>
 
           <div class="glass-panel api-key-box">
             <div class="api-key-label">API Key</div>

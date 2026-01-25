@@ -8,6 +8,10 @@ const BACKOFF_MIN_MS = 15000;
 const BACKOFF_MAX_MS = 60000;
 const HASH_HISTORY_KEY = "recentImageHistory";
 const MAX_HASH_HISTORY = 250;
+const RATE_LIMIT_INDICATOR_KEY = "imagionRateLimitState";
+const RATE_LIMIT_BADGE_TEXT = "!";
+const RATE_LIMIT_BADGE_COLOR = "#ff4d67";
+const USAGE_STATUS_MESSAGE = "REQUEST_USAGE_STATUS";
 
 console.info(LOG_PREFIX, "Service worker started");
 
@@ -22,6 +26,7 @@ type DetectionResponsePayload = {
   score?: number;
   confidence?: number;
   presentation?: string;
+  errorType?: string;
   message?: string;
   badgeLabel?: string;
   retryAfterSeconds?: number;
@@ -54,6 +59,23 @@ type TelemetryEntry = {
   details?: Record<string, unknown>;
 };
 
+type RateLimitReason = "burst" | "daily" | "plan";
+type RateLimitIndicator = {
+  reason: RateLimitReason;
+  expiresAt: number;
+};
+
+type UsageStatusPayload = {
+  tier: string;
+  dailyUsed: number;
+  monthlyUsed: number;
+  dailyLimit: number | null;
+  monthlyLimit: number | null;
+  totalDetections: number;
+  monthlyResetAt: string;
+  dailyResetAt: string;
+};
+
 const cache = new Map<string, { timestamp: number; payload: DetectionResponsePayload }>();
 const pendingRequests = new Map<string, PendingRequest>();
 const detectionQueue: Array<{ imageUrl: string }> = [];
@@ -64,6 +86,8 @@ let nextAllowedTimestamp = 0;
 let backoffTimer: ReturnType<typeof setTimeout> | null = null;
 let hashHistory: HashHistoryEntry[] = [];
 const hashHistoryReady = loadHashHistory();
+let rateLimitIndicator: RateLimitIndicator | null = null;
+loadRateLimitIndicator();
 
 async function getConfig(): Promise<ImagionConfig> {
   if (cachedConfig) {
@@ -96,24 +120,47 @@ async function getConfig(): Promise<ImagionConfig> {
   return config;
 }
 
-chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== "local") {
-    return;
-  }
-  if (changes.imagionApiKey || changes.imagionDetectionEndpoint) {
-    console.info(LOG_PREFIX, "Config changed, clearing cache");
-    cachedConfig = null;
-  }
-});
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local") {
+      return;
+    }
+    if (changes.imagionApiKey || changes.imagionDetectionEndpoint) {
+      console.info(LOG_PREFIX, "Config changed, clearing cache");
+      cachedConfig = null;
+      if (changes.imagionApiKey && !changes.imagionApiKey.newValue) {
+        setRateLimitIndicator(null);
+      }
+    }
+  });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (!message || message.type !== "REQUEST_DETECTION") {
+  if (!message || typeof message.type !== "string") {
     return false;
   }
 
-  console.debug(LOG_PREFIX, "Received detection request:", message.badgeId, message.imageUrl?.substring(0, 80));
-  handleImageDetection(message, sendResponse);
-  return true;
+  if (message.type === "REQUEST_DETECTION") {
+    console.debug(LOG_PREFIX, "Received detection request:", message.badgeId, message.imageUrl?.substring(0, 80));
+    handleImageDetection(message, sendResponse);
+    return true;
+  }
+
+  if (message.type === USAGE_STATUS_MESSAGE) {
+    void (async () => {
+      try {
+        const usage = await fetchUsageStatus();
+        sendResponse({ success: true, usage });
+      } catch (error) {
+        console.error(LOG_PREFIX, "Usage status failed:", error);
+        sendResponse({
+          success: false,
+          error: error instanceof Error ? error.message : "Failed to load usage status",
+        });
+      }
+    })();
+    return true;
+  }
+
+  return false;
 });
 
 function handleImageDetection(message: {
@@ -330,21 +377,34 @@ async function runDetection(imageUrl: string) {
       message?: string;
       badgeLabel?: string;
       retryAfter?: number;
+      errorType?: string;
     };
     const headerRetry = parseRetryAfter(response.headers.get("Retry-After"));
     const effectiveRetryAfter = rateLimitBody.retryAfter ?? headerRetry;
-    applyRateLimitBackoff(effectiveRetryAfter);
+    const limitReason: RateLimitReason =
+      rateLimitBody.errorType === "PLAN_LIMIT_EXCEEDED"
+        ? "plan"
+        : rateLimitBody.errorType === "DAILY_RATE_LIMIT_EXCEEDED"
+          ? "daily"
+          : "burst";
+    applyRateLimitBackoff(effectiveRetryAfter, limitReason);
     console.warn(LOG_PREFIX, "Rate limited, retry after:", effectiveRetryAfter, "seconds");
     recordTelemetry({
       level: "warning",
       message: "rate_limited",
-      details: { imageUrl, retryAfter: effectiveRetryAfter, badgeLabel: rateLimitBody.badgeLabel },
+      details: {
+        imageUrl,
+        retryAfter: effectiveRetryAfter,
+        badgeLabel: rateLimitBody.badgeLabel,
+        errorType: rateLimitBody.errorType,
+      },
     });
     dispatchResponse(imageUrl, {
       status: "rate-limit",
       message: rateLimitBody.message ?? `Rate limit exceeded. Retrying in ${effectiveRetryAfter} seconds.`,
       retryAfterSeconds: effectiveRetryAfter,
       badgeLabel: rateLimitBody.badgeLabel,
+      errorType: rateLimitBody.errorType,
     });
     return;
   }
@@ -445,17 +505,89 @@ function parseRetryAfter(header: string | null): number {
   return BACKOFF_MIN_MS / 1000;
 }
 
-function applyRateLimitBackoff(seconds: number) {
+function applyRateLimitBackoff(seconds: number, reason: RateLimitReason = "burst") {
   const waitMs = Math.min(Math.max(seconds * 1000, BACKOFF_MIN_MS), BACKOFF_MAX_MS);
   nextAllowedTimestamp = Date.now() + waitMs;
   if (backoffTimer) {
     clearTimeout(backoffTimer);
   }
+  if (reason === "plan") {
+    setRateLimitIndicator({
+      reason,
+      expiresAt: nextAllowedTimestamp,
+    });
+  }
   backoffTimer = setTimeout(() => {
     nextAllowedTimestamp = 0;
     backoffTimer = null;
+    if (reason === "plan") {
+      setRateLimitIndicator(null);
+    }
     processQueue();
   }, waitMs);
+}
+
+function applyLimitBadge(active: boolean) {
+  if (active) {
+    chrome.action.setBadgeText({ text: RATE_LIMIT_BADGE_TEXT });
+    chrome.action.setBadgeBackgroundColor({ color: RATE_LIMIT_BADGE_COLOR });
+  } else {
+    chrome.action.setBadgeText({ text: "" });
+    chrome.action.setBadgeBackgroundColor({ color: "#000000" });
+  }
+}
+
+function persistRateLimitIndicator(state: RateLimitIndicator | null) {
+  if (state) {
+    chrome.storage.local.set({ [RATE_LIMIT_INDICATOR_KEY]: state });
+  } else {
+    chrome.storage.local.remove(RATE_LIMIT_INDICATOR_KEY);
+  }
+}
+
+function setRateLimitIndicator(state: RateLimitIndicator | null) {
+  rateLimitIndicator = state;
+  applyLimitBadge(Boolean(state));
+  persistRateLimitIndicator(state);
+}
+
+function isRateLimitIndicator(value: unknown): value is RateLimitIndicator {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const indicator = value as RateLimitIndicator;
+  return (
+    ["burst", "daily", "plan"].includes(indicator.reason) &&
+    typeof indicator.expiresAt === "number" &&
+    Number.isFinite(indicator.expiresAt)
+  );
+}
+
+function loadRateLimitIndicator(): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(RATE_LIMIT_INDICATOR_KEY, (items) => {
+      const stored = items[RATE_LIMIT_INDICATOR_KEY];
+      if (isRateLimitIndicator(stored) && stored.expiresAt > Date.now()) {
+        rateLimitIndicator = stored;
+        applyLimitBadge(true);
+        nextAllowedTimestamp = stored.expiresAt;
+        const waitMs = stored.expiresAt - Date.now();
+        if (waitMs > 0) {
+          backoffTimer = setTimeout(() => {
+            nextAllowedTimestamp = 0;
+            backoffTimer = null;
+            setRateLimitIndicator(null);
+            processQueue();
+          }, waitMs);
+        } else {
+          setRateLimitIndicator(null);
+        }
+      } else {
+        chrome.storage.local.remove(RATE_LIMIT_INDICATOR_KEY);
+      }
+      resolve();
+    });
+  });
 }
 
 async function loadHashHistory(): Promise<void> {
@@ -560,6 +692,47 @@ async function lookupBackendHash(
     console.warn(LOG_PREFIX, "Backend cache lookup failed:", error);
   }
   return null;
+}
+
+function getUsageStatusEndpoint(endpoint: string) {
+  try {
+    const url = new URL(endpoint);
+    if (url.pathname.endsWith("/api/detect")) {
+      url.pathname = url.pathname.replace(/\/api\/detect$/, "/api/usage/status");
+    } else {
+      url.pathname = `${url.pathname.replace(/\/$/, "")}/api/usage/status`;
+    }
+    return url.toString();
+  } catch {
+    const normalized = endpoint.replace(/\/$/, "");
+    return `${normalized}/api/usage/status`;
+  }
+}
+
+async function fetchUsageStatus(): Promise<UsageStatusPayload> {
+  const { imagionApiKey, imagionDetectionEndpoint } = await getConfig();
+  if (!imagionApiKey) {
+    throw new Error("Missing Imagion API key");
+  }
+
+  const endpoint = getUsageStatusEndpoint(imagionDetectionEndpoint);
+  const response = await fetch(endpoint, {
+    method: "GET",
+    headers: {
+      "x-api-key": imagionApiKey,
+    },
+  });
+  if (!response.ok) {
+    const bodyText = await response.text();
+    throw new Error(`Usage status request failed (${response.status}): ${bodyText}`);
+  }
+
+  const payload = await response.json();
+  if (!payload?.success || !payload?.usage) {
+    throw new Error("Invalid usage status response");
+  }
+
+  return payload.usage as UsageStatusPayload;
 }
 
 function recordTelemetry(entry: Omit<TelemetryEntry, "timestamp">) {

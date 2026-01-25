@@ -1,4 +1,5 @@
 const LOG_PREFIX = "[Imagion Popup]";
+const USAGE_STATUS_MESSAGE = "REQUEST_USAGE_STATUS";
 
 type StorageData = {
   imagionApiKey: string;
@@ -8,6 +9,9 @@ type StorageData = {
   imagionUserTier: string;
   imagionMonthlyDetections: number;
   imagionTotalDetections: number;
+  imagionDailyDetections: number;
+  imagionMonthlyLimit: number | null;
+  imagionDailyLimit: number | null;
 };
 
 type AuthResponse = {
@@ -22,6 +26,17 @@ type AuthResponse = {
   };
   apiKey?: string;
   error?: string;
+};
+
+type UsageStatusPayload = {
+  tier: string;
+  dailyUsed: number;
+  monthlyUsed: number;
+  dailyLimit: number | null;
+  monthlyLimit: number | null;
+  totalDetections: number;
+  monthlyResetAt: string;
+  dailyResetAt: string;
 };
 
 const DEFAULT_ENDPOINT = "http://localhost:3000";
@@ -46,6 +61,8 @@ const userEmail = document.getElementById("user-email") as HTMLDivElement;
 const userTier = document.getElementById("user-tier") as HTMLDivElement;
 const monthlyDetections = document.getElementById("monthly-detections") as HTMLDivElement;
 const totalDetections = document.getElementById("total-detections") as HTMLDivElement;
+const monthlyLimit = document.getElementById("monthly-limit") as HTMLDivElement;
+const dailyLimit = document.getElementById("daily-limit") as HTMLDivElement;
 const apiKeyDisplay = document.getElementById("api-key-display") as HTMLDivElement;
 const copyApiKeyBtn = document.getElementById("copy-api-key") as HTMLButtonElement;
 const badgeToggle = document.getElementById("badge-toggle") as HTMLInputElement;
@@ -98,6 +115,13 @@ function maskApiKey(key: string): string {
   return `${key.substring(0, 12)}...${key.substring(key.length - 4)}`;
 }
 
+function formatLimit(value: number | null | undefined): string {
+  if (value == null) {
+    return "∞";
+  }
+  return value.toLocaleString();
+}
+
 async function getStorage(): Promise<Partial<StorageData>> {
   return new Promise((resolve) => {
     chrome.storage.local.get(
@@ -109,6 +133,9 @@ async function getStorage(): Promise<Partial<StorageData>> {
         imagionUserTier: "",
         imagionMonthlyDetections: 0,
         imagionTotalDetections: 0,
+        imagionDailyDetections: 0,
+        imagionMonthlyLimit: null,
+        imagionDailyLimit: null,
       },
       (items) => resolve(items as StorageData)
     );
@@ -142,10 +169,45 @@ async function checkAuthStatus() {
     currentApiKey = storage.imagionApiKey;
     displayAuthenticatedView(storage);
     showView("authenticated");
+    void refreshUsageStatus();
   } else {
     console.info(LOG_PREFIX, "User is not authenticated");
     showView("login");
   }
+}
+
+async function refreshUsageStatus() {
+  if (!currentApiKey) {
+    return;
+  }
+
+  return new Promise<void>((resolve) => {
+    chrome.runtime.sendMessage({ type: USAGE_STATUS_MESSAGE }, async (response) => {
+      if (chrome.runtime.lastError) {
+        console.warn(LOG_PREFIX, "Usage status unavailable:", chrome.runtime.lastError.message);
+        resolve();
+        return;
+      }
+
+      if (!response?.success || !response?.usage) {
+        resolve();
+        return;
+      }
+
+      const usage = response.usage as UsageStatusPayload;
+      await setStorage({
+        imagionMonthlyDetections: usage.monthlyUsed,
+        imagionDailyDetections: usage.dailyUsed,
+        imagionMonthlyLimit: usage.monthlyLimit,
+        imagionDailyLimit: usage.dailyLimit,
+        imagionTotalDetections: usage.totalDetections,
+      });
+
+      const updated = await getStorage();
+      displayAuthenticatedView(updated);
+      resolve();
+    });
+  });
 }
 
 function displayAuthenticatedView(storage: Partial<StorageData>) {
@@ -153,6 +215,8 @@ function displayAuthenticatedView(storage: Partial<StorageData>) {
   userTier.textContent = storage.imagionUserTier || "FREE";
   monthlyDetections.textContent = String(storage.imagionMonthlyDetections || 0);
   totalDetections.textContent = String(storage.imagionTotalDetections || 0);
+  monthlyLimit.textContent = formatLimit(storage.imagionMonthlyLimit);
+  dailyLimit.textContent = formatLimit(storage.imagionDailyLimit);
   apiKeyDisplay.textContent = maskApiKey(storage.imagionApiKey || "");
   badgeToggle.checked = storage.imagionBadgeEnabled !== false;
 
@@ -235,6 +299,7 @@ async function handleLogin(e: Event) {
     const storage = await getStorage();
     displayAuthenticatedView(storage);
     showView("authenticated");
+    void refreshUsageStatus();
   } catch (error) {
     console.error(LOG_PREFIX, "Login error:", error);
     showStatus(
@@ -255,6 +320,9 @@ async function handleLogout() {
     imagionUserTier: "",
     imagionMonthlyDetections: 0,
     imagionTotalDetections: 0,
+    imagionDailyDetections: 0,
+    imagionMonthlyLimit: null,
+    imagionDailyLimit: null,
   });
 
   currentApiKey = "";

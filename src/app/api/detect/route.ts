@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import type { Prisma, User } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeImagePipeline } from "@/src/lib/pipeline/analyzeImagePipeline";
 import { scoreFromConfidence } from "@/src/lib/scoreUtils";
@@ -10,6 +10,7 @@ import { authenticateRequest, checkRateLimit as checkDailyRateLimit } from "@/sr
 import { prisma } from "@/src/lib/prisma";
 import { getVerdictPresentation } from "@/src/lib/verdictUi";
 import { getBurstRateLimitConfig, resolveUserTier } from "@/src/lib/tierConfig";
+import { getRateLimits } from "@/src/lib/features";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,7 @@ const SUPPORTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", 
 
 const BADGE_LABEL_UPGRADE = "Upgrade";
 const BADGE_LABEL_REACHED_MAX = "Reached max";
+const BADGE_LABEL_PLAN_LIMIT = "Plan limit reached";
 
 async function logUsage({
   userId,
@@ -54,6 +56,7 @@ export async function POST(request: NextRequest) {
   const userAgent = request.headers.get("user-agent") || "";
   const user = await authenticateRequest(request);
   const userId = user?.id ?? null;
+  const now = new Date();
 
   const dailyAllowed = await checkDailyRateLimit(user, clientIP);
   if (!dailyAllowed) {
@@ -75,6 +78,62 @@ export async function POST(request: NextRequest) {
       retryAfter: Math.max(0, Math.ceil((reset.getTime() - Date.now()) / 1000)),
       badgeLabel: BADGE_LABEL_UPGRADE,
     }, { status: 429 });
+  }
+
+  if (user) {
+    const tierLimits = getRateLimits(resolveUserTier(user.tier));
+    const monthlyLimit = tierLimits.monthly;
+    if (Number.isFinite(monthlyLimit)) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthlyUsed = await prisma.detection.count({
+        where: { userId: user.id, createdAt: { gte: monthStart } },
+      });
+      if (monthlyUsed >= monthlyLimit) {
+        const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const retryAfterSeconds = Math.max(
+          0,
+          Math.ceil((nextMonthStart.getTime() - now.getTime()) / 1000)
+        );
+
+        await logServerEvent({
+          level: "Warn",
+          source: "Backend",
+          service: "Detect",
+          message: "Monthly plan limit exceeded",
+          additional: JSON.stringify({
+            ip: clientIP,
+            userId,
+            monthlyUsed,
+            monthlyLimit,
+          }),
+          request,
+        });
+        await logUsage({
+          userId,
+          ipAddress: clientIP,
+          userAgent,
+          statusCode: 429,
+          credited: false,
+        });
+
+        return NextResponse.json(
+          {
+            error: "Monthly plan limit exceeded",
+            errorType: "PLAN_LIMIT_EXCEEDED",
+            message:
+              "You have reached your monthly quota. Upgrade or wait until the billing cycle resets.",
+            retryAfter: retryAfterSeconds,
+            badgeLabel: BADGE_LABEL_PLAN_LIMIT,
+            monthlyLimit,
+            monthlyUsed,
+          },
+          {
+            status: 429,
+            headers: { "Retry-After": retryAfterSeconds.toString() },
+          }
+        );
+      }
+    }
   }
 
   const userTier = resolveUserTier(user?.tier);
