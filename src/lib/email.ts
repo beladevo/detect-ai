@@ -65,3 +65,45 @@ export async function sendVerificationEmail(options: SendVerificationEmailOption
 
   return verificationUrl
 }
+
+export interface SendPasswordResetEmailOptions {
+  email: string
+  token: string
+  firstName?: string | null
+}
+
+export async function sendPasswordResetEmail(options: SendPasswordResetEmailOptions): Promise<string> {
+  const { email, token, firstName } = options
+  const resetUrl = `${normalizedBaseUrl}/reset-password?token=${encodeURIComponent(token)}`
+  const subject = 'Reset your Imagion AI Detector password'
+  const displayName = firstName?.trim() || 'there'
+  const bodyText = `Hi ${displayName},\n\nUse the link below to choose a new password. The link expires in one hour:\n${resetUrl}\n\nIf you did not request a password reset, you can safely ignore this email.\n\nThanks,\nImagion AI`
+  const bodyHtml = `
+    <p>Hi ${displayName},</p>
+    <p>Use the link below to choose a new password. The link expires in one hour:</p>
+    <p><a href="${resetUrl}">Reset my password</a></p>
+    <p>If you did not request a password reset, you can safely ignore this email.</p>
+    <p>Thanks,<br/>Imagion AI</p>
+  `
+
+  if (!hasSmtpConfig) {
+    console.info('SMTP not configured; reset link:', resetUrl)
+    return resetUrl
+  }
+
+  const transporter = getTransporter()
+  if (!transporter) {
+    console.info('SMTP transporter could not be created; reset link:', resetUrl)
+    return resetUrl
+  }
+
+  await transporter.sendMail({
+    from: env.EMAIL_FROM,
+    to: email,
+    subject,
+    text: bodyText,
+    html: bodyHtml,
+  })
+
+  return resetUrl
+}

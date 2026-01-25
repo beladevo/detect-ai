@@ -29,6 +29,7 @@ type BadgeResponse = {
   imageUrl?: string;
   retryAfterSeconds?: number;
   badgeLabel?: string;
+  hash?: string;
 };
 
 type ContentLocaleStrings = {
@@ -97,6 +98,7 @@ const badgeStyle = `
   border: none !important;
   text-decoration: none !important;
   line-height: 1.2 !important;
+  z-index: 10000 !important;
 }
 .imagion-badge__logo {
   width: 14px !important;
@@ -130,6 +132,118 @@ const badgeStyle = `
 .imagion-badge--missing-key {
   background: rgba(255, 193, 7, 0.95) !important;
   color: #1a1a1a !important;
+}
+
+/* Hover Card Styles - MagicUI inspired */
+.imagion-hover-card {
+  position: absolute !important;
+  top: 100% !important;
+  right: 0 !important;
+  margin-top: 8px !important;
+  min-width: 220px !important;
+  max-width: 280px !important;
+  padding: 12px 14px !important;
+  background: rgba(15, 15, 20, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) inset !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  color: #fff !important;
+  z-index: 10001 !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transform: translateY(-4px) !important;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s !important;
+  pointer-events: none !important;
+}
+.imagion-badge:hover .imagion-hover-card {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translateY(0) !important;
+  pointer-events: auto !important;
+}
+.imagion-hover-card__header {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-bottom: 10px !important;
+  padding-bottom: 8px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+.imagion-hover-card__verdict {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+.imagion-hover-card__verdict--ai {
+  color: #ff6b7a !important;
+}
+.imagion-hover-card__verdict--real {
+  color: #6bff8e !important;
+}
+.imagion-hover-card__verdict--error {
+  color: #ffaa6b !important;
+}
+.imagion-hover-card__row {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-bottom: 6px !important;
+  font-size: 12px !important;
+}
+.imagion-hover-card__label {
+  color: rgba(255, 255, 255, 0.6) !important;
+  font-weight: 400 !important;
+}
+.imagion-hover-card__value {
+  color: #fff !important;
+  font-weight: 500 !important;
+}
+.imagion-hover-card__bar {
+  height: 4px !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 2px !important;
+  overflow: hidden !important;
+  margin-top: 4px !important;
+  margin-bottom: 8px !important;
+}
+.imagion-hover-card__bar-fill {
+  height: 100% !important;
+  border-radius: 2px !important;
+  transition: width 0.3s ease !important;
+}
+.imagion-hover-card__bar-fill--ai {
+  background: linear-gradient(90deg, #ff6b7a, #ff4d67) !important;
+}
+.imagion-hover-card__bar-fill--real {
+  background: linear-gradient(90deg, #6bff8e, #28a745) !important;
+}
+.imagion-hover-card__hash {
+  margin-top: 10px !important;
+  padding-top: 8px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+  font-size: 9px !important;
+  color: rgba(255, 255, 255, 0.35) !important;
+  font-family: "SF Mono", Monaco, "Cascadia Code", monospace !important;
+  word-break: break-all !important;
+  line-height: 1.4 !important;
+}
+.imagion-hover-card__hash-label {
+  color: rgba(255, 255, 255, 0.5) !important;
+  font-size: 9px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  margin-bottom: 2px !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+.imagion-hover-card__message {
+  font-size: 11px !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  line-height: 1.4 !important;
+  margin-top: 6px !important;
 }
 `;
 
@@ -350,8 +464,17 @@ function updateBadgeFromResponse(badge: HTMLDivElement, response: BadgeResponse)
     "imagion-badge--missing-key"
   );
 
-  if (response.status === "success" && response.verdict) {
-    const verdict = response.verdict.toLowerCase();
+  // Remove existing hover card if any
+  const existingCard = badge.querySelector(".imagion-hover-card");
+  if (existingCard) {
+    existingCard.remove();
+  }
+
+  // Handle success: either explicit status="success" OR has a verdict (for cached responses without status)
+  const isSuccess = (response.status === "success" || response.status === undefined) && response.verdict;
+
+  if (isSuccess) {
+    const verdict = response.verdict!.toLowerCase();
     if (verdict === "ai" || verdict === "fake" || verdict === "ai_generated" || verdict === "likely_ai") {
       badge.classList.add("imagion-badge--ai");
       label.textContent = localized.aiLabel;
@@ -361,49 +484,115 @@ function updateBadgeFromResponse(badge: HTMLDivElement, response: BadgeResponse)
       label.textContent = localized.realLabel;
       updateBadgeAria(badge, localized.realLabel);
     }
-    badge.title = createTooltip(response);
     badge.dataset.requestState = "success";
   } else if (response.status === "missing-key") {
     badge.classList.add("imagion-badge--missing-key");
     label.textContent = localized.loginLabel;
     updateBadgeAria(badge, localized.loginLabel);
-    badge.title = response.message || "Click the Imagion icon to sign in.";
     badge.dataset.requestState = "key-required";
   } else if (response.status === "rate-limit") {
     const rateLimitLabel = response.badgeLabel ?? localized.rateLimitLabel;
     badge.classList.add("imagion-badge--error");
     label.textContent = rateLimitLabel;
     updateBadgeAria(badge, rateLimitLabel);
-    badge.title = response.message || localized.disabledHostMessage;
     badge.dataset.requestState = "rate-limit";
   } else {
+    console.error(LOG_PREFIX, `Badge error for ${response.badgeId}:`, {
+      status: response.status,
+      verdict: response.verdict,
+      message: response.message,
+      imageUrl: response.imageUrl,
+      fullResponse: response,
+    });
     badge.classList.add("imagion-badge--error");
     label.textContent = localized.errorLabel;
     updateBadgeAria(badge, localized.errorLabel);
-    badge.title = response.message || "Detection failed.";
     badge.dataset.requestState = "error";
   }
+
+  // Add hover card with details
+  badge.title = ""; // Clear native tooltip
+  const hoverCard = createHoverCard(response);
+  badge.appendChild(hoverCard);
 }
 
 function updateBadgeAria(badge: HTMLDivElement, text: string) {
   badge.setAttribute("aria-label", `${localized.badgePrefix}: ${text}`);
 }
 
-function createTooltip(response: BadgeResponse) {
-  const parts: string[] = [];
-  if (response.verdict) {
-    parts.push(`Verdict: ${response.verdict}`);
+function createHoverCard(response: BadgeResponse): HTMLDivElement {
+  const card = document.createElement("div");
+  card.className = "imagion-hover-card";
+
+  const verdict = response.verdict?.toLowerCase() || "";
+  const isAI = verdict === "ai" || verdict === "fake" || verdict === "ai_generated" || verdict === "likely_ai";
+  // Handle success: either explicit status="success" OR has a verdict (for cached responses without status)
+  const isSuccess = (response.status === "success" || response.status === undefined) && response.verdict;
+
+  let html = "";
+
+  // Header with verdict
+  if (isSuccess) {
+    const verdictClass = isAI ? "imagion-hover-card__verdict--ai" : "imagion-hover-card__verdict--real";
+    const verdictLabel = isAI ? "AI Generated" : "Real Image";
+    html += `<div class="imagion-hover-card__header">
+      <span class="imagion-hover-card__verdict ${verdictClass}">${verdictLabel}</span>
+    </div>`;
+  } else if (response.status === "error" || response.status === "rate-limit") {
+    html += `<div class="imagion-hover-card__header">
+      <span class="imagion-hover-card__verdict imagion-hover-card__verdict--error">${response.status === "rate-limit" ? "Rate Limited" : "Error"}</span>
+    </div>`;
   }
-  if (response.score != null) {
-    parts.push(`Score: ${(Number(response.score) * 100).toFixed(0)}%`);
+
+  // Score bar (only show for success)
+  if (response.score != null && isSuccess) {
+    const rawScore = Number(response.score);
+    // Handle both 0-1 range and 0-100 range
+    const scorePercent = rawScore > 1 ? Math.round(rawScore) : Math.round(rawScore * 100);
+    const barClass = isAI ? "imagion-hover-card__bar-fill--ai" : "imagion-hover-card__bar-fill--real";
+    html += `<div class="imagion-hover-card__row">
+      <span class="imagion-hover-card__label">AI Score</span>
+      <span class="imagion-hover-card__value">${scorePercent}%</span>
+    </div>
+    <div class="imagion-hover-card__bar">
+      <div class="imagion-hover-card__bar-fill ${barClass}" style="width: ${Math.min(scorePercent, 100)}%"></div>
+    </div>`;
   }
-  if (response.confidence != null) {
-    parts.push(`Confidence: ${(Number(response.confidence) * 100).toFixed(0)}%`);
+
+  // Confidence (only show for success)
+  if (response.confidence != null && isSuccess) {
+    const rawConfidence = Number(response.confidence);
+    // Handle both 0-1 range and 0-100 range
+    const confidencePercent = rawConfidence > 1 ? Math.round(rawConfidence) : Math.round(rawConfidence * 100);
+    html += `<div class="imagion-hover-card__row">
+      <span class="imagion-hover-card__label">Confidence</span>
+      <span class="imagion-hover-card__value">${confidencePercent}%</span>
+    </div>`;
   }
-  if (response.presentation) {
-    parts.push(response.presentation);
+
+  // Message (for errors) - always show for non-success states
+  if (!isSuccess) {
+    const errorMessage = response.message || "Detection failed. Please try again.";
+    html += `<div class="imagion-hover-card__message">${escapeHtml(errorMessage)}</div>`;
   }
-  return parts.length ? parts.join("\n") : localized.tooltipFallback;
+
+  // Hash
+  if (response.hash) {
+    const shortHash = response.hash.substring(0, 16) + "..." + response.hash.substring(response.hash.length - 8);
+    html += `<div class="imagion-hover-card__hash">
+      <div class="imagion-hover-card__hash-label">SHA-256</div>
+      ${shortHash}
+    </div>`;
+  }
+
+  card.innerHTML = html;
+  return card;
+}
+
+function escapeHtml(text: string): string {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 function removeAllBadges() {

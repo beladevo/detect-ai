@@ -85,3 +85,13 @@ export function getRateLimits(tier: UserTier) {
     concurrent: tierConfig.concurrent,
   }
 }
+
+// Always returns the actual tier limits for display purposes (ignores GLOBAL_PREMIUM_ENABLED)
+export function getTierLimitsForDisplay(tier: UserTier) {
+  const tierConfig = TIER_RATE_LIMITS[tier]
+  return {
+    daily: tierConfig.daily,
+    monthly: tierConfig.monthly,
+    concurrent: tierConfig.concurrent,
+  }
+}

@@ -41,6 +41,7 @@ type HashHistoryEntry = {
 type DetectionResponse = DetectionResponsePayload & {
   badgeId: string;
   imageUrl: string;
+  hash?: string;
 };
 
 type PendingResolver = {
@@ -273,15 +274,21 @@ async function runDetection(imageUrl: string) {
     blob = await fetchImageBytes(imageUrl);
     console.debug(LOG_PREFIX, "Image fetched, size:", blob.size, "bytes");
   } catch (error) {
-    console.error(LOG_PREFIX, "Failed to fetch image:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(LOG_PREFIX, "Failed to fetch image:", {
+      imageUrl,
+      error: errorMessage,
+      errorType: error instanceof Error ? error.name : typeof error,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     recordTelemetry({
       level: "error",
       message: "fetch_image_failed",
-      details: { imageUrl, error: error instanceof Error ? error.message : String(error) },
+      details: { imageUrl, error: errorMessage },
     });
     dispatchResponse(imageUrl, {
       status: "error",
-      message: error instanceof Error ? error.message : "Unable to fetch the image.",
+      message: `Failed to fetch image: ${errorMessage}`,
     });
     return;
   }
@@ -301,8 +308,10 @@ async function runDetection(imageUrl: string) {
         message: "local_history_hit",
         details: { imageUrl, hash: imageHash },
       });
-      cache.set(imageUrl, { timestamp: Date.now(), payload: historyEntry.payload });
-      dispatchResponse(imageUrl, historyEntry.payload);
+      // Ensure status is set for cached responses
+      const payload = { ...historyEntry.payload, status: historyEntry.payload.status || "success" as const };
+      cache.set(imageUrl, { timestamp: Date.now(), payload });
+      dispatchResponse(imageUrl, payload, imageHash);
       return;
     }
   }
@@ -316,9 +325,11 @@ async function runDetection(imageUrl: string) {
         message: "remote_cache_hit",
         details: { imageUrl, hash: imageHash },
       });
-      cache.set(imageUrl, { timestamp: Date.now(), payload: remotePayload });
-      void recordHashHistory(imageHash, remotePayload);
-      dispatchResponse(imageUrl, remotePayload);
+      // Ensure status is set for cached responses
+      const payload = { ...remotePayload, status: remotePayload.status || "success" as const };
+      cache.set(imageUrl, { timestamp: Date.now(), payload });
+      void recordHashHistory(imageHash, payload);
+      dispatchResponse(imageUrl, payload, imageHash);
       return;
     }
   }
@@ -341,16 +352,23 @@ async function runDetection(imageUrl: string) {
     });
     console.debug(LOG_PREFIX, "API response status:", response.status);
   } catch (error) {
-    console.error(LOG_PREFIX, "API request failed:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(LOG_PREFIX, "API request failed:", {
+      imageUrl,
+      endpoint: imagionDetectionEndpoint,
+      error: errorMessage,
+      errorType: error instanceof Error ? error.name : typeof error,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     recordTelemetry({
       level: "error",
       message: "detection_request_failed",
-      details: { imageUrl, error: error instanceof Error ? error.message : String(error) },
+      details: { imageUrl, error: errorMessage },
     });
     dispatchResponse(imageUrl, {
       status: "error",
-      message: error instanceof Error ? error.message : "Detection request failed.",
-    });
+      message: `API request failed: ${errorMessage}`,
+    }, imageHash ?? undefined);
     return;
   }
 
@@ -359,16 +377,23 @@ async function runDetection(imageUrl: string) {
     payload = await response.json();
     console.debug(LOG_PREFIX, "API response payload:", payload);
   } catch (error) {
-    console.error(LOG_PREFIX, "Failed to parse JSON:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(LOG_PREFIX, "Failed to parse API response JSON:", {
+      imageUrl,
+      status: response.status,
+      statusText: response.statusText,
+      contentType: response.headers.get("content-type"),
+      error: errorMessage,
+    });
     recordTelemetry({
       level: "error",
       message: "invalid_json",
-      details: { imageUrl, error: error instanceof Error ? error.message : String(error) },
+      details: { imageUrl, status: response.status, error: errorMessage },
     });
     dispatchResponse(imageUrl, {
       status: "error",
-      message: error instanceof Error ? error.message : "Unable to parse detection response.",
-    });
+      message: `Failed to parse response (status ${response.status}): ${errorMessage}`,
+    }, imageHash ?? undefined);
     return;
   }
 
@@ -405,22 +430,29 @@ async function runDetection(imageUrl: string) {
       retryAfterSeconds: effectiveRetryAfter,
       badgeLabel: rateLimitBody.badgeLabel,
       errorType: rateLimitBody.errorType,
-    });
+    }, imageHash ?? undefined);
     return;
   }
 
   if (!response.ok) {
-    const message = (payload as { message?: string })?.message || "Detection failed";
-    console.error(LOG_PREFIX, "API error:", response.status, message);
+    const errorBody = payload as { message?: string; error?: string; details?: unknown };
+    const message = errorBody.message || errorBody.error || "Detection failed";
+    console.error(LOG_PREFIX, "API error response:", {
+      status: response.status,
+      statusText: response.statusText,
+      message,
+      imageUrl,
+      fullResponse: errorBody,
+    });
     recordTelemetry({
       level: "error",
       message: "detection_error",
-      details: { imageUrl, responseStatus: response.status, message },
+      details: { imageUrl, responseStatus: response.status, message, fullResponse: errorBody },
     });
     dispatchResponse(imageUrl, {
       status: "error",
       message,
-    });
+    }, imageHash ?? undefined);
     return;
   }
 
@@ -429,7 +461,30 @@ async function runDetection(imageUrl: string) {
     score?: number;
     confidence?: number;
     presentation?: string;
+    message?: string;
+    error?: string;
   };
+
+  // If no verdict, treat as error
+  if (!structuredPayload.verdict) {
+    const errorMessage = structuredPayload.message || structuredPayload.error || "API returned no verdict. The image may be unsupported or corrupted.";
+    console.error(LOG_PREFIX, "API returned success but no verdict:", {
+      imageUrl,
+      responseStatus: response.status,
+      payload: structuredPayload,
+      rawPayload: payload,
+    });
+    recordTelemetry({
+      level: "error",
+      message: "no_verdict_returned",
+      details: { imageUrl, responseStatus: response.status, rawPayload: payload },
+    });
+    dispatchResponse(imageUrl, {
+      status: "error",
+      message: errorMessage,
+    }, imageHash ?? undefined);
+    return;
+  }
 
   const successPayload: DetectionResponsePayload = {
     status: "success",
@@ -450,7 +505,7 @@ async function runDetection(imageUrl: string) {
   if (imageHash) {
     void recordHashHistory(imageHash, successPayload);
   }
-  dispatchResponse(imageUrl, successPayload);
+  dispatchResponse(imageUrl, successPayload, imageHash ?? undefined);
 }
 
 async function fetchImageBytes(url: string): Promise<Blob> {
@@ -482,14 +537,14 @@ function extractFileName(url: string): string {
   }
 }
 
-function dispatchResponse(imageUrl: string, payload: DetectionResponsePayload) {
+function dispatchResponse(imageUrl: string, payload: DetectionResponsePayload, hash?: string) {
   const entry = pendingRequests.get(imageUrl);
   if (!entry) {
     return;
   }
   console.debug(LOG_PREFIX, "Dispatching response to", entry.resolvers.length, "resolver(s)");
   entry.resolvers.forEach(({ badgeId, sendResponse }) => {
-    sendResponse({ ...payload, badgeId, imageUrl });
+    sendResponse({ ...payload, badgeId, imageUrl, hash });
   });
   pendingRequests.delete(imageUrl);
 }

@@ -493,8 +493,18 @@ function shouldUseApiOnly(): boolean {
   } catch {
     // ignore
   }
-  
+
   return env.USE_API_ONLY;
+}
+
+/**
+ * Predicts whether a file will be processed locally or via API.
+ * Used to show the appropriate UI before analysis starts.
+ */
+export function predictProcessingMode(file: File): "local" | "server" {
+  if (shouldUseApiOnly()) return "server";
+  if (isHeicLike(file)) return "server";
+  return "local";
 }
 
 function isHeicLike(file: File): boolean {

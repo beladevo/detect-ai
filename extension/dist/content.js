@@ -1,4 +1,4 @@
-(function(){"use strict";const o="[Imagion Content]",b="imagion-badge-style",M=["localhost","127.0.0.1","imagion.ai","www.imagion.ai"],s=new Map;let R=0,c=!1,d=!1;const m={enabled:!0},h={en:{aiLabel:"AI",realLabel:"Real",errorLabel:"Error",loginLabel:"Log in",badgePrefix:"Imagion badge",tooltipFallback:"Imagion verdict",rateLimitLabel:"Rate limited",disabledHostMessage:"Badges paused on this host."},es:{aiLabel:"IA",realLabel:"Real",errorLabel:"Error",loginLabel:"Iniciar sesión",badgePrefix:"Insignia Imagion",tooltipFallback:"Veredicto de Imagion",rateLimitLabel:"Límite de velocidad",disabledHostMessage:"Insignias pausadas en este host."}},w=navigator.language.split("-")[0],i=h[w]??h.en,B=`
+(function(){"use strict";const r="[Imagion Content]",_="imagion-badge-style",R=["localhost","127.0.0.1","imagion.ai","www.imagion.ai"],d=new Map;let z=0,g=!1,p=!1;const u={enabled:!0},x={en:{aiLabel:"AI",realLabel:"Real",errorLabel:"Error",loginLabel:"Log in",badgePrefix:"Imagion badge",tooltipFallback:"Imagion verdict",rateLimitLabel:"Rate limited",disabledHostMessage:"Badges paused on this host."},es:{aiLabel:"IA",realLabel:"Real",errorLabel:"Error",loginLabel:"Iniciar sesión",badgePrefix:"Insignia Imagion",tooltipFallback:"Veredicto de Imagion",rateLimitLabel:"Límite de velocidad",disabledHostMessage:"Insignias pausadas en este host."}},w=navigator.language.split("-")[0],s=x[w]??x.en,B=`
 .imagion-wrapper {
   position: relative !important;
   display: inline-block !important;
@@ -27,6 +27,7 @@
   border: none !important;
   text-decoration: none !important;
   line-height: 1.2 !important;
+  z-index: 10000 !important;
 }
 .imagion-badge__logo {
   width: 14px !important;
@@ -61,6 +62,133 @@
   background: rgba(255, 193, 7, 0.95) !important;
   color: #1a1a1a !important;
 }
-`;function D(){if(document.getElementById(b))return;const e=document.createElement("style");e.id=b,e.textContent=B,(document.head||document.documentElement).appendChild(e),console.log(o,"Badge styles injected")}function g(){c||(c=!0,requestAnimationFrame(()=>{c=!1,z()}))}function L(){d||(d=!0,requestAnimationFrame(()=>{d=!1,E()}))}function z(){for(const[e,t]of s)e.isConnected||(I(e,t),s.delete(e))}function I(e,t){const{badge:n,wrapper:a}=t;n.remove(),a.parentNode&&(a.parentNode.insertBefore(e,a),a.remove())}function S(e){const t=e.toLowerCase();return M.some(n=>t===n||t.endsWith(`.${n}`))}function y(){return!m.enabled||k(window.location.hostname)||S(window.location.hostname)}function E(){if(y()){console.log(o,"Scanning skipped (disabled or host blocked)"),p();return}const e=Array.from(document.images),t=e.filter(n=>q(n));t.length>0&&console.log(o,`Found ${t.length} new images to track (total on page: ${e.length})`);for(const n of t)$(n)}function q(e){if(s.has(e)||s.size>=200||!e.src||e.src.startsWith("data:"))return!1;const t=e.getBoundingClientRect();return!(t.width<50||t.height<50||t.width===0||t.height===0)}function $(e){const t=document.createElement("div");t.className="imagion-badge imagion-badge--pending",t.setAttribute("role","status"),t.setAttribute("lang",w),t.innerHTML='<span class="imagion-badge__logo">I</span><span class="imagion-badge__label">...</span>',l(t,"Analyzing"),t.dataset.requestState="pending";const n=`imagion-${++R}`;t.dataset.requestId=n;const a=document.createElement("span");a.className="imagion-wrapper";const r=window.getComputedStyle(e).zIndex;r&&r!=="auto"&&(a.style.zIndex=r);const _=e.parentNode;_&&(_.insertBefore(a,e),a.appendChild(e),a.appendChild(t)),s.set(e,{badge:t,wrapper:a}),N(e,t,n)}function N(e,t,n){const a=e.currentSrc||e.src;if(!a||a.startsWith("data:")){console.log(o,`Skipping data URI for ${n}`),u(t,{status:"error",message:"Unable to analyze data URI.",badgeId:n});return}console.log(o,`Requesting detection for ${n}:`,a.substring(0,100));const C={type:"REQUEST_DETECTION",imageUrl:a,badgeId:n,pageUrl:window.location.href};H(C).then(r=>{console.log(o,`Response for ${n}:`,r.status,r.verdict||r.message),u(t,r)}).catch(r=>{console.error(o,`Error for ${n}:`,r),u(t,{status:"error",message:r?.message||"Detection request failed.",badgeId:n})})}function H(e){return new Promise(t=>{chrome.runtime.sendMessage(e,n=>{if(chrome.runtime.lastError){console.error(o,"Runtime error:",chrome.runtime.lastError.message),t({status:"error",message:chrome.runtime.lastError.message,badgeId:e.badgeId});return}t(n)})})}function u(e,t){if(!e||!t||e.dataset.requestId!==t.badgeId)return;const n=e.querySelector(".imagion-badge__label");if(n)if(e.classList.remove("imagion-badge--pending","imagion-badge--ai","imagion-badge--real","imagion-badge--error","imagion-badge--missing-key"),t.status==="success"&&t.verdict){const a=t.verdict.toLowerCase();a==="ai"||a==="fake"||a==="ai_generated"||a==="likely_ai"?(e.classList.add("imagion-badge--ai"),n.textContent=i.aiLabel,l(e,i.aiLabel)):(e.classList.add("imagion-badge--real"),n.textContent=i.realLabel,l(e,i.realLabel)),e.title=T(t),e.dataset.requestState="success"}else if(t.status==="missing-key")e.classList.add("imagion-badge--missing-key"),n.textContent=i.loginLabel,l(e,i.loginLabel),e.title=t.message||"Click the Imagion icon to sign in.",e.dataset.requestState="key-required";else if(t.status==="rate-limit"){const a=t.badgeLabel??i.rateLimitLabel;e.classList.add("imagion-badge--error"),n.textContent=a,l(e,a),e.title=t.message||i.disabledHostMessage,e.dataset.requestState="rate-limit"}else e.classList.add("imagion-badge--error"),n.textContent=i.errorLabel,l(e,i.errorLabel),e.title=t.message||"Detection failed.",e.dataset.requestState="error"}function l(e,t){e.setAttribute("aria-label",`${i.badgePrefix}: ${t}`)}function T(e){const t=[];return e.verdict&&t.push(`Verdict: ${e.verdict}`),e.score!=null&&t.push(`Score: ${(Number(e.score)*100).toFixed(0)}%`),e.confidence!=null&&t.push(`Confidence: ${(Number(e.confidence)*100).toFixed(0)}%`),e.presentation&&t.push(e.presentation),t.length?t.join(`
-`):i.tooltipFallback}function p(){const e=s.size;for(const[t,n]of s)I(t,n);s.clear(),e>0&&console.log(o,`Removed ${e} badges`)}function F(e){const n=(Array.isArray(e.imagionDisabledHosts)?e.imagionDisabledHosts:[]).map(a=>x(a)).filter(a=>!!a);f=new Set(n),n.length>0&&console.log(o,"Disabled hosts:",n)}function x(e){const t=e.trim();if(!t)return null;try{return(t.includes("://")?new URL(t):new URL(`https://${t}`)).hostname.toLowerCase()}catch{return t.toLowerCase()}}function k(e){const t=x(e);if(!t)return!1;const n=t.startsWith("www.")?t.slice(4):t;return f.has(t)||f.has(n)}let f=new Set;function v(){chrome.storage.local.get({imagionBadgeEnabled:!0,imagionDisabledHosts:[]},e=>{const t=e.imagionBadgeEnabled!==!1;if(m.enabled=t,F(e),console.log(o,"Settings synced:",{enabled:t,hostBlocked:k(window.location.hostname)}),y()){p();return}m.enabled?L():p()})}function A(){if(console.log(o,"Initializing on",window.location.hostname),S(window.location.hostname)){console.log(o,"Skipping on excluded domain:",window.location.hostname);return}D(),v(),setTimeout(()=>{E(),g()},500);const e=document.documentElement||document.body;e&&(new MutationObserver(()=>L()).observe(e,{childList:!0,subtree:!0}),console.log(o,"MutationObserver attached")),window.addEventListener("scroll",g,{passive:!0}),window.addEventListener("resize",g),chrome.storage.onChanged.addListener(v),console.log(o,"Initialization complete")}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",A):A()})();
+
+/* Hover Card Styles - MagicUI inspired */
+.imagion-hover-card {
+  position: absolute !important;
+  top: 100% !important;
+  right: 0 !important;
+  margin-top: 8px !important;
+  min-width: 220px !important;
+  max-width: 280px !important;
+  padding: 12px 14px !important;
+  background: rgba(15, 15, 20, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) inset !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  color: #fff !important;
+  z-index: 10001 !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transform: translateY(-4px) !important;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s !important;
+  pointer-events: none !important;
+}
+.imagion-badge:hover .imagion-hover-card {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translateY(0) !important;
+  pointer-events: auto !important;
+}
+.imagion-hover-card__header {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-bottom: 10px !important;
+  padding-bottom: 8px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+.imagion-hover-card__verdict {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+.imagion-hover-card__verdict--ai {
+  color: #ff6b7a !important;
+}
+.imagion-hover-card__verdict--real {
+  color: #6bff8e !important;
+}
+.imagion-hover-card__verdict--error {
+  color: #ffaa6b !important;
+}
+.imagion-hover-card__row {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-bottom: 6px !important;
+  font-size: 12px !important;
+}
+.imagion-hover-card__label {
+  color: rgba(255, 255, 255, 0.6) !important;
+  font-weight: 400 !important;
+}
+.imagion-hover-card__value {
+  color: #fff !important;
+  font-weight: 500 !important;
+}
+.imagion-hover-card__bar {
+  height: 4px !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 2px !important;
+  overflow: hidden !important;
+  margin-top: 4px !important;
+  margin-bottom: 8px !important;
+}
+.imagion-hover-card__bar-fill {
+  height: 100% !important;
+  border-radius: 2px !important;
+  transition: width 0.3s ease !important;
+}
+.imagion-hover-card__bar-fill--ai {
+  background: linear-gradient(90deg, #ff6b7a, #ff4d67) !important;
+}
+.imagion-hover-card__bar-fill--real {
+  background: linear-gradient(90deg, #6bff8e, #28a745) !important;
+}
+.imagion-hover-card__hash {
+  margin-top: 10px !important;
+  padding-top: 8px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+  font-size: 9px !important;
+  color: rgba(255, 255, 255, 0.35) !important;
+  font-family: "SF Mono", Monaco, "Cascadia Code", monospace !important;
+  word-break: break-all !important;
+  line-height: 1.4 !important;
+}
+.imagion-hover-card__hash-label {
+  color: rgba(255, 255, 255, 0.5) !important;
+  font-size: 9px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  margin-bottom: 2px !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+.imagion-hover-card__message {
+  font-size: 11px !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  line-height: 1.4 !important;
+  margin-top: 6px !important;
+}
+`;function $(){if(document.getElementById(_))return;const t=document.createElement("style");t.id=_,t.textContent=B,(document.head||document.documentElement).appendChild(t),console.debug(r,"Badge styles injected")}function f(){g||(g=!0,requestAnimationFrame(()=>{g=!1,H()}))}function y(){p||(p=!0,requestAnimationFrame(()=>{p=!1,k()}))}function H(){for(const[t,e]of d)t.isConnected||(L(t,e),d.delete(t))}function L(t,e){const{badge:a,wrapper:i}=e;a.remove(),i.parentNode&&(i.parentNode.insertBefore(t,i),i.remove())}function S(t){const e=t.toLowerCase();return R.some(a=>e===a||e.endsWith(`.${a}`))}function I(){return!u.enabled||E(window.location.hostname)||S(window.location.hostname)}function k(){if(I()){console.debug(r,"Scanning skipped (disabled or host blocked)"),h();return}const t=Array.from(document.images),e=t.filter(a=>D(a));e.length>0&&console.debug(r,`Found ${e.length} new images to track (total on page: ${t.length})`);for(const a of e)q(a)}function D(t){if(d.has(t)||d.size>=200||!t.src||t.src.startsWith("data:"))return!1;const e=t.getBoundingClientRect();return!(e.width<50||e.height<50||e.width===0||e.height===0)}function q(t){const e=document.createElement("div");e.className="imagion-badge imagion-badge--pending",e.setAttribute("role","status"),e.setAttribute("lang",w),e.innerHTML='<span class="imagion-badge__logo">I</span><span class="imagion-badge__label">...</span>',l(e,"Analyzing"),e.dataset.requestState="pending";const a=`imagion-${++z}`;e.dataset.requestId=a;const i=document.createElement("span");i.className="imagion-wrapper";const n=window.getComputedStyle(t).zIndex;n&&n!=="auto"&&(i.style.zIndex=n);const o=t.parentNode;o&&(o.insertBefore(i,t),i.appendChild(t),i.appendChild(e)),d.set(t,{badge:e,wrapper:i}),U(t,e,a)}function U(t,e,a){const i=t.currentSrc||t.src;if(!i||i.startsWith("data:")){console.debug(r,`Skipping data URI for ${a}`),b(e,{status:"error",message:"Unable to analyze data URI.",badgeId:a});return}console.debug(r,`Requesting detection for ${a}:`,i.substring(0,100));const c={type:"REQUEST_DETECTION",imageUrl:i,badgeId:a,pageUrl:window.location.href};N(c).then(n=>{console.debug(r,`Response for ${a}:`,n.status,n.verdict||n.message),b(e,n)}).catch(n=>{console.error(r,`Error for ${a}:`,n),b(e,{status:"error",message:n?.message||"Detection request failed.",badgeId:a})})}function N(t){return new Promise(e=>{chrome.runtime.sendMessage(t,a=>{if(chrome.runtime.lastError){console.error(r,"Runtime error:",chrome.runtime.lastError.message),e({status:"error",message:chrome.runtime.lastError.message,badgeId:t.badgeId});return}e(a)})})}function b(t,e){if(!t||!e||t.dataset.requestId!==e.badgeId)return;const a=t.querySelector(".imagion-badge__label");if(!a)return;t.classList.remove("imagion-badge--pending","imagion-badge--ai","imagion-badge--real","imagion-badge--error","imagion-badge--missing-key");const i=t.querySelector(".imagion-hover-card");if(i&&i.remove(),(e.status==="success"||e.status===void 0)&&e.verdict){const o=e.verdict.toLowerCase();o==="ai"||o==="fake"||o==="ai_generated"||o==="likely_ai"?(t.classList.add("imagion-badge--ai"),a.textContent=s.aiLabel,l(t,s.aiLabel)):(t.classList.add("imagion-badge--real"),a.textContent=s.realLabel,l(t,s.realLabel)),t.dataset.requestState="success"}else if(e.status==="missing-key")t.classList.add("imagion-badge--missing-key"),a.textContent=s.loginLabel,l(t,s.loginLabel),t.dataset.requestState="key-required";else if(e.status==="rate-limit"){const o=e.badgeLabel??s.rateLimitLabel;t.classList.add("imagion-badge--error"),a.textContent=o,l(t,o),t.dataset.requestState="rate-limit"}else console.error(r,`Badge error for ${e.badgeId}:`,{status:e.status,verdict:e.verdict,message:e.message,imageUrl:e.imageUrl,fullResponse:e}),t.classList.add("imagion-badge--error"),a.textContent=s.errorLabel,l(t,s.errorLabel),t.dataset.requestState="error";t.title="";const n=T(e);t.appendChild(n)}function l(t,e){t.setAttribute("aria-label",`${s.badgePrefix}: ${e}`)}function T(t){const e=document.createElement("div");e.className="imagion-hover-card";const a=t.verdict?.toLowerCase()||"",i=a==="ai"||a==="fake"||a==="ai_generated"||a==="likely_ai",c=(t.status==="success"||t.status===void 0)&&t.verdict;let n="";if(c?n+=`<div class="imagion-hover-card__header">
+      <span class="imagion-hover-card__verdict ${i?"imagion-hover-card__verdict--ai":"imagion-hover-card__verdict--real"}">${i?"AI Generated":"Real Image"}</span>
+    </div>`:(t.status==="error"||t.status==="rate-limit")&&(n+=`<div class="imagion-hover-card__header">
+      <span class="imagion-hover-card__verdict imagion-hover-card__verdict--error">${t.status==="rate-limit"?"Rate Limited":"Error"}</span>
+    </div>`),t.score!=null&&c){const o=Number(t.score),m=o>1?Math.round(o):Math.round(o*100);n+=`<div class="imagion-hover-card__row">
+      <span class="imagion-hover-card__label">AI Score</span>
+      <span class="imagion-hover-card__value">${m}%</span>
+    </div>
+    <div class="imagion-hover-card__bar">
+      <div class="imagion-hover-card__bar-fill ${i?"imagion-hover-card__bar-fill--ai":"imagion-hover-card__bar-fill--real"}" style="width: ${Math.min(m,100)}%"></div>
+    </div>`}if(t.confidence!=null&&c){const o=Number(t.confidence),m=o>1?Math.round(o):Math.round(o*100);n+=`<div class="imagion-hover-card__row">
+      <span class="imagion-hover-card__label">Confidence</span>
+      <span class="imagion-hover-card__value">${m}%</span>
+    </div>`}if(!c){const o=t.message||"Detection failed. Please try again.";n+=`<div class="imagion-hover-card__message">${F(o)}</div>`}if(t.hash){const o=t.hash.substring(0,16)+"..."+t.hash.substring(t.hash.length-8);n+=`<div class="imagion-hover-card__hash">
+      <div class="imagion-hover-card__hash-label">SHA-256</div>
+      ${o}
+    </div>`}return e.innerHTML=n,e}function F(t){const e=document.createElement("div");return e.textContent=t,e.innerHTML}function h(){const t=d.size;for(const[e,a]of d)L(e,a);d.clear(),t>0&&console.debug(r,`Removed ${t} badges`)}function P(t){const a=(Array.isArray(t.imagionDisabledHosts)?t.imagionDisabledHosts:[]).map(i=>C(i)).filter(i=>!!i);v=new Set(a),a.length>0&&console.info(r,"Disabled hosts:",a)}function C(t){const e=t.trim();if(!e)return null;try{return(e.includes("://")?new URL(e):new URL(`https://${e}`)).hostname.toLowerCase()}catch{return e.toLowerCase()}}function E(t){const e=C(t);if(!e)return!1;const a=e.startsWith("www.")?e.slice(4):e;return v.has(e)||v.has(a)}let v=new Set;function M(){chrome.storage.local.get({imagionBadgeEnabled:!0,imagionDisabledHosts:[]},t=>{const e=t.imagionBadgeEnabled!==!1;if(u.enabled=e,P(t),console.info(r,"Settings synced:",{enabled:e,hostBlocked:E(window.location.hostname)}),I()){h();return}u.enabled?y():h()})}function A(){if(console.info(r,"Initializing on",window.location.hostname),S(window.location.hostname)){console.info(r,"Skipping on excluded domain:",window.location.hostname);return}$(),M(),setTimeout(()=>{k(),f()},500);const t=document.documentElement||document.body;t&&(new MutationObserver(()=>y()).observe(t,{childList:!0,subtree:!0}),console.debug(r,"MutationObserver attached")),window.addEventListener("scroll",f,{passive:!0}),window.addEventListener("resize",f),chrome.storage.onChanged.addListener(M),console.info(r,"Initialization complete")}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",A):A()})();
 //# sourceMappingURL=content.js.map

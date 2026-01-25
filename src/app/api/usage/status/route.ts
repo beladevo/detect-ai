@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/src/lib/auth/api";
 import { prisma } from "@/src/lib/prisma";
-import { getRateLimits } from "@/src/lib/features";
+import { getTierLimitsForDisplay } from "@/src/lib/features";
 import { resolveUserTier } from "@/src/lib/tierConfig";
 
 export const runtime = "nodejs";
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     nextDay.setDate(startOfToday.getDate() + 1);
     const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-    const limits = getRateLimits(resolveUserTier(user.tier));
+    const limits = getTierLimitsForDisplay(resolveUserTier(user.tier));
 
     return NextResponse.json({
       success: true,
