@@ -8,7 +8,7 @@ import GlowButton from "@/src/components/ui/GlowButton"
 import Modal from "@/src/components/ui/Modal"
 import { useAdmin } from "@/src/context/AdminContext"
 
-interface WaitlistEntry {
+interface WaitlistEntry extends Record<string, unknown> {
   id: string
   email: string
   source: string
@@ -337,7 +337,7 @@ export default function WaitlistPage() {
         </GlassCard>
 
         {/* Table */}
-        <DataTable
+        <DataTable<WaitlistEntry>
           columns={columns}
           data={entries}
           keyField="id"

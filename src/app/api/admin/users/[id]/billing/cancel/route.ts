@@ -24,7 +24,7 @@ export async function POST(
       if (user.stripeSubscriptionId) {
         try {
           const stripe = getStripeClient()
-          await stripe.subscriptions.del(user.stripeSubscriptionId)
+          await stripe.subscriptions.cancel(user.stripeSubscriptionId)
         } catch (error) {
           console.error('Stripe cancel failed for admin request:', error)
         }
@@ -45,7 +45,7 @@ export async function POST(
         'USER_BILLING_CANCELLED',
         'User',
         id,
-        null,
+        { action: 'cancel_billing', userId: id },
         request.headers.get('x-forwarded-for') || undefined
       )
 

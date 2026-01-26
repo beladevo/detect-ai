@@ -6,6 +6,7 @@ export type AuthUser = {
   id: string
   email: string
   name: string | null
+  firstName: string | null
   tier: 'FREE' | 'PREMIUM' | 'ENTERPRISE'
   emailVerified: boolean
   apiKey: string | null
@@ -15,6 +16,8 @@ export type AuthUser = {
   lastDetectionAt: string | null
   createdAt: string
   lastLoginAt: string | null
+  registerIp: string | null
+  lastLoginIp: string | null
   stripeCustomerId: string | null
   stripeSubscriptionId: string | null
   stripePriceId: string | null

@@ -1,0 +1,10 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="imagion-gradient-128" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6C5CE7"/>
+      <stop offset="100%" stop-color="#00B8D9"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="26" fill="url(#imagion-gradient-128)"/>
+  <text x="64" y="82" text-anchor="middle" fill="#fff" font-size="64" font-family="Inter, Arial, sans-serif" font-weight="600">I</text>
+</svg>

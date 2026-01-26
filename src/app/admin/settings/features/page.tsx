@@ -149,27 +149,27 @@ export default function FeatureFlagsPage() {
                         disabled={!canModifySettings || saving === feature.key}
                       />
                     </td>
-                    <td className="px-6 py-4 text-center">
-                      <ToggleButton
-                        enabled={feature.freeEnabled}
-                        onChange={(val) => updateFeature(feature.key, "freeEnabled", val)}
-                        disabled={!canModifySettings || saving === feature.key}
-                      />
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <ToggleButton
-                        enabled={feature.premiumEnabled}
-                        onChange={(val) => updateFeature(feature.key, "premiumEnabled", val)}
-                        disabled={!canModifySettings || saving === feature.key}
-                      />
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <ToggleButton
-                        enabled={feature.enterpriseEnabled}
-                        onChange={(val) => updateFeature(feature.key, "enterpriseEnabled", val)}
-                        disabled={!canModifySettings || saving === feature.key}
-                      />
-                    </td>
+                <td className="px-6 py-4 text-center">
+                  <ToggleButton
+                    enabled={feature.freeEnabled}
+                    onChange={(val) => updateFeature(feature.key, "freeEnabled", val)}
+                    disabled={!canModifySettings || saving === feature.key || !feature.enabled}
+                  />
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <ToggleButton
+                    enabled={feature.premiumEnabled}
+                    onChange={(val) => updateFeature(feature.key, "premiumEnabled", val)}
+                    disabled={!canModifySettings || saving === feature.key || !feature.enabled}
+                  />
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <ToggleButton
+                    enabled={feature.enterpriseEnabled}
+                    onChange={(val) => updateFeature(feature.key, "enterpriseEnabled", val)}
+                    disabled={!canModifySettings || saving === feature.key || !feature.enabled}
+                  />
+                </td>
                   </tr>
                 )
               })}
@@ -186,20 +186,24 @@ export default function FeatureFlagsPage() {
         {/* Info Card */}
         <GlassCard className="mt-6 p-6" hover={false}>
           <h3 className="mb-4 font-display text-lg font-semibold text-foreground">How Feature Flags Work</h3>
-          <div className="space-y-3 text-sm text-muted-foreground">
-            <p>
-              <strong className="text-foreground">Global Toggle:</strong> Master switch for the feature.
-              If disabled, the feature is off for all users regardless of tier settings.
-            </p>
-            <p>
-              <strong className="text-foreground">Tier Toggles:</strong> Control feature access per subscription tier.
-              Only applies when the global toggle is enabled.
-            </p>
-            <p>
-              <strong className="text-foreground">Environment Override:</strong> Set{" "}
-              <code className="rounded bg-card px-1">NEXT_PUBLIC_PREMIUM_FEATURES_ENABLED=true</code>{" "}
-              to enable all premium features globally (useful for development).
-            </p>
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <p>
+                <strong className="text-foreground">Global Toggle:</strong> Master switch for the feature.
+                If disabled, the feature is off for all users regardless of tier settings.
+              </p>
+              <p>
+                <strong className="text-foreground">Tier Toggles:</strong> Control feature access per subscription tier.
+                Only applies when the global toggle is enabled.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Tier toggles are locked (disabled) when the global toggle is off so that admins never accidentally
+                re-enable a feature for a tier while the master switch is still stroked.
+              </p>
+              <p>
+                <strong className="text-foreground">Environment Override:</strong> Set{" "}
+                <code className="rounded bg-card px-1">NEXT_PUBLIC_PREMIUM_FEATURES_ENABLED=true</code>{" "}
+                to enable all premium features globally (useful for development).
+              </p>
           </div>
         </GlassCard>
       </div>

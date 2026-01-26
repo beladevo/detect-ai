@@ -44,8 +44,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const accessToken = await createAccessToken({ userId: user.id })
-    const refreshToken = await createRefreshToken({ userId: user.id })
+    const accessToken = await createAccessToken({ userId: user.id, email: user.email })
+    const refreshToken = await createRefreshToken({ userId: user.id, email: user.email })
 
     await prisma.refreshToken.create({
       data: {

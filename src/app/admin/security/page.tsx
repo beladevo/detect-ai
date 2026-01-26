@@ -10,7 +10,7 @@ type SeverityBreakdown = {
   count: number
 }
 
-type SecurityAlertRow = {
+type SecurityAlertRow = Record<string, unknown> & {
   id: string
   type: string
   severity: string
@@ -246,7 +246,7 @@ export default function AdminSecurityPage() {
         </GlassCard>
 
         <GlassCard className="mt-6 p-4" hover={false}>
-          <DataTable
+          <DataTable<SecurityAlertRow>
             columns={columns}
             data={alerts}
             keyField="id"

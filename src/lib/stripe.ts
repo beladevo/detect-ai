@@ -1,7 +1,20 @@
 import Stripe from 'stripe'
 
+const resolveEnv = (key: string): string | undefined => {
+  if (process.env[key]) {
+    return process.env[key]
+  }
+  if (key.startsWith("STRIPE_")) {
+    const publicKey = `NEXT_PUBLIC_${key}`
+    if (process.env[publicKey]) {
+      return process.env[publicKey]
+    }
+  }
+  return undefined
+}
+
 const requiredEnv = (key: string): string => {
-  const value = process.env[key]
+  const value = resolveEnv(key)
   if (!value) {
     throw new Error(`Missing required Stripe environment variable: ${key}`)
   }
@@ -13,7 +26,7 @@ let stripeInstance: Stripe | null = null
 export function getStripeClient(): Stripe {
   if (!stripeInstance) {
     const secret = requiredEnv('STRIPE_SECRET_KEY')
-    stripeInstance = new Stripe(secret, { apiVersion: '2024-11-20' })
+    stripeInstance = new Stripe(secret, { apiVersion: '2025-12-15.clover' })
   }
   return stripeInstance
 }

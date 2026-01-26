@@ -13,7 +13,7 @@ export async function POST() {
     if (user.stripeSubscriptionId) {
       try {
         const stripe = getStripeClient();
-        await stripe.subscriptions.del(user.stripeSubscriptionId);
+        await stripe.subscriptions.cancel(user.stripeSubscriptionId);
       } catch (error) {
         console.error("Stripe subscription cancel failed:", error);
       }

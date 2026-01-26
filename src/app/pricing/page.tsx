@@ -1,26 +1,72 @@
-"use client"
+'use client'
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import GlowButton from "@/src/components/ui/GlowButton"
 import { useAuth } from "@/src/context/AuthContext"
 import { ArrowLeft, CheckCircle2, CreditCard, ShieldCheck, Sparkles } from "lucide-react"
+import {
+  BillingCycle,
+  BillingPlanKey,
+  formatCurrency,
+  getBillingAmount,
+  PLAN_LABELS,
+} from "@/src/lib/billing"
+import { TIER_RATE_LIMITS } from "@/src/lib/tierConfig"
 
-type CheckoutState = "idle" | "processing" | "success" | "error"
+type CheckoutState = "idle" | "processing" | "error" | "success"
+
+const PRICE_LABEL = (cycle: BillingCycle) => {
+  const amount = getBillingAmount("premium", cycle)
+  return formatCurrency(amount)
+}
+
+const formatLimitValue = (value: number) => value.toLocaleString()
 
 export default function PricingPage() {
   const router = useRouter()
   const { user, loading, refreshUser } = useAuth()
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly")
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly")
   const [checkoutState, setCheckoutState] = useState<CheckoutState>("idle")
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const [paypalAvailable, setPaypalAvailable] = useState(true)
 
   const price = useMemo(() => {
-    return billingCycle === "annual" ? { amount: 399, label: "$399" } : { amount: 49, label: "$49" }
+    return { amount: getBillingAmount("premium", billingCycle), label: PRICE_LABEL(billingCycle) }
   }, [billingCycle])
 
   const isPremium = user?.tier === "PREMIUM" || user?.tier === "ENTERPRISE"
+
+  useEffect(() => {
+    let isMounted = true
+
+    const fetchAvailability = async () => {
+      try {
+        const response = await fetch("/api/paypal/configured")
+        if (!response.ok) {
+          return
+        }
+
+        const data = (await response.json()) as { enabled?: boolean }
+        if (!isMounted) {
+          return
+        }
+
+        if (typeof data.enabled === "boolean") {
+          setPaypalAvailable(data.enabled)
+        }
+      } catch (error) {
+        console.error("Failed to load PayPal availability:", error)
+      }
+    }
+
+    fetchAvailability()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const handleUpgrade = async () => {
     if (!user) {
@@ -43,12 +89,15 @@ export default function PricingPage() {
       }
 
       await refreshUser()
-      setCheckoutState("success")
       window.location.assign(data.url)
     } catch (error) {
       console.error("Upgrade failed:", error)
       setCheckoutState("error")
-      setCheckoutError("Checkout could not be started. Please try again.")
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Checkout could not be started. Please try again."
+      setCheckoutError(message)
     }
   }
 
@@ -113,7 +162,7 @@ export default function PricingPage() {
             <ul className="mt-6 space-y-3 text-sm text-gray-300">
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-purple-300" />
-                50 detections per day
+                {formatLimitValue(TIER_RATE_LIMITS.FREE.daily)} detections per day
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-purple-300" />
@@ -152,7 +201,11 @@ export default function PricingPage() {
             <ul className="mt-6 space-y-3 text-sm text-gray-200">
               <li className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-amber-300" />
-                1,000 detections per day
+                {formatLimitValue(TIER_RATE_LIMITS.PREMIUM.daily)} detections per day
+              </li>
+              <li className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-amber-300" />
+                Up to {formatLimitValue(TIER_RATE_LIMITS.PREMIUM.monthly)} detections per month
               </li>
               <li className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-amber-300" />
@@ -177,27 +230,33 @@ export default function PricingPage() {
             </ul>
 
             <div className="mt-6 space-y-3">
-              {checkoutState === "success" ? (
-                <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-                  Premium is active. You can now access premium features.
-                </div>
-              ) : checkoutState === "error" ? (
+              {checkoutState === "error" && (
                 <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200">
                   {checkoutError}
                 </div>
-              ) : null}
+              )}
 
               <GlowButton
                 onClick={handleUpgrade}
-                disabled={loading || checkoutState === "processing" || isPremium}
+                disabled={
+                  loading ||
+                  checkoutState === "processing" ||
+                  isPremium ||
+                  paypalAvailable === false
+                }
                 className="w-full"
               >
                 {isPremium
                   ? "Premium Active"
                   : checkoutState === "processing"
-                  ? "Processing..."
-                  : "Upgrade to Premium"}
+                  ? "Redirecting to PayPal..."
+                  : "Pay with PayPal"}
               </GlowButton>
+              {paypalAvailable === false && (
+                <p className="text-xs text-yellow-200">
+                  PayPal checkout is disabled until payment credentials are configured.
+                </p>
+              )}
 
               {checkoutState === "success" && (
                 <GlowButton
@@ -244,66 +303,13 @@ export default function PricingPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
-          <h3 className="text-lg font-semibold text-white">Simulated Card Entry</h3>
-          <p className="mt-2 text-sm text-gray-400">
-            This grid is purely illustrative—the real payment happens through Stripe Checkout after clicking upgrade.
-          </p>
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
-                  Cardholder
-                </label>
-                <input
-                  type="text"
-                  placeholder="Alex Imagion"
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
-                  defaultValue="Alex Imagion"
-                />
-              </div>
-              <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
-                  Card number
-                </label>
-                <input
-                  type="text"
-                  placeholder="4242 4242 4242 4242"
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
-                  defaultValue="4242 4242 4242 4242"
-                />
-              </div>
-              <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
-                  Expiration
-                </label>
-                <input
-                  type="text"
-                  placeholder="12/29"
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
-                  defaultValue="12/29"
-                />
-              </div>
-              <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
-                  CVC
-                </label>
-                <input
-                  type="text"
-                  placeholder="123"
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder:text-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
-                  defaultValue="123"
-                />
-              </div>
-            </div>
-          </div>
-
           <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
             <h3 className="text-lg font-semibold text-white">Plan Summary</h3>
-            <div className="mt-4 space-y-3 text-sm text-gray-300">
-              <div className="flex items-center justify-between">
-                <span>Plan</span>
-                <span className="font-semibold text-white">Premium</span>
-              </div>
+              <div className="mt-4 space-y-3 text-sm text-gray-300">
+                <div className="flex items-center justify-between">
+                  <span>Plan</span>
+                  <span className="font-semibold text-white">{PLAN_LABELS.premium}</span>
+                </div>
               <div className="flex items-center justify-between">
                 <span>Billing</span>
                 <span className="font-semibold text-white">
@@ -315,7 +321,7 @@ export default function PricingPage() {
                 <span className="font-semibold text-white">{price.label}</span>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-gray-400">
-                Stripe Checkout handles the secure payment; your subscription will follow the {billingCycle === "annual" ? "365-day" : "30-day"} cycle.
+                PayPal handles the secure payment; your subscription will follow the {billingCycle === "annual" ? "365-day" : "30-day"} cycle.
               </div>
               {!user && !loading && (
                 <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 p-3 text-xs text-purple-200">

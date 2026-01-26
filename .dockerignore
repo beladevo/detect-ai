@@ -1,0 +1,59 @@
+# Dependencies (reinstalled in Docker)
+node_modules
+.pnp.*
+
+# Build output
+.next
+out
+build
+
+# ONNX models (volume-mounted at runtime, not baked into image)
+public/models/onnx/*.onnx
+public/models/onnx/*.onnx.data
+
+# Environment files (secrets injected at runtime)
+.env
+.env.local
+.env.production
+.env*.local
+
+# Git
+.git
+.gitignore
+
+# Editor / IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Benchmark test assets (large images)
+benchmark/test-assets
+benchmark/results
+benchmark/logs
+
+# Logs
+logs
+nul
+
+# Chrome extension source (not needed for server image)
+extension
+
+# Docker files
+docker-compose*.yml
+Dockerfile
+
+# Documentation
+internal-docs
+*.md
+
+# Misc
+*.pem
+.vercel
+extension.crx
+coverage
+.venv-export

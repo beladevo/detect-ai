@@ -19,7 +19,7 @@ export async function DELETE(
       'WAITLIST_REMOVED',
       'Waitlist',
       id,
-      null,
+      { action: 'remove_waitlist_entry' },
       request.headers.get('x-forwarded-for') || undefined
     )
 

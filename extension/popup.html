@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=400, initial-scale=1.0" />
+    <title>Imagion AI Detector</title>
+    <style>
+      :root {
+        --brand-purple: #ff7a3d;
+        --brand-pink: #f1b75d;
+        --brand-cyan: #2bb6ad;
+        --brand-mint: #a4e8cf;
+        --panel-bg: rgba(12, 16, 24, 0.85);
+        --panel-border: rgba(255, 255, 255, 0.07);
+        --panel-highlight: rgba(255, 122, 61, 0.25);
+        --text-muted: rgba(255, 255, 255, 0.7);
+        --input-bg: rgba(255, 255, 255, 0.05);
+        --input-border: rgba(255, 255, 255, 0.15);
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+        background: radial-gradient(circle at top, #131b4b 0%, #06090f 60%);
+        min-height: 100vh;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background:
+          radial-gradient(circle at 10% 20%, rgba(255, 122, 61, 0.35), transparent 40%),
+          radial-gradient(circle at 85% 10%, rgba(43, 182, 173, 0.25), transparent 45%);
+        opacity: 0.7;
+        filter: blur(80px);
+        z-index: -1;
+      }
+
+      .popup-frame {
+        width: 360px;
+        padding: 28px;
+        border-radius: 28px;
+        background: rgba(4, 6, 12, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .popup-frame::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(150deg, rgba(255, 122, 61, 0.25), transparent 60%);
+        pointer-events: none;
+        mix-blend-mode: screen;
+      }
+
+      .popup-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .popup-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .brand-logo {
+        width: 46px;
+        height: 46px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.08);
+        padding: 4px;
+        object-fit: contain;
+        box-shadow:
+          0 10px 40px rgba(0, 0, 0, 0.6),
+          0 0 25px rgba(255, 122, 61, 0.35);
+      }
+
+      .brand-text .title {
+        font-size: 20px;
+        font-weight: 600;
+      }
+
+      .brand-text .subtitle {
+        font-size: 12px;
+        color: var(--text-muted);
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      .view {
+        display: none;
+      }
+
+      .view.active {
+        display: block;
+      }
+
+      .glass-panel {
+        background: var(--panel-bg);
+        border-radius: 22px;
+        border: 1px solid var(--panel-border);
+        padding: 18px 20px;
+        box-shadow: 0 20px 45px rgba(5, 8, 15, 0.55),
+          0 0 0 1px rgba(255, 255, 255, 0.02);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .glass-panel::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.08), transparent 45%);
+        pointer-events: none;
+      }
+
+      .status {
+        font-size: 13px;
+        border-radius: 12px;
+        padding: 10px 12px;
+        margin-bottom: 12px;
+        display: none;
+      }
+
+      .status.show {
+        display: block;
+      }
+
+      .status.error {
+        background: rgba(255, 69, 96, 0.18);
+        border: 1px solid rgba(255, 69, 96, 0.3);
+        color: #ff95a6;
+      }
+
+      .status.success {
+        background: rgba(0, 200, 138, 0.18);
+        border: 1px solid rgba(0, 200, 138, 0.35);
+        color: #a9ffd7;
+      }
+
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      label {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+      }
+
+      input[type="email"],
+      input[type="password"],
+      input[type="text"] {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--input-border);
+        background: var(--input-bg);
+        color: #fff;
+        font-size: 14px;
+        transition: border-color 0.2s ease, background 0.2s ease;
+      }
+
+      input:focus {
+        outline: none;
+        border-color: var(--brand-cyan);
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      input::placeholder {
+        color: rgba(255, 255, 255, 0.5);
+      }
+
+      .btn {
+        border: none;
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.15s ease, opacity 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        width: 100%;
+      }
+
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, var(--brand-purple), var(--brand-pink));
+        color: #fff;
+        box-shadow: 0 12px 30px rgba(255, 122, 61, 0.4);
+      }
+
+      .btn-secondary {
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+      }
+
+      .link-row {
+        font-size: 12px;
+        text-align: center;
+        color: var(--text-muted);
+        display: flex;
+        gap: 14px;
+        justify-content: center;
+      }
+
+      .link-row a {
+        color: var(--brand-cyan);
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      .link-row a:hover {
+        text-decoration: underline;
+      }
+
+      .advanced-toggle {
+        font-size: 12px;
+        color: var(--text-muted);
+        cursor: pointer;
+        margin-top: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .advanced-toggle:hover {
+        color: var(--brand-cyan);
+      }
+
+      .advanced-section {
+        margin-top: 12px;
+        display: none;
+      }
+
+      .advanced-section.show {
+        display: block;
+      }
+
+      .view-authenticated .user-card {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .user-email {
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .user-tier {
+        font-size: 11px;
+        letter-spacing: 0.3em;
+        color: var(--brand-pink);
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .stat {
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 14px;
+        padding: 10px;
+        text-align: center;
+      }
+
+      .usage-details {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .usage-detail {
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 12px;
+        padding: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        text-align: center;
+      }
+
+      .usage-label {
+        font-size: 11px;
+        color: var(--text-muted);
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .usage-value {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--brand-mint);
+      }
+
+      .stat-value {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--brand-cyan);
+      }
+
+      .stat-label {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+
+      .api-key-box {
+        position: relative;
+        margin-top: 12px;
+        padding: 14px 16px;
+        background: rgba(0, 0, 0, 0.35);
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-family: "Fira Code", "Consolas", monospace;
+        font-size: 12px;
+        color: #a3ffd7;
+      }
+
+      .api-key-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.4em;
+        color: rgba(255, 255, 255, 0.6);
+        margin-bottom: 6px;
+      }
+
+      .copy-btn {
+        position: absolute;
+        right: 12px;
+        top: 12px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        padding: 4px 10px;
+        font-size: 12px;
+        color: #fff;
+        cursor: pointer;
+      }
+
+      .copy-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .toggle-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .toggle-label {
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .toggle {
+        position: relative;
+        width: 48px;
+        height: 26px;
+      }
+
+      .toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .toggle-slider {
+        position: absolute;
+        inset: 0;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.15);
+        transition: 0.2s;
+      }
+
+      .toggle-slider::before {
+        content: "";
+        position: absolute;
+        height: 20px;
+        width: 20px;
+        left: 3px;
+        top: 3px;
+        border-radius: 50%;
+        background: #fff;
+        transition: 0.2s;
+      }
+
+      .toggle input:checked + .toggle-slider {
+        background: var(--brand-cyan);
+      }
+
+      .toggle input:checked + .toggle-slider::before {
+        transform: translateX(22px);
+      }
+
+      .footer-links {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 8px;
+      }
+
+      .footer-links a {
+        color: var(--brand-purple);
+        text-decoration: none;
+      }
+
+      .footer-links a:hover {
+        text-decoration: underline;
+      }
+
+      .loading-panel p {
+        text-align: center;
+        font-size: 14px;
+        color: var(--text-muted);
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 10px;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <article class="popup-frame">
+      <div class="popup-content">
+        <header class="popup-header">
+          <img src="icons/logo.png" alt="Imagion logo" class="brand-logo" />
+          <div class="brand-text">
+            <div class="title">Imagion</div>
+            <div class="subtitle">AI Image Detector</div>
+          </div>
+        </header>
+
+        <!-- Loading View -->
+        <section id="view-loading" class="view loading-panel glass-panel active">
+          <p><span class="spinner"></span>Loading your session...</p>
+        </section>
+
+        <!-- Login View -->
+        <section id="view-login" class="view">
+          <div class="glass-panel">
+            <div id="login-status" class="status"></div>
+            <form id="login-form">
+              <div>
+                <label for="email">Email</label>
+                <input type="email" id="email" placeholder="you@imagion.ai" required />
+              </div>
+              <div>
+                <label for="password">Password</label>
+                <input
+                  type="password"
+                  id="password"
+                  placeholder="Enter your password"
+                  required
+                />
+              </div>
+              <button type="submit" id="login-btn" class="btn btn-primary">
+                Sign in to Imagion
+              </button>
+            </form>
+
+            <div class="link-row">
+              <a href="#" id="register-link">Create account</a>
+              <a href="#" id="forgot-link">Forgot password?</a>
+            </div>
+
+            <div class="advanced-toggle" id="advanced-toggle">
+              Advanced settings
+            </div>
+            <div class="advanced-section" id="advanced-section">
+              <label for="endpoint-input">API Endpoint</label>
+              <input
+                type="text"
+                id="endpoint-input"
+                placeholder="https://api.imagion.ai/api/detect"
+              />
+            </div>
+          </div>
+        </section>
+
+        <!-- Authenticated View -->
+        <section id="view-authenticated" class="view">
+          <div class="glass-panel user-card">
+            <div class="user-email" id="user-email">user@example.com</div>
+            <div class="user-tier" id="user-tier">FREE</div>
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-value" id="monthly-detections">0</div>
+              <div class="stat-label">This month</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value" id="total-detections">0</div>
+              <div class="stat-label">All time</div>
+            </div>
+          </div>
+          <div class="usage-details">
+            <div class="usage-detail">
+              <span class="usage-label">Monthly limit</span>
+              <span class="usage-value" id="monthly-limit">∞</span>
+            </div>
+            <div class="usage-detail">
+              <span class="usage-label">Daily limit</span>
+              <span class="usage-value" id="daily-limit">∞</span>
+            </div>
+          </div>
+        </div>
+
+          <div class="glass-panel api-key-box">
+            <div class="api-key-label">API Key</div>
+            <div id="api-key-display">imag_xxxxxxxxxxxxx</div>
+            <button type="button" class="copy-btn" id="copy-api-key">Copy</button>
+          </div>
+
+          <div class="glass-panel">
+            <div class="toggle-row">
+              <span class="toggle-label">Badge overlay</span>
+              <label class="toggle">
+                <input type="checkbox" id="badge-toggle" checked />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <button id="logout-btn" class="btn btn-secondary">Sign out</button>
+            <div class="footer-links">
+              <a href="#" id="dashboard-link">Dashboard</a>
+              <a href="#" id="options-link">Settings</a>
+            </div>
+          </div>
+        </section>
+      </div>
+    </article>
+
+    <script src="dist/popup.js"></script>
+  </body>
+</html>

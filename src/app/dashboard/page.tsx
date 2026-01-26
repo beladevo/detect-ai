@@ -8,6 +8,7 @@ import Modal from '@/src/components/ui/Modal'
 import { PremiumBadge } from '@/src/components/ui/PremiumBadge'
 import { LogOut, Crown, Activity, Image as ImageIcon, BarChart3, Clock, Trash2 } from 'lucide-react'
 import { hasFeatureSync } from '@/src/lib/features'
+import { TIER_RATE_LIMITS, type UserTier } from '@/src/lib/tierConfig'
 
 type DashboardSummary = {
   usage: {
@@ -161,11 +162,25 @@ export default function DashboardPage() {
     }
   }
 
-  const formatLimit = (value: number | null) =>
-    typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString() : 'Unlimited'
-  const formatUsagePercent = (used: number, limit: number | null) => {
-    if (typeof limit !== 'number' || !Number.isFinite(limit) || limit <= 0) return 0
-    return Math.min(100, (used / limit) * 100)
+  const userTier = (user.tier ?? 'FREE') as UserTier
+  const tierLimits = TIER_RATE_LIMITS[userTier]
+
+  const resolveLimitValue = (reported: number | null, field: 'daily' | 'monthly') => {
+    if (typeof reported === 'number' && Number.isFinite(reported) && reported > 0) {
+      return reported
+    }
+    return tierLimits[field]
+  }
+
+  const formatLimit = (reported: number | null, field: 'daily' | 'monthly') => {
+    const value = resolveLimitValue(reported, field)
+    return Number.isFinite(value) ? value.toLocaleString() : 'Unlimited'
+  }
+
+  const formatUsagePercent = (used: number, reportedLimit: number | null, field: 'daily' | 'monthly') => {
+    const limitValue = resolveLimitValue(reportedLimit, field)
+    if (!Number.isFinite(limitValue) || limitValue <= 0) return 0
+    return Math.min(100, (used / limitValue) * 100)
   }
   const trendMax = summary?.trend.reduce((max, item) => Math.max(max, item.count), 1) ?? 1
   const lastDetectionAt = summary?.recentDetections[0]?.createdAt || user.lastDetectionAt
@@ -305,13 +320,19 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between text-gray-300">
                     <span>Daily detections</span>
                     <span>
-                      {summary.usage.dailyUsed} / {formatLimit(summary.usage.dailyLimit)}
+                      {summary.usage.dailyUsed} / {formatLimit(summary.usage.dailyLimit, "daily")}
                     </span>
                   </div>
                   <div className="mt-2 h-2 rounded-full bg-white/10">
                     <div
                       className="h-2 rounded-full bg-gradient-to-r from-emerald-400/70 to-emerald-200/40"
-                      style={{ width: `${formatUsagePercent(summary.usage.dailyUsed, summary.usage.dailyLimit)}%` }}
+                        style={{
+                          width: `${formatUsagePercent(
+                            summary.usage.dailyUsed,
+                            summary.usage.dailyLimit,
+                            "daily"
+                          )}%`,
+                        }}
                     />
                   </div>
                 </div>
@@ -319,13 +340,19 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between text-gray-300">
                     <span>Monthly detections</span>
                     <span>
-                      {summary.usage.monthlyUsed} / {formatLimit(summary.usage.monthlyLimit)}
+                      {summary.usage.monthlyUsed} / {formatLimit(summary.usage.monthlyLimit, "monthly")}
                     </span>
                   </div>
                   <div className="mt-2 h-2 rounded-full bg-white/10">
                     <div
                       className="h-2 rounded-full bg-gradient-to-r from-purple-400/70 to-purple-200/40"
-                      style={{ width: `${formatUsagePercent(summary.usage.monthlyUsed, summary.usage.monthlyLimit)}%` }}
+                        style={{
+                          width: `${formatUsagePercent(
+                            summary.usage.monthlyUsed,
+                            summary.usage.monthlyLimit,
+                            "monthly"
+                          )}%`,
+                        }}
                     />
                   </div>
                 </div>

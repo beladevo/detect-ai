@@ -6,13 +6,15 @@ import { AlertCircle, ShieldCheck, Sparkles } from "lucide-react";
 import Navbar from "@/src/components/Navbar";
 import HeroSection from "@/src/components/HeroSection";
 import FeaturesSection from "@/src/components/FeaturesSection";
+import ExtensionSection from "@/src/components/ExtensionSection";
 import WaitlistSection from "@/src/components/WaitlistSection";
-import UploadZone from "@/src/components/UploadZone";
+import UploadZone, { type ProcessingMode } from "@/src/components/UploadZone";
 import HistoryList, { type HistoryItem } from "@/src/components/HistoryList";
 import PrivacySection from "@/src/components/PrivacySection";
 import FAQSection from "@/src/components/FAQSection";
 import Footer from "@/src/components/Footer";
 import ModelSelector from "@/src/components/ui/ModelSelector";
+import { PerformanceMonitor } from "@/src/components/PerformanceMonitor";
 import { useAuth } from "@/src/context/AuthContext";
 import { useToast } from "@/src/context/ToastContext";
 const ResultsDisplay = dynamic(() => import("@/src/components/ResultsDisplay"), {
@@ -36,6 +38,7 @@ type DetectionResult = {
   verdict?: UiVerdict;
   pipeline?: PipelineResult;
   presentation?: VerdictPresentation;
+  source?: "local" | "api";
 };
 
 const HISTORY_KEY = "detectai_history";
@@ -65,6 +68,7 @@ export default function AIDetectorPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
+  const [processingMode, setProcessingMode] = useState<ProcessingMode>(null);
   const [result, setResult] = useState<DetectionResult>({ score: null });
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -165,30 +169,52 @@ export default function AIDetectorPage() {
     setResult({ score: null });
     setPreviewUrl(URL.createObjectURL(file));
 
+    // Predict processing mode before starting
+    const { analyzeImageWithWasm, predictProcessingMode } = await import("@/src/lib/wasmDetector");
+    const predictedMode = predictProcessingMode(file);
+    setProcessingMode(predictedMode);
+
+    const isLocal = predictedMode === "local";
+
     try {
       queueToast({
-        title: "Preparing image",
-        description: "Optimizing the file for analysis.",
+        title: isLocal ? "Preparing image locally" : "Preparing image",
+        description: isLocal ? "Your image stays on your device." : "Optimizing the file for analysis.",
       });
       timers.push(setTimeout(() => {
         queueToast({
-          title: "Loading model",
-          description: "Starting the detection engine.",
+          title: isLocal ? "Loading WASM model" : "Uploading to Imagion",
+          description: isLocal ? "Initializing browser engine." : "Sending to secure servers.",
         });
       }, 900));
       timers.push(setTimeout(() => {
         queueToast({
-          title: "Analyzing image",
-          description: "Scanning for AI signatures.",
+          title: isLocal ? "Running local analysis" : "Server analyzing image",
+          description: isLocal ? "Scanning for AI signatures locally." : "Cloud processing in progress.",
         });
       }, 2000));
 
-      const { analyzeImageWithWasm } = await import("@/src/lib/wasmDetector");
       const result = await analyzeImageWithWasm(file, selectedModel);
-      setResult({ score: result.score, pipeline: result.pipeline, presentation: result.presentation });
+
+      // Update mode if fallback occurred (map "api" -> "server" for UI)
+      const actualMode: ProcessingMode = result.source === "api" ? "server" : result.source === "local" ? "local" : predictedMode;
+      if (actualMode !== predictedMode) {
+        setProcessingMode(actualMode);
+        if (predictedMode === "local" && actualMode === "server") {
+          queueToast({
+            title: "Switched to cloud analysis",
+            description: "Browser processing unavailable, using Imagion servers.",
+            variant: "warning",
+            duration: 3000,
+          });
+        }
+      }
+
+      setResult({ score: result.score, pipeline: result.pipeline, presentation: result.presentation, source: result.source });
       timers.forEach(clearTimeout);
+      const finalMode = actualMode;
       queueToast({
-        title: "Analysis complete",
+        title: finalMode === "local" ? "Local analysis complete" : "Server analysis complete",
         description: result.presentation?.title ?? "Results are ready.",
         variant: "success",
         duration: 3200,
@@ -269,6 +295,7 @@ export default function AIDetectorPage() {
     } finally {
       timers.forEach(clearTimeout);
       setIsUploading(false);
+      setProcessingMode(null);
     }
   }, [pushHistory, selectedModel, toast, user]);
 
@@ -298,6 +325,7 @@ export default function AIDetectorPage() {
 
         <HeroSection onCTA={handleCTAClick} />
         <FeaturesSection />
+        <ExtensionSection />
         <WaitlistSection />
 
         <section
@@ -309,7 +337,7 @@ export default function AIDetectorPage() {
             ref={uploadCardRef}
             className="min-w-0 rounded-2xl border border-border bg-card/60 p-4 md:p-6 shadow-2xl backdrop-blur-xl dark:bg-panel"
           >
-            <UploadZone isUploading={isUploading} onFileSelected={handleFileSelected} />
+            <UploadZone isUploading={isUploading} processingMode={processingMode} onFileSelected={handleFileSelected} />
 
             {error ? (
               <div className="mt-4 flex items-center justify-between rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
@@ -334,6 +362,7 @@ export default function AIDetectorPage() {
                 onReset={handleReset}
                 pipeline={result.pipeline}
                 imageUrl={previewUrl || undefined}
+                source={result.source}
               />
             ) : (
               <div className="mt-6 grid gap-2 text-xs text-foreground/50">
@@ -376,6 +405,8 @@ export default function AIDetectorPage() {
                 </div>
               </div>
             </div>
+
+            {/* <PerformanceMonitor isActive={isUploading} /> */}
 
             <div ref={historyCardRef}>
               <HistoryList

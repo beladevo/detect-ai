@@ -10,10 +10,6 @@ import {
 
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET
 
-if (!STRIPE_WEBHOOK_SECRET) {
-  throw new Error('Missing STRIPE_WEBHOOK_SECRET environment variable')
-}
-
 const PLAN_TO_TIER: Record<BillingPlanKey, 'PREMIUM' | 'ENTERPRISE'> = {
   premium: 'PREMIUM',
   enterprise: 'ENTERPRISE',
@@ -32,11 +28,14 @@ const buildBillingUpdateFromSubscription = (
   const customerId =
     typeof subscription.customer === 'string' ? subscription.customer : undefined
 
+  const getCurrentPeriodEnd = () =>
+    (subscription as { current_period_end?: number | null }).current_period_end ?? null
+
   const updatePayload: Prisma.UserUpdateInput = {
     tier,
     stripeSubscriptionId: subscription.id,
     stripePriceId: priceId,
-    stripeCurrentPeriodEnd: convertTimestampToDate(subscription.current_period_end),
+    stripeCurrentPeriodEnd: convertTimestampToDate(getCurrentPeriodEnd()),
   }
 
   if (customerId) {
@@ -75,6 +74,10 @@ const findUserFromSession = async (session: Stripe.Checkout.Session) => {
 }
 
 export async function POST(request: NextRequest) {
+  if (!STRIPE_WEBHOOK_SECRET) {
+    console.error('Missing STRIPE_WEBHOOK_SECRET environment variable')
+    return NextResponse.json({ error: 'Stripe webhook secret not configured' }, { status: 500 })
+  }
   const payload = await request.text()
   const signature = request.headers.get('stripe-signature')
 
@@ -85,7 +88,7 @@ export async function POST(request: NextRequest) {
   const stripe = getStripeClient()
   let event: Stripe.Event
   try {
-    event = stripe.webhooks.constructEvent(payload, signature, STRIPE_WEBHOOK_SECRET)
+    event = stripe.webhooks.constructEvent(payload, signature, STRIPE_WEBHOOK_SECRET!)
   } catch (error) {
     console.error('Stripe webhook signature verification failed:', error)
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
@@ -173,7 +176,10 @@ const handleSubscriptionDeleted = async (
 }
 
 const handleInvoicePaymentSucceeded = async (stripe: Stripe, invoice: Stripe.Invoice) => {
-  const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : null
+  const subscriptionId =
+    typeof invoice.parent?.subscription_details?.subscription === 'string'
+      ? invoice.parent.subscription_details.subscription
+      : null
   if (!subscriptionId) {
     return
   }

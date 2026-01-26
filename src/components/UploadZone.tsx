@@ -2,14 +2,17 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
-import { Upload, Sparkles, Shield, Zap } from "lucide-react";
+import { Upload, Sparkles, Shield, Cloud, Monitor } from "lucide-react";
+
+export type ProcessingMode = "local" | "server" | null;
 
 type UploadZoneProps = {
   isUploading: boolean;
+  processingMode?: ProcessingMode;
   onFileSelected: (file: File) => void;
 };
 
-export default function UploadZone({ isUploading, onFileSelected }: UploadZoneProps) {
+export default function UploadZone({ isUploading, processingMode, onFileSelected }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLLabelElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -179,19 +182,31 @@ export default function UploadZone({ isUploading, onFileSelected }: UploadZonePr
         {isUploading ? (
           <div className="flex flex-col items-center space-y-4">
             <div className="relative">
-              <div className="h-16 w-16 animate-[spin_3s_linear_infinite] rounded-full border-2 border-brand-purple/30 border-t-brand-purple" />
-              <div className="absolute inset-0 m-auto h-10 w-10 animate-[spin_2s_linear_infinite_reverse] rounded-full border-2 border-brand-cyan/30 border-b-brand-cyan" />
-              <Zap className="absolute inset-0 m-auto h-5 w-5 animate-pulse text-foreground dark:text-white" />
+              <div className={`h-16 w-16 animate-[spin_3s_linear_infinite] rounded-full border-2 ${processingMode === "server" ? "border-brand-cyan/30 border-t-brand-cyan" : "border-brand-purple/30 border-t-brand-purple"}`} />
+              <div className={`absolute inset-0 m-auto h-10 w-10 animate-[spin_2s_linear_infinite_reverse] rounded-full border-2 ${processingMode === "server" ? "border-brand-purple/30 border-b-brand-purple" : "border-brand-cyan/30 border-b-brand-cyan"}`} />
+              {processingMode === "server" ? (
+                <Cloud className="absolute inset-0 m-auto h-5 w-5 animate-pulse text-foreground dark:text-white" />
+              ) : (
+                <Monitor className="absolute inset-0 m-auto h-5 w-5 animate-pulse text-foreground dark:text-white" />
+              )}
             </div>
             <div>
-              <h3 className="bg-gradient-to-r from-foreground to-brand-purple bg-clip-text text-lg font-bold text-transparent">
-                Neural Scan Active
+              <h3 className={`bg-gradient-to-r bg-clip-text text-lg font-bold text-transparent ${processingMode === "server" ? "from-foreground to-brand-cyan" : "from-foreground to-brand-purple"}`}>
+                {processingMode === "server" ? "Cloud Analysis" : "Local Neural Scan"}
               </h3>
-              <p className="text-xs text-brand-purple/80 animate-pulse mt-1">Processing digital artifacts...</p>
+              <p className={`text-xs animate-pulse mt-1 ${processingMode === "server" ? "text-brand-cyan/80" : "text-brand-purple/80"}`}>
+                {processingMode === "server" ? "Processing on Imagion servers..." : "Processing securely in your browser..."}
+              </p>
             </div>
             <div className="h-1 w-40 overflow-hidden rounded-full bg-foreground/10">
-              <div className="h-full w-full origin-left animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-brand-purple to-transparent" />
+              <div className={`h-full w-full origin-left animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent ${processingMode === "server" ? "via-brand-cyan" : "via-brand-purple"} to-transparent`} />
             </div>
+            {processingMode === "local" && (
+              <div className="flex items-center gap-1.5 text-[10px] text-brand-mint/70">
+                <Shield className="h-3 w-3" />
+                <span>Image never leaves your device</span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center">

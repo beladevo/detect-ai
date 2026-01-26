@@ -4,9 +4,8 @@ import { useEffect, useMemo, useState } from "react"
 import { AdminHeader, DataTable, Column, SimpleChart, Badge } from "@/src/components/admin"
 import GlassCard from "@/src/components/ui/GlassCard"
 import GlowButton from "@/src/components/ui/GlowButton"
-import Badge from "@/src/components/admin/Badge"
 
-type DetectionRow = {
+type DetectionRow = Record<string, unknown> & {
   id: string
   verdict: string
   status: string
@@ -210,7 +209,7 @@ export default function AdminDetectionsPage() {
         </GlassCard>
 
         <GlassCard className="p-4" hover={false}>
-          <DataTable
+          <DataTable<DetectionRow>
             columns={columns}
             data={detections}
             keyField="id"
