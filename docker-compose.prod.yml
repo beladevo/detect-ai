@@ -17,6 +17,10 @@ services:
       - PORT=3000
     env_file:
       - .env.production
+    ports:
+      # Bind to localhost only — accessible via Tailscale SSH tunnel or when
+      # cloudflared is not running. Not exposed to the public internet.
+      - "127.0.0.1:3000:3000"
     volumes:
       - ${MODELS_PATH:-./models}:/app/public/models/onnx:ro
       - app_logs:/app/logs
@@ -86,6 +90,8 @@ services:
       timeout: 5s
       retries: 5
 
+  # Cloudflare Tunnel — opt-in via: docker compose --profile tunnel up -d
+  # Only needed when you have a custom domain. Without it, access via Tailscale.
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: imagion-cloudflared
@@ -103,6 +109,8 @@ services:
     depends_on:
       app:
         condition: service_healthy
+    profiles:
+      - tunnel
 
   # One-shot migration runner — use: docker compose -f docker-compose.prod.yml run --rm migrate
   migrate:

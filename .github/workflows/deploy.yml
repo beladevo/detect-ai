@@ -5,6 +5,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: beladevo/detect-ai
@@ -15,6 +19,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      image-tag: ${{ steps.meta.outputs.version }}
 
     steps:
       - name: Checkout repository
@@ -50,7 +56,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            NEXT_PUBLIC_BASE_URL=https://authentipic.com
+            NEXT_PUBLIC_BASE_URL=${{ vars.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000' }}
             NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
             NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_KEY }}
             NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
@@ -72,6 +78,7 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
+    environment: production
 
     steps:
       - name: Install Tailscale
@@ -87,9 +94,13 @@ jobs:
           host: ${{ secrets.VM_TAILSCALE_IP }}
           username: deploy
           key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+          command_timeout: 10m
           script: |
             set -e
             cd /opt/imagion
+
+            # Authenticate with GitHub Container Registry
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             # Pull latest image
             docker pull ghcr.io/beladevo/detect-ai:latest
@@ -97,8 +108,16 @@ jobs:
             # Run database migrations
             docker compose -f docker-compose.prod.yml --profile migration run --rm migrate
 
-            # Restart app (zero-downtime: new container starts before old stops)
-            docker compose -f docker-compose.prod.yml up -d --no-deps app
+            # Start core services
+            docker compose -f docker-compose.prod.yml up -d postgres redis app
+
+            # Start Cloudflare Tunnel if configured
+            if grep -qE '^CLOUDFLARE_TUNNEL_TOKEN=.+' .env.production 2>/dev/null; then
+              echo "Cloudflare Tunnel token found — starting tunnel..."
+              docker compose -f docker-compose.prod.yml --profile tunnel up -d cloudflared
+            else
+              echo "No Cloudflare Tunnel token — skipping tunnel (use Tailscale to access)."
+            fi
 
             # Prune old images
             docker image prune -f
