@@ -1,8 +1,14 @@
+type DetectionMode = "api" | "local";
+type PlanTier = "free" | "pro";
+
 type ExtensionSettings = {
   imagionApiKey: string;
   imagionDetectionEndpoint: string;
   imagionBadgeEnabled: boolean;
   imagionDisabledHosts: string[];
+  imagionDetectionMode: DetectionMode;
+  imagionLocalEndpoint: string;
+  imagionPlanTier: PlanTier;
 };
 
 type OptionsLocaleStrings = {
@@ -45,11 +51,16 @@ const LOCALE_MAP: Record<string, OptionsLocaleStrings> = {
   },
 };
 
+const LOCAL_ENDPOINT_DEFAULT = "http://localhost:4000/api/detect";
+
 const DEFAULTS: ExtensionSettings = {
   imagionApiKey: "",
   imagionDetectionEndpoint: "http://localhost:3000/api/detect",
   imagionBadgeEnabled: true,
   imagionDisabledHosts: [],
+  imagionDetectionMode: "api",
+  imagionLocalEndpoint: LOCAL_ENDPOINT_DEFAULT,
+  imagionPlanTier: "free",
 };
 
 const form = document.getElementById("settings-form") as HTMLFormElement;
@@ -61,11 +72,18 @@ const saveButton = document.getElementById("save-button") as HTMLButtonElement;
 const domainInput = document.getElementById("domain-input") as HTMLInputElement;
 const addDomainButton = document.getElementById("add-domain-btn") as HTMLButtonElement;
 const domainList = document.getElementById("domain-list") as HTMLUListElement;
+const planSelect = document.getElementById("plan-tier") as HTMLSelectElement;
+const planBadge = document.getElementById("plan-badge") as HTMLElement;
+const planDescription = document.getElementById("plan-description") as HTMLElement;
+const detectionModeInputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="detection-mode"]'));
+const localEndpointField = document.getElementById("local-endpoint-field") as HTMLElement;
+const localEndpointInput = document.getElementById("local-endpoint") as HTMLInputElement;
 
 const localeCode = navigator.language.split("-")[0];
 const strings = LOCALE_MAP[localeCode] ?? LOCALE_MAP.en;
 
 let blockedHosts: string[] = [];
+let currentPlan: PlanTier = "free";
 
 function getStorage(): Promise<ExtensionSettings> {
   return new Promise((resolve) => {
@@ -80,6 +98,13 @@ function getStorage(): Promise<ExtensionSettings> {
         imagionDisabledHosts: Array.isArray(items.imagionDisabledHosts)
           ? items.imagionDisabledHosts.filter((host) => typeof host === "string")
           : [],
+        imagionDetectionMode:
+          items.imagionDetectionMode === "local" ? "local" : DEFAULTS.imagionDetectionMode,
+        imagionLocalEndpoint:
+          typeof items.imagionLocalEndpoint === "string" && items.imagionLocalEndpoint.trim().length > 0
+            ? items.imagionLocalEndpoint.trim()
+            : DEFAULTS.imagionLocalEndpoint,
+        imagionPlanTier: items.imagionPlanTier === "pro" ? "pro" : DEFAULTS.imagionPlanTier,
       });
     });
   });
@@ -136,11 +161,53 @@ function renderDomainList() {
   });
 }
 
+function getSelectedDetectionMode(): DetectionMode {
+  const checked = detectionModeInputs.find((input) => input.checked);
+  return (checked?.value as DetectionMode) ?? "api";
+}
+
+function setDetectionMode(mode: DetectionMode) {
+  detectionModeInputs.forEach((input) => {
+    input.checked = input.value === mode;
+  });
+  updateLocalEndpointVisibility(mode);
+}
+
+function isLocalModeAllowed(planTier: PlanTier) {
+  return planTier === "free";
+}
+
+function updatePlanUi(planTier: PlanTier, desiredMode: DetectionMode) {
+  currentPlan = planTier;
+  planSelect.value = planTier;
+  planBadge.textContent = planTier === "free" ? "Free" : "Pro";
+  planBadge.dataset.plan = planTier;
+  planDescription.textContent =
+    planTier === "free"
+      ? "Free tier can run the API or the bundled local model."
+      : "Pro tier routes every detection through the Imagion API.";
+  const localRadio = detectionModeInputs.find((input) => input.value === "local");
+  if (localRadio) {
+    localRadio.disabled = !isLocalModeAllowed(planTier);
+  }
+  const nextMode = !isLocalModeAllowed(planTier) && desiredMode === "local" ? "api" : desiredMode;
+  setDetectionMode(nextMode);
+}
+
+function updateLocalEndpointVisibility(mode: DetectionMode) {
+  const visible = mode === "local";
+  localEndpointField.classList.toggle("visible", visible);
+  localEndpointInput.disabled = !visible;
+}
+
 async function persistSettings(showFeedback = true) {
   const payload: ExtensionSettings = {
     imagionApiKey: apiKeyInput.value.trim(),
     imagionDetectionEndpoint: endpointInput.value.trim() || DEFAULTS.imagionDetectionEndpoint,
     imagionBadgeEnabled: badgeToggle.checked,
+    imagionDetectionMode: getSelectedDetectionMode(),
+    imagionLocalEndpoint: localEndpointInput.value.trim() || endpointInput.value.trim() || LOCAL_ENDPOINT_DEFAULT,
+    imagionPlanTier: (planSelect.value as PlanTier) || DEFAULTS.imagionPlanTier,
     imagionDisabledHosts: blockedHosts,
   };
   try {
@@ -170,6 +237,9 @@ async function populateForm() {
     domainLabel.textContent = strings.addDomainLabel;
   }
   addDomainButton.textContent = strings.addButtonLabel;
+  planSelect.value = stored.imagionPlanTier;
+  localEndpointInput.value = stored.imagionLocalEndpoint;
+  updatePlanUi(stored.imagionPlanTier, stored.imagionDetectionMode);
 }
 
 form.addEventListener("submit", async (event) => {
@@ -197,6 +267,16 @@ addDomainButton.addEventListener("click", async () => {
   showStatus(strings.domainAddedMessage);
   clearStatus();
   domainInput.value = "";
+});
+
+planSelect.addEventListener("change", () => {
+  const nextPlan = (planSelect.value as PlanTier) || "free";
+  updatePlanUi(nextPlan, getSelectedDetectionMode());
+});
+detectionModeInputs.forEach((input) => {
+  input.addEventListener("change", () => {
+    updateLocalEndpointVisibility(getSelectedDetectionMode());
+  });
 });
 
 statusNode.setAttribute("aria-live", "polite");

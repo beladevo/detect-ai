@@ -83,6 +83,12 @@ export default async function AdminPage() {
     { label: "Uncertain", value: analytics.verdictDistribution.uncertain },
   ]
 
+  const detectionSourceSummary = [
+    { label: "API detections", value: analytics.detectionSourceBreakdown.api },
+    { label: "Local detections", value: analytics.detectionSourceBreakdown.local },
+    { label: "Extension (API)", value: analytics.detectionSourceBreakdown.extension },
+  ]
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-background">
       <AuroraBackground className="min-h-screen">
@@ -165,6 +171,14 @@ export default async function AdminPage() {
               </div>
               <div className="mt-6 grid gap-3 sm:grid-cols-3">
                 {verdictSummary.map((item) => (
+                  <div key={item.label} className="rounded-2xl border border-border/50 bg-card/30 p-4 text-center">
+                    <p className="text-xs uppercase tracking-[0.3em] text-slate-400">{item.label}</p>
+                    <p className="mt-2 text-2xl font-semibold text-white">{item.value.toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                {detectionSourceSummary.map((item) => (
                   <div key={item.label} className="rounded-2xl border border-border/50 bg-card/30 p-4 text-center">
                     <p className="text-xs uppercase tracking-[0.3em] text-slate-400">{item.label}</p>
                     <p className="mt-2 text-2xl font-semibold text-white">{item.value.toLocaleString()}</p>

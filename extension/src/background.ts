@@ -1,5 +1,6 @@
 const LOG_PREFIX = "[Imagion Background]";
 const DEFAULT_DETECTION_ENDPOINT = "http://localhost:3000/api/detect";
+const LOCAL_DETECTION_ENDPOINT_DEFAULT = "http://localhost:4000/api/detect";
 const REQUEST_TTL_MS = 5 * 60 * 1000;
 const MAX_CONCURRENT_DETECTIONS = 3;
 const TELEMETRY_KEY = "imagionTelemetry";
@@ -15,9 +16,15 @@ const USAGE_STATUS_MESSAGE = "REQUEST_USAGE_STATUS";
 
 console.info(LOG_PREFIX, "Service worker started");
 
+type DetectionMode = "api" | "local";
+type PlanTier = "free" | "pro";
+
 type ImagionConfig = {
   imagionApiKey: string;
   imagionDetectionEndpoint: string;
+  detectionMode: DetectionMode;
+  localDetectionEndpoint: string;
+  planTier: PlanTier;
 };
 
 type DetectionResponsePayload = {
@@ -36,6 +43,7 @@ type HashHistoryEntry = {
   hash: string;
   payload: DetectionResponsePayload;
   createdAt: number;
+  mode: DetectionMode;
 };
 
 type DetectionResponse = DetectionResponsePayload & {
@@ -51,6 +59,15 @@ type PendingResolver = {
 
 type PendingRequest = {
   resolvers: PendingResolver[];
+};
+
+type DetectionJob = {
+  imageUrl: string;
+  requestKey: string;
+  mode: DetectionMode;
+  imagionApiKey: string;
+  imagionDetectionEndpoint: string;
+  localEndpoint: string;
 };
 
 type TelemetryEntry = {
@@ -79,7 +96,11 @@ type UsageStatusPayload = {
 
 const cache = new Map<string, { timestamp: number; payload: DetectionResponsePayload }>();
 const pendingRequests = new Map<string, PendingRequest>();
-const detectionQueue: Array<{ imageUrl: string }> = [];
+const detectionQueue: Array<DetectionJob> = [];
+
+function buildRequestKey(imageUrl: string, mode: DetectionMode): string {
+  return `${mode}:${imageUrl}`;
+}
 const telemetryEntries: TelemetryEntry[] = [];
 let runningDetections = 0;
 let cachedConfig: ImagionConfig | null = null;
@@ -100,6 +121,9 @@ async function getConfig(): Promise<ImagionConfig> {
       {
         imagionApiKey: "",
         imagionDetectionEndpoint: DEFAULT_DETECTION_ENDPOINT,
+        imagionDetectionMode: "api",
+        imagionLocalEndpoint: LOCAL_DETECTION_ENDPOINT_DEFAULT,
+        imagionPlanTier: "free",
       },
       (items) => {
         resolve({
@@ -108,6 +132,12 @@ async function getConfig(): Promise<ImagionConfig> {
             typeof items.imagionDetectionEndpoint === "string" && items.imagionDetectionEndpoint.trim().length > 0
               ? items.imagionDetectionEndpoint.trim()
               : DEFAULT_DETECTION_ENDPOINT,
+          detectionMode: items.imagionDetectionMode === "local" ? "local" : "api",
+          localDetectionEndpoint:
+            typeof items.imagionLocalEndpoint === "string" && items.imagionLocalEndpoint.trim().length > 0
+              ? items.imagionLocalEndpoint.trim()
+              : LOCAL_DETECTION_ENDPOINT_DEFAULT,
+          planTier: items.imagionPlanTier === "pro" ? "pro" : "free",
         });
       }
     );
@@ -117,6 +147,8 @@ async function getConfig(): Promise<ImagionConfig> {
   console.info(LOG_PREFIX, "Config loaded:", {
     hasApiKey: !!config.imagionApiKey,
     endpoint: config.imagionDetectionEndpoint,
+    detectionMode: config.detectionMode,
+    planTier: config.planTier,
   });
   return config;
 }
@@ -125,9 +157,17 @@ async function getConfig(): Promise<ImagionConfig> {
     if (areaName !== "local") {
       return;
     }
-    if (changes.imagionApiKey || changes.imagionDetectionEndpoint) {
+    const configKeys =
+      changes.imagionApiKey ||
+      changes.imagionDetectionEndpoint ||
+      changes.imagionDetectionMode ||
+      changes.imagionLocalEndpoint ||
+      changes.imagionPlanTier;
+    if (configKeys) {
       console.info(LOG_PREFIX, "Config changed, clearing cache");
       cachedConfig = null;
+      cache.clear();
+      // reset rate indicator when API key is removed
       if (changes.imagionApiKey && !changes.imagionApiKey.newValue) {
         setRateLimitIndicator(null);
       }
@@ -141,7 +181,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message.type === "REQUEST_DETECTION") {
     console.debug(LOG_PREFIX, "Received detection request:", message.badgeId, message.imageUrl?.substring(0, 80));
-    handleImageDetection(message, sendResponse);
+    void handleImageDetection(message, sendResponse);
     return true;
   }
 
@@ -164,12 +204,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return false;
 });
 
-function handleImageDetection(message: {
-  type: "REQUEST_DETECTION";
-  imageUrl: string;
-  badgeId: string;
-  pageUrl: string;
-}, sendResponse: (response: DetectionResponse) => void) {
+async function handleImageDetection(
+  message: {
+    type: "REQUEST_DETECTION";
+    imageUrl: string;
+    badgeId: string;
+    pageUrl: string;
+  },
+  sendResponse: (response: DetectionResponse) => void
+) {
   const normalizedUrl = normalizeImageUrl(message.imageUrl, message.pageUrl);
   if (!normalizedUrl) {
     console.warn(LOG_PREFIX, "Invalid URL:", message.imageUrl);
@@ -182,14 +225,16 @@ function handleImageDetection(message: {
     return;
   }
 
-  const cached = getCachedResult(normalizedUrl);
+  const config = await getConfig();
+  const requestKey = buildRequestKey(normalizedUrl, config.detectionMode);
+  const cached = getCachedResult(requestKey);
   if (cached) {
     console.debug(LOG_PREFIX, "Cache hit for:", message.badgeId);
     sendResponse({ ...cached, badgeId: message.badgeId, imageUrl: normalizedUrl });
     return;
   }
 
-  const existing = pendingRequests.get(normalizedUrl);
+  const existing = pendingRequests.get(requestKey);
   if (existing) {
     console.debug(LOG_PREFIX, "Joining existing request for:", message.badgeId);
     existing.resolvers.push({ badgeId: message.badgeId, sendResponse });
@@ -197,8 +242,15 @@ function handleImageDetection(message: {
   }
 
   console.debug(LOG_PREFIX, "Queueing new request for:", message.badgeId);
-  pendingRequests.set(normalizedUrl, { resolvers: [{ badgeId: message.badgeId, sendResponse }] });
-  detectionQueue.push({ imageUrl: normalizedUrl });
+  pendingRequests.set(requestKey, { resolvers: [{ badgeId: message.badgeId, sendResponse }] });
+  detectionQueue.push({
+    imageUrl: normalizedUrl,
+    requestKey,
+    mode: config.detectionMode,
+    imagionApiKey: config.imagionApiKey,
+    imagionDetectionEndpoint: config.imagionDetectionEndpoint,
+    localEndpoint: config.localDetectionEndpoint,
+  });
   processQueue();
 }
 
@@ -214,13 +266,13 @@ function normalizeImageUrl(imageUrl: string, pageUrl: string): string | null {
   }
 }
 
-function getCachedResult(imageUrl: string): DetectionResponsePayload | null {
-  const entry = cache.get(imageUrl);
+function getCachedResult(requestKey: string): DetectionResponsePayload | null {
+  const entry = cache.get(requestKey);
   if (!entry) {
     return null;
   }
   if (Date.now() - entry.timestamp > REQUEST_TTL_MS) {
-    cache.delete(imageUrl);
+    cache.delete(requestKey);
     return null;
   }
   return entry.payload;
@@ -238,9 +290,13 @@ function processQueue() {
       continue;
     }
     runningDetections += 1;
-    console.debug(LOG_PREFIX, `Processing queue (${runningDetections}/${MAX_CONCURRENT_DETECTIONS} running, ${detectionQueue.length} pending)`);
+    console.debug(
+      LOG_PREFIX,
+      `Processing queue (${runningDetections}/${MAX_CONCURRENT_DETECTIONS} running, ${detectionQueue.length} pending)`,
+      job.mode
+    );
 
-    runDetection(job.imageUrl)
+    runDetection(job)
       .catch(() => {
         // Individual errors are handled inside runDetection.
       })
@@ -251,17 +307,24 @@ function processQueue() {
   }
 }
 
-async function runDetection(imageUrl: string) {
-  const { imagionApiKey, imagionDetectionEndpoint } = await getConfig();
+async function runDetection(job: DetectionJob) {
+  const {
+    imageUrl,
+    requestKey,
+    mode,
+    imagionApiKey,
+    imagionDetectionEndpoint,
+    localEndpoint,
+  } = job;
 
-  if (!imagionApiKey) {
-    console.warn(LOG_PREFIX, "No API key configured");
+  if (mode === "api" && !imagionApiKey) {
+    console.warn(LOG_PREFIX, "No API key configured for API mode");
     recordTelemetry({
       level: "warning",
       message: "missing_api_key",
-      details: { imageUrl },
+      details: { imageUrl, mode },
     });
-    dispatchResponse(imageUrl, {
+    dispatchResponse(imageUrl, requestKey, {
       status: "missing-key",
       message: "Please provide an Imagion API key in the options page.",
     });
@@ -277,6 +340,7 @@ async function runDetection(imageUrl: string) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(LOG_PREFIX, "Failed to fetch image:", {
       imageUrl,
+      mode,
       error: errorMessage,
       errorType: error instanceof Error ? error.name : typeof error,
       stack: error instanceof Error ? error.stack : undefined,
@@ -284,9 +348,9 @@ async function runDetection(imageUrl: string) {
     recordTelemetry({
       level: "error",
       message: "fetch_image_failed",
-      details: { imageUrl, error: errorMessage },
+      details: { imageUrl, error: errorMessage, mode },
     });
-    dispatchResponse(imageUrl, {
+    dispatchResponse(imageUrl, requestKey, {
       status: "error",
       message: `Failed to fetch image: ${errorMessage}`,
     });
@@ -301,35 +365,33 @@ async function runDetection(imageUrl: string) {
   }
 
   if (imageHash) {
-    const historyEntry = await findHashHistoryEntry(imageHash);
+    const historyEntry = await findHashHistoryEntry(imageHash, mode);
     if (historyEntry) {
       recordTelemetry({
         level: "info",
         message: "local_history_hit",
-        details: { imageUrl, hash: imageHash },
+        details: { imageUrl, hash: imageHash, mode },
       });
-      // Ensure status is set for cached responses
       const payload = { ...historyEntry.payload, status: historyEntry.payload.status || "success" as const };
-      cache.set(imageUrl, { timestamp: Date.now(), payload });
-      dispatchResponse(imageUrl, payload, imageHash);
+      cache.set(requestKey, { timestamp: Date.now(), payload });
+      dispatchResponse(imageUrl, requestKey, payload, imageHash);
       return;
     }
   }
 
-  const cacheLookupEndpoint = getCacheLookupEndpoint(imagionDetectionEndpoint);
-  if (imageHash && imagionApiKey) {
+  if (mode === "api" && imageHash && imagionApiKey) {
+    const cacheLookupEndpoint = getCacheLookupEndpoint(imagionDetectionEndpoint);
     const remotePayload = await lookupBackendHash(imageHash, cacheLookupEndpoint, imagionApiKey);
     if (remotePayload) {
       recordTelemetry({
         level: "info",
         message: "remote_cache_hit",
-        details: { imageUrl, hash: imageHash },
+        details: { imageUrl, hash: imageHash, mode },
       });
-      // Ensure status is set for cached responses
       const payload = { ...remotePayload, status: remotePayload.status || "success" as const };
-      cache.set(imageUrl, { timestamp: Date.now(), payload });
-      void recordHashHistory(imageHash, payload);
-      dispatchResponse(imageUrl, payload, imageHash);
+      cache.set(requestKey, { timestamp: Date.now(), payload });
+      void recordHashHistory(imageHash, payload, mode);
+      dispatchResponse(imageUrl, requestKey, payload, imageHash);
       return;
     }
   }
@@ -339,23 +401,37 @@ async function runDetection(imageUrl: string) {
   const file = new File([blob], fileName, { type: blob.type || "image/jpeg" });
   formData.append("file", file);
 
+  const targetEndpoint =
+    mode === "local"
+      ? localEndpoint || imagionDetectionEndpoint
+      : imagionDetectionEndpoint;
+  const isLocalMode = mode === "local";
+  if (isLocalMode && !localEndpoint) {
+    console.debug(LOG_PREFIX, "Local endpoint missing, falling back to API endpoint");
+  }
+
+  const headers: Record<string, string> = {
+    "x-detection-source": isLocalMode ? "extension-local" : "extension",
+  };
+  if (!isLocalMode) {
+    headers["x-api-key"] = imagionApiKey;
+  }
+
   let response: Response;
   try {
-    console.debug(LOG_PREFIX, "Sending to API:", imagionDetectionEndpoint);
-    response = await fetch(imagionDetectionEndpoint, {
+    console.debug(LOG_PREFIX, `Sending to ${isLocalMode ? "local" : "API"} endpoint:`, targetEndpoint, mode);
+    response = await fetch(targetEndpoint, {
       method: "POST",
-      headers: {
-        "x-api-key": imagionApiKey,
-        "x-detection-source": "extension",
-      },
+      headers,
       body: formData,
     });
-    console.debug(LOG_PREFIX, "API response status:", response.status);
+    console.debug(LOG_PREFIX, "Detection response status:", response.status, "mode:", mode);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(LOG_PREFIX, "API request failed:", {
+    console.error(LOG_PREFIX, "Detection request failed:", {
       imageUrl,
-      endpoint: imagionDetectionEndpoint,
+      endpoint: targetEndpoint,
+      mode,
       error: errorMessage,
       errorType: error instanceof Error ? error.name : typeof error,
       stack: error instanceof Error ? error.stack : undefined,
@@ -363,11 +439,11 @@ async function runDetection(imageUrl: string) {
     recordTelemetry({
       level: "error",
       message: "detection_request_failed",
-      details: { imageUrl, error: errorMessage },
+      details: { imageUrl, error: errorMessage, mode },
     });
-    dispatchResponse(imageUrl, {
+    dispatchResponse(imageUrl, requestKey, {
       status: "error",
-      message: `API request failed: ${errorMessage}`,
+      message: `${isLocalMode ? "Local" : "API"} detection failed: ${errorMessage}`,
     }, imageHash ?? undefined);
     return;
   }
@@ -375,22 +451,23 @@ async function runDetection(imageUrl: string) {
   let payload: unknown;
   try {
     payload = await response.json();
-    console.debug(LOG_PREFIX, "API response payload:", payload);
+    console.debug(LOG_PREFIX, "Detection response payload:", payload, "mode:", mode);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(LOG_PREFIX, "Failed to parse API response JSON:", {
+    console.error(LOG_PREFIX, "Failed to parse detection response JSON:", {
       imageUrl,
       status: response.status,
       statusText: response.statusText,
       contentType: response.headers.get("content-type"),
       error: errorMessage,
+      mode,
     });
     recordTelemetry({
       level: "error",
       message: "invalid_json",
-      details: { imageUrl, status: response.status, error: errorMessage },
+      details: { imageUrl, status: response.status, error: errorMessage, mode },
     });
-    dispatchResponse(imageUrl, {
+    dispatchResponse(imageUrl, requestKey, {
       status: "error",
       message: `Failed to parse response (status ${response.status}): ${errorMessage}`,
     }, imageHash ?? undefined);
@@ -413,7 +490,7 @@ async function runDetection(imageUrl: string) {
           ? "daily"
           : "burst";
     applyRateLimitBackoff(effectiveRetryAfter, limitReason);
-    console.warn(LOG_PREFIX, "Rate limited, retry after:", effectiveRetryAfter, "seconds");
+    console.warn(LOG_PREFIX, "Rate limited, retry after:", effectiveRetryAfter, "seconds", "mode:", mode);
     recordTelemetry({
       level: "warning",
       message: "rate_limited",
@@ -422,9 +499,10 @@ async function runDetection(imageUrl: string) {
         retryAfter: effectiveRetryAfter,
         badgeLabel: rateLimitBody.badgeLabel,
         errorType: rateLimitBody.errorType,
+        mode,
       },
     });
-    dispatchResponse(imageUrl, {
+    dispatchResponse(imageUrl, requestKey, {
       status: "rate-limit",
       message: rateLimitBody.message ?? `Rate limit exceeded. Retrying in ${effectiveRetryAfter} seconds.`,
       retryAfterSeconds: effectiveRetryAfter,
@@ -437,19 +515,20 @@ async function runDetection(imageUrl: string) {
   if (!response.ok) {
     const errorBody = payload as { message?: string; error?: string; details?: unknown };
     const message = errorBody.message || errorBody.error || "Detection failed";
-    console.error(LOG_PREFIX, "API error response:", {
+    console.error(LOG_PREFIX, "Detection error response:", {
       status: response.status,
       statusText: response.statusText,
       message,
       imageUrl,
+      mode,
       fullResponse: errorBody,
     });
     recordTelemetry({
       level: "error",
       message: "detection_error",
-      details: { imageUrl, responseStatus: response.status, message, fullResponse: errorBody },
+      details: { imageUrl, responseStatus: response.status, message, fullResponse: errorBody, mode },
     });
-    dispatchResponse(imageUrl, {
+    dispatchResponse(imageUrl, requestKey, {
       status: "error",
       message,
     }, imageHash ?? undefined);
@@ -465,21 +544,21 @@ async function runDetection(imageUrl: string) {
     error?: string;
   };
 
-  // If no verdict, treat as error
   if (!structuredPayload.verdict) {
-    const errorMessage = structuredPayload.message || structuredPayload.error || "API returned no verdict. The image may be unsupported or corrupted.";
-    console.error(LOG_PREFIX, "API returned success but no verdict:", {
+    const errorMessage = structuredPayload.message || structuredPayload.error || "Detection returned no verdict.";
+    console.error(LOG_PREFIX, "Detection response lacked verdict:", {
       imageUrl,
       responseStatus: response.status,
       payload: structuredPayload,
       rawPayload: payload,
+      mode,
     });
     recordTelemetry({
       level: "error",
       message: "no_verdict_returned",
-      details: { imageUrl, responseStatus: response.status, rawPayload: payload },
+      details: { imageUrl, responseStatus: response.status, rawPayload: payload, mode },
     });
-    dispatchResponse(imageUrl, {
+    dispatchResponse(imageUrl, requestKey, {
       status: "error",
       message: errorMessage,
     }, imageHash ?? undefined);
@@ -494,18 +573,18 @@ async function runDetection(imageUrl: string) {
     presentation: structuredPayload.presentation,
   };
 
-  console.info(LOG_PREFIX, "Detection success:", structuredPayload.verdict, "score:", structuredPayload.score);
+  console.info(LOG_PREFIX, "Detection success:", structuredPayload.verdict, "score:", structuredPayload.score, "mode:", mode);
   recordTelemetry({
     level: "info",
     message: "detection_success",
-    details: { imageUrl, score: structuredPayload.score, verdict: structuredPayload.verdict },
+    details: { imageUrl, score: structuredPayload.score, verdict: structuredPayload.verdict, mode },
   });
 
-  cache.set(imageUrl, { timestamp: Date.now(), payload: successPayload });
+  cache.set(requestKey, { timestamp: Date.now(), payload: successPayload });
   if (imageHash) {
-    void recordHashHistory(imageHash, successPayload);
+    void recordHashHistory(imageHash, successPayload, mode);
   }
-  dispatchResponse(imageUrl, successPayload, imageHash ?? undefined);
+  dispatchResponse(imageUrl, requestKey, successPayload, imageHash ?? undefined);
 }
 
 async function fetchImageBytes(url: string): Promise<Blob> {
@@ -537,8 +616,13 @@ function extractFileName(url: string): string {
   }
 }
 
-function dispatchResponse(imageUrl: string, payload: DetectionResponsePayload, hash?: string) {
-  const entry = pendingRequests.get(imageUrl);
+function dispatchResponse(
+  imageUrl: string,
+  requestKey: string,
+  payload: DetectionResponsePayload,
+  hash?: string
+) {
+  const entry = pendingRequests.get(requestKey);
   if (!entry) {
     return;
   }
@@ -546,7 +630,7 @@ function dispatchResponse(imageUrl: string, payload: DetectionResponsePayload, h
   entry.resolvers.forEach(({ badgeId, sendResponse }) => {
     sendResponse({ ...payload, badgeId, imageUrl, hash });
   });
-  pendingRequests.delete(imageUrl);
+  pendingRequests.delete(requestKey);
 }
 
 function parseRetryAfter(header: string | null): number {
@@ -666,15 +750,15 @@ async function ensureHashHistoryLoaded(): Promise<void> {
   await hashHistoryReady;
 }
 
-async function findHashHistoryEntry(hash: string): Promise<HashHistoryEntry | undefined> {
+async function findHashHistoryEntry(hash: string, mode: DetectionMode): Promise<HashHistoryEntry | undefined> {
   await ensureHashHistoryLoaded();
-  return hashHistory.find((entry) => entry.hash === hash);
+  return hashHistory.find((entry) => entry.hash === hash && entry.mode === mode);
 }
 
-async function recordHashHistory(hash: string, payload: DetectionResponsePayload): Promise<void> {
+async function recordHashHistory(hash: string, payload: DetectionResponsePayload, mode: DetectionMode): Promise<void> {
   await ensureHashHistoryLoaded();
-  hashHistory = hashHistory.filter((entry) => entry.hash !== hash);
-  hashHistory.unshift({ hash, payload, createdAt: Date.now() });
+  hashHistory = hashHistory.filter((entry) => entry.hash !== hash || entry.mode !== mode);
+  hashHistory.unshift({ hash, payload, mode, createdAt: Date.now() });
   if (hashHistory.length > MAX_HASH_HISTORY) {
     hashHistory.length = MAX_HASH_HISTORY;
   }
@@ -697,6 +781,7 @@ function isHashHistoryEntry(value: unknown): value is HashHistoryEntry {
     typeof entry.payload === "object" &&
     entry.payload !== null &&
     typeof entry.payload.status === "string"
+    && (entry.mode === "api" || entry.mode === "local")
   );
 }
 

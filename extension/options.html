@@ -270,6 +270,89 @@
           padding: 24px;
         }
       }
+
+      .admin-panel {
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .admin-panel__heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .admin-panel__title {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0;
+      }
+
+      .admin-panel__subtitle {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        letter-spacing: 0.3em;
+        margin: 0;
+        text-transform: uppercase;
+      }
+
+      .plan-badge {
+        border-radius: 999px;
+        padding: 6px 14px;
+        font-size: 0.75rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+
+      .admin-panel__description {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin: 0 0 4px;
+      }
+
+      .admin-panel select,
+      .admin-panel input[type="url"] {
+        width: 100%;
+      }
+
+      .mode-toggle {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        border: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      .mode-toggle legend {
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+
+      .mode-toggle label {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        font-size: 0.95rem;
+      }
+
+      #local-endpoint-field {
+        display: none;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      #local-endpoint-field.visible {
+        display: flex;
+      }
     </style>
   </head>
   <body>
@@ -317,6 +400,47 @@
               <label class="toggle">
                 <input type="checkbox" id="badge-enabled" checked />
                 <span>Show badges while browsing</span>
+              </label>
+            </div>
+
+            <div class="form-section admin-panel">
+              <div class="admin-panel__heading">
+                <div>
+                  <p class="admin-panel__title">Admin controls</p>
+                  <p class="admin-panel__subtitle">Plan-aware detection</p>
+                </div>
+                <div class="plan-badge" id="plan-badge">Free</div>
+              </div>
+              <label>
+                Plan tier
+                <select id="plan-tier">
+                  <option value="free">Free</option>
+                  <option value="pro">Pro</option>
+                </select>
+              </label>
+              <p class="admin-panel__description" id="plan-description">
+                Local detection is only available on the Free tier.
+              </p>
+              <fieldset class="mode-toggle">
+                <legend>Detection mode</legend>
+                <label>
+                  <input type="radio" name="detection-mode" value="api" checked />
+                  Use Imagion API
+                </label>
+                <label>
+                  <input type="radio" name="detection-mode" value="local" />
+                  Run local LLM
+                </label>
+                <p class="helper">
+                  Local mode routes each detection to a local inference endpoint instead of the remote API.
+                </p>
+              </fieldset>
+              <label id="local-endpoint-field">
+                Local detection endpoint
+                <input type="url" id="local-endpoint" placeholder="http://localhost:4000/api/detect" />
+                <span class="helper">
+                  Specify the URL for the bundled LLM service you run locally. Leave blank to reuse the API endpoint.
+                </span>
               </label>
             </div>
 

@@ -170,7 +170,12 @@ export async function POST(request: NextRequest) {
   }
 
   const requestedDetectionSource = request.headers.get("x-detection-source")?.toLowerCase();
-  const detectionSource = requestedDetectionSource === "extension" ? "extension" : "website";
+  let detectionSource = "website";
+  if (requestedDetectionSource === "extension") {
+    detectionSource = "extension";
+  } else if (requestedDetectionSource === "extension-local") {
+    detectionSource = "extension-local";
+  }
 
   await logServerEvent({
     level: "Info",
@@ -339,7 +344,7 @@ export async function POST(request: NextRequest) {
               status: "COMPLETED",
               processingTime: processingTimeMs,
               modelUsed: safeModel || MODEL_NAME,
-              detectionSource,
+      detectionSource,
               pipelineData: pipelineSummary,
             },
           }),

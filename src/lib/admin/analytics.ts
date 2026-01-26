@@ -24,6 +24,12 @@ export interface AdminVerdictDistribution {
   uncertain: number
 }
 
+export interface AdminDetectionSourceBreakdown {
+  api: number
+  local: number
+  extension: number
+}
+
 export type AdminActivityType =
   | "user_signup"
   | "detection"
@@ -49,6 +55,7 @@ export interface AdminAnalyticsOverview {
   revenueGrowth: number
   billing: AdminBillingBreakdown
   verdictDistribution: AdminVerdictDistribution
+  detectionSourceBreakdown: AdminDetectionSourceBreakdown
   detectionTrend: AdminTrendPoint[]
   userTrend: AdminTrendPoint[]
   recentActivity: AdminActivity[]
@@ -117,6 +124,12 @@ export async function getAdminAnalyticsOverview(
     }),
   ])
 
+  const detectionSourceCounts = await prisma.detection.groupBy({
+    by: ["detectionSource"],
+    where: { createdAt: { gte: startDate } },
+    _count: true,
+  })
+
   const detectionsInPeriod = await prisma.detection.count({
     where: { createdAt: { gte: startDate } },
   })
@@ -144,6 +157,16 @@ export async function getAdminAnalyticsOverview(
     ai: verdictCounts.find((v) => v.verdict === "AI_GENERATED")?._count || 0,
     real: verdictCounts.find((v) => v.verdict === "REAL")?._count || 0,
     uncertain: verdictCounts.find((v) => v.verdict === "UNCERTAIN")?._count || 0,
+  }
+
+  const extensionLocalCount =
+    detectionSourceCounts.find((v) => v.detectionSource === "extension-local")?._count || 0
+  const extensionCount = detectionSourceCounts.find((v) => v.detectionSource === "extension")?._count || 0
+  const websiteCount = detectionSourceCounts.find((v) => v.detectionSource === "website")?._count || 0
+  const detectionSourceBreakdown: AdminDetectionSourceBreakdown = {
+    api: websiteCount + extensionCount,
+    local: extensionLocalCount,
+    extension: extensionCount,
   }
 
   const [detectionTrend, userTrend, recentActivity] = await Promise.all([
@@ -175,6 +198,7 @@ export async function getAdminAnalyticsOverview(
     detectionTrend,
     userTrend,
     recentActivity,
+    detectionSourceBreakdown,
   }
 }
 

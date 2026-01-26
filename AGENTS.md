@@ -24,3 +24,4 @@ This file serves as the first stop whenever an LLM agent touches this repository
 
 ## Keeping the docs up to date
 - Any time you expose, rename, or remove a subsystem, update `internal-docs/SYSTEM-OVERVIEW.md` and this file as needed so future agents inherit the correct mental model.
+- The extension now exposes an "Admin controls" section (plan selection, detection-mode toggle, and local endpoint override). Document any changes to that flag or its downstream behavior in `internal-docs/SYSTEM-OVERVIEW.md` and here so future agents understand how local vs API detection is configured.

@@ -42,6 +42,7 @@ This repository bundles a Next.js-powered control plane, a high-fidelity image-d
 - **Popup** (`popup.ts`) authenticates users through `POST /api/auth/extension`, stores API keys/endpoints in `chrome.storage`, and exposes toggles/counters.
 - **Background worker** (`background.ts`) opens image URLs, hashes them, caches responses, queues requests (max 3 concurrent), rate-limits retries/backoff, records telemetry, and forwards results to the popup/content scripts.
 - **Options** (`options.ts`) exposes host block lists, endpoint overrides, and API key fields. The extension respects language locales and keeps telemetry in `imagionTelemetry`.
+- **Admin controls** (`options.ts`) now show a plan tier selector, a detection-mode toggle (API vs. local LLM), and a local-endpoint override. The background worker reads `imagionDetectionMode`/`imagionLocalEndpoint` from storage to decide whether to call `/api/detect` or a user-specified local inference endpoint while maintaining caches/rate limits.
 
 ## Supporting infrastructure
 - **Database** – Prisma (connects via `MONGODB_URI` in `.env`). Schemas cover `user`, `detection`, `processedImage`, `usageLog`, etc.
