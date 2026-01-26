@@ -45,18 +45,42 @@ This repository bundles a Next.js-powered control plane, a high-fidelity image-d
 - **Admin controls** (`options.ts`) now show a plan tier selector, a detection-mode toggle (API vs. local LLM), and a local-endpoint override. The background worker reads `imagionDetectionMode`/`imagionLocalEndpoint` from storage to decide whether to call `/api/detect` or a user-specified local inference endpoint while maintaining caches/rate limits.
 
 ## Supporting infrastructure
-- **Database** – Prisma (connects via `MONGODB_URI` in `.env`). Schemas cover `user`, `detection`, `processedImage`, `usageLog`, etc.
+- **Database** – Prisma (connects via `DATABASE_URL` for Postgres, optional `MONGODB_URI` for server logging). Schemas cover `user`, `detection`, `processedImage`, `usageLog`, etc.
 - **Caching & rate limiting** – Redis via `REDIS_URL`; used by `rateLimit.ts` and `session.ts`.
 - **Storage** – optional blob storage (Vercel Blob) or any CDN behind `NEXT_PUBLIC_BLOB_BASE_URL`.
 - **Billing** – Stripe & PayPal helpers under `src/lib/stripe.ts` and `src/lib/paypal.ts`. Pricing/tier logic is in the UI and `src/lib/features`.
 - **Scripts** – the `scripts/` folder holds motor tasks (`compare-detectors.cjs`, ONNX conversion/upload, `verify-api.cjs`, etc.). They are used to sanity-check the detector, manage models, and migrate raw assets.
 - **Docs** – `docs/MIGRATION_GUIDE.md`, `docs/MODEL_SELECTION_GUIDE.md`, `internal-docs/UI-DESIGN-GUIDE.md`, and this page are canonical references for continuing work.
 
+## Self-hosted deployment architecture
+The production environment runs on a home Ubuntu server with KVM-based isolation. The architecture separates concerns across layers:
+
+```
+Internet → Cloudflare (DNS + TLS) → cloudflared container ─┐
+                                                            │ tunnel network
+Tailscale → SSH tunnel → 127.0.0.1:3000 ───────────────────┼──→ app (Next.js :3000)
+                                                            │         │
+                                                            │    internal network
+                                                            │     ┌───┴───┐
+                                                            │  postgres  redis
+                                                            │
+Host OS (Ubuntu, runs Immich) ──── KVM VM (Ubuntu) ─────────┘
+```
+
+- **Host isolation**: The app runs inside a KVM/libvirt VM, completely separate from the host OS and its Immich installation.
+- **Docker Compose** (`docker-compose.prod.yml`) orchestrates four services: `app`, `postgres`, `redis`, and `cloudflared` (opt-in via the `tunnel` profile). A one-shot `migrate` service (profile `migration`) runs Prisma migrations.
+- **Network isolation**: Postgres and Redis sit on an `internal: true` Docker network with no port bindings. The app bridges both the internal and tunnel networks. Cloudflared connects to the tunnel network only.
+- **ONNX models**: Volume-mounted from the VM filesystem (`/opt/imagion/models/`) into the container at `/app/public/models/onnx:ro`. Not baked into the Docker image.
+- **CI/CD**: GitHub Actions (`.github/workflows/deploy.yml`) builds the image, pushes to `ghcr.io/beladevo/detect-ai`, and deploys via SSH over Tailscale. The deploy script handles ghcr.io login, image pull, migration, restart, and health-check verification.
+- **Access modes**: Public access via Cloudflare Tunnel (when a custom domain is configured), private/admin access via Tailscale SSH tunnel to `127.0.0.1:3000`.
+- **Config files**: `Dockerfile` (multi-stage: deps → builder → runner), `.dockerignore`, `.env.production.example`, `docker-compose.prod.yml`. See `internal-docs/LOCAL-DEPLOYMENT.md` for the full setup guide.
+
 ## Development & validation workflow
 - Use `npm install` (or `pnpm`/`yarn` if preferred) at the repository root, then `npm run dev` to serve the Next app on port 3000. Environment variables come from `.env`, `.env.local`, or platform overrides.
 - Key repo scripts: `npm run build`, `npm run lint`, `npm run compare:local`, `npm run docker:up`. Run Prisma commands (`db:migrate`, `db:seed`, `db:studio`) when the schema changes.
 - Extension development happens under `extension/` with `npm install` + `npm run dev` (watch mode builds content/popup/background). Use `npm run build` to produce distributable assets, and `npm run test`/`typecheck`/`lint` as needed.
-- Use `docker-compose.yml` to spin up dependencies (Mongo, Redis, etc.) when the local environment needs mirroring.
+- **Local dev infra**: Use `docker-compose.yml` to spin up Postgres and Redis. This is the dev-only compose file (ports exposed, no app service).
+- **Production deployment**: Use `docker-compose.prod.yml` on the VM. Push to `main` triggers CI/CD. See `internal-docs/LOCAL-DEPLOYMENT.md`.
 - For detection sanity checks, `scripts/verify-api.cjs` and `scripts/compare-detectors.cjs` against known inputs are authoritative, while `scripts/upload-models-to-blob.mjs` syncs ONNX artifacts.
 
 ## Guidance for LLM contributors

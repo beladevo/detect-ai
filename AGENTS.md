@@ -17,6 +17,13 @@ This file serves as the first stop whenever an LLM agent touches this repository
 - When verifying detectors, `scripts/verify-api.cjs` and `scripts/compare-detectors.cjs` are the canonical sanity checks. Model conversion, blob uploads, and detector comparisons all live under `scripts/`.
 - Extension builds call `npm run build` inside `extension/`. Build artifacts land in `extension/dist` and must be uploaded via your packaging process (manual or automated).
 
+## Self-hosted deployment
+- The project runs on a home Ubuntu server inside a **KVM virtual machine**. Docker Compose orchestrates the app, Postgres, Redis, and (optionally) a Cloudflare Tunnel.
+- **CI/CD** is handled by `.github/workflows/deploy.yml`: build → push to `ghcr.io` → SSH deploy to the VM via Tailscale.
+- ONNX models are **volume-mounted** on the VM (not baked into the Docker image). They live at `/opt/imagion/models/`.
+- The Cloudflare Tunnel is opt-in (`profiles: [tunnel]` in `docker-compose.prod.yml`). Without a custom domain the app is accessed via Tailscale SSH tunnel.
+- See `internal-docs/LOCAL-DEPLOYMENT.md` for the full setup guide, and `docker-compose.prod.yml` / `Dockerfile` / `.env.production.example` for the configuration files.
+
 ## Communication & validation cues
 - Always mention what you tested (unit tests, lint, manual Next run, extension build). If you cannot run a command, explain why.
 - Highlight configuration needs (e.g., API keys in `chrome.storage`, `NEXT_PUBLIC_*` flags, Redis URLs) whenever they affect the change.
