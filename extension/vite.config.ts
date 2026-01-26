@@ -5,7 +5,6 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Content scripts and options need IIFE format (no ES modules support)
 const contentConfig: UserConfig = {
   build: {
     outDir: "dist",
@@ -30,7 +29,6 @@ const contentConfig: UserConfig = {
   },
 };
 
-// Background service worker needs ES module format
 const backgroundConfig: UserConfig = {
   build: {
     outDir: "dist",
@@ -46,7 +44,6 @@ const backgroundConfig: UserConfig = {
   },
 };
 
-// Default export for simple builds - we'll use a custom script for full builds
 export default defineConfig(contentConfig);
 
 export { contentConfig, backgroundConfig };
