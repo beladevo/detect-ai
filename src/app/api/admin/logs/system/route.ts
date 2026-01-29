@@ -1,79 +1,67 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/src/lib/auth'
+import { NextRequest, NextResponse } from "next/server"
+import { Prisma, type ServerLogLevel } from "@prisma/client"
+import { prisma } from "@/src/lib/prisma"
+import { withAdminAuth } from "@/src/lib/auth"
+
+const LEVELS: ServerLogLevel[] = ["Error", "Warn", "Info", "Log", "System"]
 
 export async function GET(request: NextRequest) {
   return withAdminAuth(request, async () => {
     const searchParams = request.nextUrl.searchParams
-    const page = parseInt(searchParams.get('page') || '1')
-    const pageSize = parseInt(searchParams.get('pageSize') || '50')
-    const level = searchParams.get('level')
-    const dateRange = searchParams.get('dateRange') || '24h'
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"))
+    const pageSize = Math.min(100, Math.max(10, parseInt(searchParams.get("pageSize") || "50")))
+    const levelParam = searchParams.get("level")
+    const dateRange = searchParams.get("dateRange") || "24h"
 
-    const mockLogs = generateMockLogs(page, pageSize, level, dateRange)
+    const now = new Date()
+    let startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+    if (dateRange === "1h") {
+      startDate = new Date(now.getTime() - 60 * 60 * 1000)
+    } else if (dateRange === "7d") {
+      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    } else if (dateRange === "30d") {
+      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    }
+
+    const selectedLevel =
+      levelParam && LEVELS.includes(levelParam as ServerLogLevel)
+        ? (levelParam as ServerLogLevel)
+        : undefined
+
+    const where: Prisma.ServerLogWhereInput = {
+      createdAt: { gte: startDate },
+      ...(selectedLevel ? { level: selectedLevel } : {}),
+    }
+
+    const [logs, total] = await Promise.all([
+      prisma.serverLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.serverLog.count({ where }),
+    ])
+
+    const formattedLogs = logs.map((log) => ({
+      id: log.id,
+      level: log.level,
+      source: log.source,
+      service: log.service,
+      message: log.message,
+      metadata: {
+        ipAddress: log.ipAddress,
+        userAgent: log.userAgent,
+        details: log.details,
+      },
+      createdAt: log.createdAt.toISOString(),
+    }))
 
     return NextResponse.json({
-      logs: mockLogs.logs,
-      total: mockLogs.total,
+      logs: formattedLogs,
+      total,
       page,
       pageSize,
     })
   })
-}
-
-function generateMockLogs(
-  page: number,
-  pageSize: number,
-  level: string | null,
-  dateRange: string
-) {
-  const levels: Array<'DEBUG' | 'INFO' | 'WARN' | 'ERROR'> = ['DEBUG', 'INFO', 'WARN', 'ERROR']
-  const sources = ['api/detect', 'api/auth', 'pipeline/ml', 'pipeline/frequency', 'database', 'cache']
-  const messages = [
-    'Request processed successfully',
-    'User authentication completed',
-    'Detection pipeline started',
-    'Model inference completed',
-    'Cache miss, fetching from database',
-    'Rate limit check passed',
-    'Session refreshed',
-    'File upload received',
-    'Image preprocessing completed',
-    'Connection timeout, retrying',
-    'Invalid input format',
-    'Database query slow',
-  ]
-
-  const now = new Date()
-  let hours = 24
-  switch (dateRange) {
-    case '1h': hours = 1; break
-    case '7d': hours = 168; break
-    case '30d': hours = 720; break
-  }
-
-  const totalLogs = 500
-  const logs = []
-
-  for (let i = 0; i < pageSize; i++) {
-    const index = (page - 1) * pageSize + i
-    if (index >= totalLogs) break
-
-    const logLevel = levels[Math.floor(Math.random() * levels.length)]
-    if (level && level !== 'all' && logLevel !== level) continue
-
-    const timestamp = new Date(now.getTime() - Math.random() * hours * 60 * 60 * 1000)
-
-    logs.push({
-      id: `log-${index}`,
-      level: logLevel,
-      message: messages[Math.floor(Math.random() * messages.length)],
-      source: sources[Math.floor(Math.random() * sources.length)],
-      metadata: null,
-      createdAt: timestamp.toISOString(),
-    })
-  }
-
-  logs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-
-  return { logs, total: totalLogs }
 }

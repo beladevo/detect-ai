@@ -100,6 +100,15 @@ const navItems: NavItem[] = [
       </svg>
     ),
   },
+  {
+    label: "Back to Site",
+    href: "/",
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 6l-5 6m0 0l5 6m-5-6h14" />
+      </svg>
+    ),
+  },
 ]
 
 export default function AdminSidebar() {
@@ -109,6 +118,9 @@ export default function AdminSidebar() {
   const isActive = (href: string) => {
     if (href === '/admin') {
       return pathname === '/admin'
+    }
+    if (href === '/') {
+      return pathname === '/'
     }
     return pathname.startsWith(href)
   }

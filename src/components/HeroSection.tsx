@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -38,11 +38,17 @@ const itemVariants = {
 export default function HeroSection({ onCTA }: HeroSectionProps) {
   const heroRef = useRef<HTMLDivElement>(null);
   const logoRef = useRef<HTMLImageElement>(null);
+  const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
-    gsap.registerPlugin(ScrollTrigger);
-    if (!heroRef.current) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHasMounted(true);
+  }, []);
 
+  useEffect(() => {
+    if (!hasMounted || !heroRef.current) return;
+
+    gsap.registerPlugin(ScrollTrigger);
     const ctx = gsap.context(() => {
       if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         gsap.to("[data-gsap='hero-float']", {
@@ -105,7 +111,7 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
     }, heroRef);
 
     return () => ctx.revert();
-  }, []);
+  }, [hasMounted]);
 
   const titleWords = "Expose AI-generated images. Reveal the truth.".split(" ");
 
@@ -314,17 +320,24 @@ export default function HeroSection({ onCTA }: HeroSectionProps) {
                   repeatType: "reverse",
                 }}
               />
-              <motion.img
-                ref={logoRef}
-                src="/logo-350.png"
-                alt="AI Detector logo"
-                width={280}
-                height={280}
-                className="relative w-40 max-w-full drop-shadow-[0_20px_50px_rgba(139,92,246,0.4)] sm:w-52 lg:w-64"
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.5 }}
-              />
+              {hasMounted ? (
+                <motion.img
+                  ref={logoRef}
+                  src="/logo-350.png"
+                  alt="AI Detector logo"
+                  width={280}
+                  height={280}
+                  className="relative w-40 max-w-full drop-shadow-[0_20px_50px_rgba(139,92,246,0.4)] sm:w-52 lg:w-64"
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.6, delay: 0.5 }}
+                />
+              ) : (
+                <div
+                  aria-hidden="true"
+                  className="relative w-40 h-40 rounded-full sm:w-52 sm:h-52 lg:w-64 lg:h-64"
+                />
+              )}
             </div>
 
             {/* Stats Cards */}
