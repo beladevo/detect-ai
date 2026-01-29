@@ -5,7 +5,7 @@ import { AdminHeader, DataTable, Badge, SimpleChart, Column } from "@/src/compon
 import GlassCard from "@/src/components/ui/GlassCard"
 import GlowButton from "@/src/components/ui/GlowButton"
 
-interface ApiLogEntry {
+interface ApiLogEntry extends Record<string, unknown> {
   id: string
   userId: string | null
   userEmail?: string
@@ -301,7 +301,7 @@ export default function ApiLogsPage() {
         </GlassCard>
 
         {/* Logs Table */}
-        <DataTable
+        <DataTable<ApiLogEntry>
           columns={columns}
           data={logs}
           keyField="id"

@@ -162,7 +162,7 @@ export async function DELETE(
       'USER_DELETED',
       'User',
       id,
-      null,
+      { action: 'delete_user' },
       request.headers.get('x-forwarded-for') || undefined
     )
 

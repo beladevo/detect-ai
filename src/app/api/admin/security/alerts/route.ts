@@ -29,34 +29,23 @@ export async function GET(request: NextRequest) {
           orderBy: { createdAt: 'desc' },
           skip: (page - 1) * pageSize,
           take: pageSize,
-        include: {
-          user: {
-            select: { id: true, email: true, name: true },
-          },
-        },
-      }),
-      prisma.securityAlert.count({ where }),
-      prisma.securityAlert.count({ where: { ...where, resolved: true } }),
-      prisma.securityAlert.count({ where: { ...where, resolved: false } }),
-      prisma.securityAlert.groupBy({
-        by: ['severity'],
-        where: severityClause,
-        _count: true,
-      }),
-      prisma.securityAlert.count({
-        where: { ...severityClause, resolved: true },
-      }),
-      prisma.securityAlert.count({
-        where: { ...severityClause, resolved: false },
-      }),
-    ])
+        }),
+        prisma.securityAlert.count({ where }),
+        prisma.securityAlert.groupBy({
+          by: ['severity'],
+          where: severityClause,
+          _count: true,
+        }),
+        prisma.securityAlert.count({ where: { ...where, resolved: true } }),
+        prisma.securityAlert.count({ where: { ...where, resolved: false } }),
+      ])
 
     const formattedAlerts = alerts.map((alert) => ({
       id: alert.id,
       type: alert.type,
       severity: alert.severity,
       ipAddress: alert.ipAddress,
-      userEmail: alert.user?.email ?? null,
+      userEmail: null,
       details: typeof alert.details === 'string' ? alert.details : JSON.stringify(alert.details),
       createdAt: alert.createdAt.toISOString(),
       resolved: alert.resolved,

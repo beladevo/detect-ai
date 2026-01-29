@@ -1,21 +1,19 @@
 "use client"
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import GlowButton from '@/src/components/ui/GlowButton'
 import { UserPlus, Mail, Lock, User, CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react'
-import { useAuth } from '@/src/context/AuthContext'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
+  const [firstName, setFirstName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const router = useRouter()
-  const { refreshUser } = useAuth()
+  const [infoMessage, setInfoMessage] = useState<string | null>(null)
+  const [verificationLink, setVerificationLink] = useState<string | null>(null)
 
   const getPasswordStrength = () => {
     if (password.length === 0) return null
@@ -37,12 +35,14 @@ export default function RegisterPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setInfoMessage(null)
+    setVerificationLink(null)
 
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name }),
+        body: JSON.stringify({ email, password, firstName }),
       })
 
       const data = await response.json()
@@ -55,10 +55,8 @@ export default function RegisterPage() {
 
       setSuccess(true)
       setLoading(false)
-      await refreshUser()
-      setTimeout(() => {
-        router.push('/dashboard')
-      }, 1500)
+      setInfoMessage(data.message || 'Account created! Please check your inbox.')
+      setVerificationLink(data.verificationUrl || null)
     } catch {
       setError('An unexpected error occurred')
       setLoading(false)
@@ -98,12 +96,26 @@ export default function RegisterPage() {
 
           {/* Success message */}
           {success && (
-            <div className="flex items-center gap-3 rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-200">
-              <CheckCircle2 className="h-5 w-5 shrink-0 text-green-400" />
-              <div>
-                <p className="font-medium">Account created successfully!</p>
-                <p className="text-xs text-green-300/80">Redirecting to dashboard...</p>
+            <div className="flex flex-col gap-2 rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-200">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-green-400" />
+                <p className="font-medium">
+                  {infoMessage ?? 'Account created! Please confirm your email address.'}
+                </p>
               </div>
+              <p className="text-xs text-green-300/80">
+                We sent a verification link so you can finish setting up your account.
+              </p>
+              {verificationLink && (
+                <a
+                  href={verificationLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs font-medium text-white underline"
+                >
+                  Open verification link
+                </a>
+              )}
             </div>
           )}
 
@@ -117,18 +129,19 @@ export default function RegisterPage() {
 
           {/* Form fields */}
           <div className="space-y-4">
-            {/* Name field */}
+            {/* First name field */}
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-300">
-                Full Name
+                First Name
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="John Doe"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Jane"
+                  required
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
                   className="w-full rounded-lg border border-white/10 bg-white/5 py-3 pl-10 pr-4 text-white placeholder:text-gray-500 transition-colors focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
                 />
               </div>
@@ -205,7 +218,7 @@ export default function RegisterPage() {
             ) : success ? (
               <span className="flex items-center justify-center gap-2">
                 <CheckCircle2 className="h-4 w-4" />
-                Account Created!
+                Check your inbox
               </span>
             ) : (
               'Create Account'

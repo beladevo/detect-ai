@@ -27,7 +27,7 @@ export async function POST(
       'USER_UNLOCKED',
       'User',
       id,
-      null,
+      { action: 'unlock_user' },
       request.headers.get('x-forwarded-for') || undefined
     )
 

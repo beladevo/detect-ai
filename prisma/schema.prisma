@@ -39,6 +39,7 @@ model User {
   email         String    @unique
   passwordHash  String
   name          String?
+  firstName     String?
   tier          UserTier  @default(FREE)
   deletedAt     DateTime?
 
@@ -78,6 +79,8 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   lastLoginAt   DateTime?
+  registerIp    String?
+  lastLoginIp   String?
 
   // Relations
   detections    Detection[]
@@ -133,8 +136,22 @@ model Detection {
 
   createdAt   DateTime        @default(now())
 
+  detectionSource String     @default("website")
+
   @@index([userId, createdAt])
   @@index([fileHash])
+  @@index([detectionSource, createdAt])
+}
+
+model ProcessedImage {
+  id              String   @id @default(uuid())
+  fileHash        String   @unique
+  payload         Json
+  lastAccessedAt  DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@index([lastAccessedAt])
 }
 
 model UsageLog {
@@ -241,5 +258,28 @@ model SecurityAlert {
   @@index([type])
   @@index([severity])
   @@index([resolved])
+  @@index([createdAt])
+}
+
+enum ServerLogLevel {
+  Error
+  Warn
+  Info
+  Log
+  System
+}
+
+model ServerLog {
+  id         String         @id @default(uuid())
+  level      ServerLogLevel
+  source     String
+  service    String?
+  message    String
+  details    String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime       @default(now())
+
+  @@index([level])
   @@index([createdAt])
 }

@@ -5,6 +5,12 @@ import { AdminHeader } from "@/src/components/admin"
 import GlassCard from "@/src/components/ui/GlassCard"
 import GlowButton from "@/src/components/ui/GlowButton"
 import { useAdmin } from "@/src/context/AdminContext"
+import {
+  LOWERCASE_TIER_KEYS,
+  LowercaseUserTier,
+  TierRateLimitView,
+  createRateLimitViewSnapshot,
+} from "@/src/lib/tierConfig"
 
 interface SystemSettings {
   siteName: string
@@ -17,11 +23,7 @@ interface SystemSettings {
   defaultBrowserModel: string
   maxFileSize: number
   enabledPipelineModules: string[]
-  rateLimits: {
-    free: { daily: number; monthly: number; perMinute: number }
-    premium: { daily: number; monthly: number; perMinute: number }
-    enterprise: { daily: number; monthly: number; perMinute: number }
-  }
+  rateLimits: Record<LowercaseUserTier, TierRateLimitView>
 }
 
 const defaultSettings: SystemSettings = {
@@ -35,11 +37,7 @@ const defaultSettings: SystemSettings = {
   defaultBrowserModel: "model_q4.onnx",
   maxFileSize: 10485760,
   enabledPipelineModules: ["mlEnsemble", "frequencyForensics", "physicsConsistency", "visualArtifacts", "metadataForensics", "provenance"],
-  rateLimits: {
-    free: { daily: 50, monthly: 1000, perMinute: 10 },
-    premium: { daily: 1000, monthly: 30000, perMinute: 30 },
-    enterprise: { daily: 10000, monthly: 300000, perMinute: 100 },
-  },
+  rateLimits: createRateLimitViewSnapshot(),
 }
 
 export default function SettingsPage() {
@@ -90,11 +88,7 @@ export default function SettingsPage() {
     setSettings((prev) => ({ ...prev, [key]: value }))
   }
 
-  const updateRateLimit = (
-    tier: "free" | "premium" | "enterprise",
-    field: "daily" | "monthly" | "perMinute",
-    value: number
-  ) => {
+  const updateRateLimit = (tier: LowercaseUserTier, field: keyof TierRateLimitView, value: number) => {
     setSettings((prev) => ({
       ...prev,
       rateLimits: {
@@ -278,7 +272,7 @@ export default function SettingsPage() {
           <GlassCard className="p-6 lg:col-span-2" hover={false}>
             <h3 className="mb-6 font-display text-lg font-semibold text-foreground">Rate Limits</h3>
             <div className="grid gap-6 md:grid-cols-3">
-              {(["free", "premium", "enterprise"] as const).map((tier) => (
+              {LOWERCASE_TIER_KEYS.map((tier) => (
                 <div key={tier} className="rounded-xl border border-border bg-card/30 p-4">
                   <h4 className="mb-4 font-semibold capitalize text-foreground">{tier}</h4>
                   <div className="space-y-3">

@@ -1,20 +1,26 @@
 "use client"
 
+import { type ServerLogLevel } from "@prisma/client"
 import { useEffect, useState, useCallback } from "react"
 import { AdminHeader, DataTable, Badge, Column } from "@/src/components/admin"
 import GlassCard from "@/src/components/ui/GlassCard"
 import GlowButton from "@/src/components/ui/GlowButton"
 
-interface LogEntry {
+interface LogEntry extends Record<string, unknown> {
   id: string
-  level: "DEBUG" | "INFO" | "WARN" | "ERROR"
-  message: string
+  level: ServerLogLevel
   source: string
-  metadata: Record<string, unknown> | null
+  service?: string | null
+  message: string
+  metadata: {
+    ipAddress: string | null
+    userAgent: string | null
+    details: string | null
+  }
   createdAt: string
 }
 
-interface AuditLogEntry {
+interface AuditLogEntry extends Record<string, unknown> {
   id: string
   adminId: string
   adminEmail?: string
@@ -27,6 +33,22 @@ interface AuditLogEntry {
 }
 
 type TabType = "system" | "audit" | "api" | "errors"
+
+const logTabs: Array<{ key: TabType; label: string; href?: string }> = [
+  { key: "system", label: "System Logs" },
+  { key: "audit", label: "Audit Trail" },
+  { key: "api", label: "API Logs", href: "/admin/logs/api" },
+  { key: "errors", label: "Errors", href: "/admin/logs/errors" },
+]
+
+const LOG_LEVEL_OPTIONS: Array<{ label: string; value: string }> = [
+  { label: "All Levels", value: "all" },
+  { label: "Error", value: "Error" },
+  { label: "Warn", value: "Warn" },
+  { label: "Info", value: "Info" },
+  { label: "Log", value: "Log" },
+  { label: "System", value: "System" },
+]
 
 export default function LogsPage() {
   const [activeTab, setActiveTab] = useState<TabType>("system")
@@ -81,12 +103,13 @@ export default function LogsPage() {
     setPage(1)
   }, [activeTab, levelFilter, dateFilter])
 
-  const getLevelBadge = (level: LogEntry["level"]) => {
-    const config = {
-      DEBUG: { variant: "default" as const },
-      INFO: { variant: "info" as const },
-      WARN: { variant: "warning" as const },
-      ERROR: { variant: "error" as const },
+  const getLevelBadge = (level: ServerLogLevel) => {
+    const config: Record<ServerLogLevel, { variant: "default" | "info" | "warning" | "error" }> = {
+      Error: { variant: "error" },
+      Warn: { variant: "warning" },
+      Info: { variant: "info" },
+      Log: { variant: "default" },
+      System: { variant: "default" },
     }
     return <Badge variant={config[level].variant}>{level}</Badge>
   }
@@ -114,11 +137,28 @@ export default function LogsPage() {
       ),
     },
     {
+      key: "service",
+      label: "Service",
+      render: (log) => (
+        <span className="text-sm text-muted-foreground">{log.service || "core"}</span>
+      ),
+    },
+    {
       key: "message",
       label: "Message",
       className: "max-w-md",
       render: (log) => (
         <p className="truncate text-sm text-foreground">{log.message}</p>
+      ),
+    },
+    {
+      key: "metadata",
+      label: "Details",
+      className: "max-w-md",
+      render: (log) => (
+        <p className="text-sm text-muted-foreground">
+          {log.metadata.details || "—"}
+        </p>
       ),
     },
   ]
@@ -185,12 +225,7 @@ export default function LogsPage() {
       <div className="p-6">
         {/* Tabs */}
         <div className="mb-6 flex gap-1 rounded-xl border border-border bg-card/30 p-1">
-          {([
-            { key: "system", label: "System Logs" },
-            { key: "audit", label: "Audit Trail" },
-            { key: "api", label: "API Logs", href: "/admin/logs/api" },
-            { key: "errors", label: "Errors", href: "/admin/logs/errors" },
-          ] as const).map((tab) => (
+          {logTabs.map((tab) => (
             tab.href ? (
               <a
                 key={tab.key}
@@ -224,11 +259,11 @@ export default function LogsPage() {
                 onChange={(e) => setLevelFilter(e.target.value)}
                 className="rounded-xl border border-border bg-card/50 px-4 py-2 text-sm text-foreground focus:border-brand-purple focus:outline-none"
               >
-                <option value="all">All Levels</option>
-                <option value="DEBUG">Debug</option>
-                <option value="INFO">Info</option>
-                <option value="WARN">Warning</option>
-                <option value="ERROR">Error</option>
+                {LOG_LEVEL_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             )}
 
@@ -251,7 +286,7 @@ export default function LogsPage() {
 
         {/* Logs Table */}
         {activeTab === "system" && (
-          <DataTable
+          <DataTable<LogEntry>
             columns={systemColumns}
             data={systemLogs}
             keyField="id"
@@ -267,7 +302,7 @@ export default function LogsPage() {
         )}
 
         {activeTab === "audit" && (
-          <DataTable
+          <DataTable<AuditLogEntry>
             columns={auditColumns}
             data={auditLogs}
             keyField="id"

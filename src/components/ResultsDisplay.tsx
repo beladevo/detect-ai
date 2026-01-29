@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import {
   AlertCircle, CheckCircle2, ShieldAlert, RotateCcw,
   Fingerprint, ScanEye, ArrowRight,
-  Zap, Share2
+  Zap, Share2, Shield, Cloud
 } from "lucide-react";
 import React, { useState } from "react";
 import { cn } from "@/src/lib/utils";
@@ -26,6 +26,8 @@ import ModuleBreakdown from "./ui/ModuleBreakdown"; // Moved here for modal
 import PremiumOverlay from "./ui/PremiumOverlay";
 
 
+export type AnalysisSource = "local" | "api";
+
 type ResultsDisplayProps = {
   score: number;
   verdict?: UiVerdict;
@@ -33,6 +35,7 @@ type ResultsDisplayProps = {
   onReset: () => void;
   pipeline?: PipelineResult;
   imageUrl?: string;
+  source?: AnalysisSource;
 };
 
 export default function ResultsDisplay({
@@ -42,6 +45,7 @@ export default function ResultsDisplay({
   onReset,
   pipeline,
   imageUrl,
+  source,
 }: ResultsDisplayProps) {
   const [showModal, setShowModal] = useState(false);
   const [showShare, setShowShare] = useState(false);
@@ -257,12 +261,37 @@ export default function ResultsDisplay({
             )}
 
             <motion.div
-              className="text-center text-[10px] uppercase tracking-[0.3em] text-foreground/45"
+              className="flex flex-col items-center gap-2"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5 }}
             >
-              Analysis based on multi-stage forensic trace
+              {source && (
+                <div
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-medium",
+                    source === "local"
+                      ? "border-brand-mint/30 bg-brand-mint/10 text-brand-mint"
+                      : "border-brand-cyan/30 bg-brand-cyan/10 text-brand-cyan"
+                  )}
+                  title={source === "local" ? "Image never left your device" : "Processed on secure Imagion servers"}
+                >
+                  {source === "local" ? (
+                    <>
+                      <Shield className="h-3 w-3" />
+                      <span>Analyzed locally</span>
+                    </>
+                  ) : (
+                    <>
+                      <Cloud className="h-3 w-3" />
+                      <span>Analyzed by Imagion</span>
+                    </>
+                  )}
+                </div>
+              )}
+              <span className="text-[10px] uppercase tracking-[0.3em] text-foreground/45">
+                Analysis based on multi-stage forensic trace
+              </span>
             </motion.div>
 
             {/* Action buttons */}
