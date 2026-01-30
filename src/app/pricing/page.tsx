@@ -14,6 +14,7 @@ import {
   PLAN_LABELS,
 } from "@/src/lib/billing"
 import { TIER_RATE_LIMITS } from "@/src/lib/tierConfig"
+import PricingSurveyOverlay from "@/src/components/PricingSurveyOverlay"
 
 type CheckoutState = "idle" | "processing" | "error" | "success"
 
@@ -31,6 +32,8 @@ export default function PricingPage() {
   const [checkoutState, setCheckoutState] = useState<CheckoutState>("idle")
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const [paypalAvailable, setPaypalAvailable] = useState(true)
+
+  const surveyMode = process.env.NEXT_PUBLIC_PRICING_SURVEY_MODE === "true"
 
   const price = useMemo(() => {
     return { amount: getBillingAmount("premium", billingCycle), label: PRICE_LABEL(billingCycle) }
@@ -103,6 +106,8 @@ export default function PricingPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 px-4 py-10">
+      {surveyMode && <PricingSurveyOverlay />}
+
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute left-1/4 top-1/4 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl" />
         <div className="absolute right-1/4 bottom-1/4 h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl" />

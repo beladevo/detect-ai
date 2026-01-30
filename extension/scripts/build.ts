@@ -108,6 +108,31 @@ async function runBuild() {
     },
   });
 
+  // Build history script (IIFE)
+  console.log("Building history.js (IIFE)...");
+  await build({
+    configFile: false,
+    root: rootDir,
+    build: {
+      outDir: "dist",
+      emptyOutDir: false,
+      sourcemap: isDev,
+      minify: "esbuild",
+      lib: {
+        entry: resolve(rootDir, "src/history.ts"),
+        formats: ["iife"],
+        name: "ImagionHistory",
+        fileName: () => "history.js",
+      },
+      rollupOptions: {
+        output: {
+          entryFileNames: "history.js",
+        },
+      },
+      target: "esnext",
+    },
+  });
+
   console.log("Build complete!");
 }
 

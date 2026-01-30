@@ -1,5 +1,5 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 2,
   "name": "Imagion Image Detector",
   "description": "Annotates images with Imagion's AI detection verdict while you browse.",
   "version": "0.1.0",
@@ -7,21 +7,20 @@
     "48": "icons/icon-48.svg",
     "128": "icons/icon-128.svg"
   },
-  "options_page": "options.html",
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
   "permissions": [
     "storage",
-    "scripting",
     "activeTab",
     "contextMenus",
     "notifications",
-    "alarms"
-  ],
-  "host_permissions": [
+    "alarms",
     "<all_urls>"
   ],
   "background": {
-    "service_worker": "dist/background.js",
-    "type": "module"
+    "scripts": ["dist/background.js"]
   },
   "content_scripts": [
     {
@@ -30,7 +29,7 @@
       "run_at": "document_idle"
     }
   ],
-  "action": {
+  "browser_action": {
     "default_icon": {
       "48": "icons/icon-48.svg"
     },
@@ -40,20 +39,22 @@
   "commands": {
     "toggle-badges": {
       "suggested_key": {
-        "default": "Ctrl+Shift+I",
-        "mac": "Command+Shift+I"
+        "default": "Ctrl+Shift+I"
       },
       "description": "Toggle badge overlays on/off"
     },
     "scan-page": {
       "suggested_key": {
-        "default": "Ctrl+Shift+R",
-        "mac": "Command+Shift+R"
+        "default": "Ctrl+Shift+R"
       },
       "description": "Re-scan current page for images"
     }
   },
-  "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline';"
+  "content_security_policy": "script-src 'self'; object-src 'self'",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "imagion@imagion.ai",
+      "strict_min_version": "109.0"
+    }
   }
 }

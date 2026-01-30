@@ -27,6 +27,12 @@ enum WaitlistStatus {
   REMOVED
 }
 
+enum PricingSurveyResponse {
+  YEAH_SURE
+  NOT_REALLY
+  MAYBE
+}
+
 enum DetectionStatus {
   PENDING
   PROCESSING
@@ -208,6 +214,19 @@ model Waitlist {
   @@index([email])
   @@index([createdAt])
   @@index([status])
+}
+
+model PricingSurvey {
+  id        String                  @id @default(uuid())
+  response  PricingSurveyResponse
+  userId    String?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime                @default(now())
+
+  @@index([response])
+  @@index([createdAt])
+  @@index([ipAddress, createdAt])
 }
 
 model AdminNote {

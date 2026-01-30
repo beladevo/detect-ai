@@ -1,15 +1,10 @@
-type DetectionMode = "api" | "local";
-type PlanTier = "free" | "pro";
-
-type ExtensionSettings = {
-  imagionApiKey: string;
-  imagionDetectionEndpoint: string;
-  imagionBadgeEnabled: boolean;
-  imagionDisabledHosts: string[];
-  imagionDetectionMode: DetectionMode;
-  imagionLocalEndpoint: string;
-  imagionPlanTier: PlanTier;
-};
+import type { DetectionMode, PlanTier, ExtensionSettings } from "./shared/types";
+import { STORAGE_KEYS } from "./shared/storageKeys";
+import {
+  DEFAULT_DETECTION_ENDPOINT,
+  LOCAL_DETECTION_ENDPOINT_DEFAULT,
+} from "./shared/constants";
+import { normalizeHostname } from "./shared/utils";
 
 type OptionsLocaleStrings = {
   savedMessage: string;
@@ -49,35 +44,105 @@ const LOCALE_MAP: Record<string, OptionsLocaleStrings> = {
     saveErrorMessage: "No se pudieron guardar los ajustes.",
     domainPlaceholder: "ejemplo.com",
   },
+  fr: {
+    savedMessage: "Paramètres enregistrés.",
+    savingMessage: "Enregistrement...",
+    addDomainLabel: "Désactiver les badges sur des hôtes spécifiques",
+    addButtonLabel: "Ajouter",
+    removeButtonLabel: "Supprimer",
+    domainExistsMessage: "Hôte déjà bloqué.",
+    domainAddedMessage: "Hôte ajouté.",
+    domainRemovedMessage: "Hôte supprimé.",
+    saveErrorMessage: "Impossible d'enregistrer les paramètres.",
+    domainPlaceholder: "exemple.com",
+  },
+  de: {
+    savedMessage: "Einstellungen gespeichert.",
+    savingMessage: "Speichern...",
+    addDomainLabel: "Badges auf bestimmten Hosts deaktivieren",
+    addButtonLabel: "Hinzufügen",
+    removeButtonLabel: "Entfernen",
+    domainExistsMessage: "Host bereits blockiert.",
+    domainAddedMessage: "Host hinzugefügt.",
+    domainRemovedMessage: "Host entfernt.",
+    saveErrorMessage: "Einstellungen konnten nicht gespeichert werden.",
+    domainPlaceholder: "beispiel.de",
+  },
+  pt: {
+    savedMessage: "Configurações salvas.",
+    savingMessage: "Salvando...",
+    addDomainLabel: "Desativar selos em hosts específicos",
+    addButtonLabel: "Adicionar",
+    removeButtonLabel: "Remover",
+    domainExistsMessage: "Host já bloqueado.",
+    domainAddedMessage: "Host adicionado.",
+    domainRemovedMessage: "Host removido.",
+    saveErrorMessage: "Não foi possível salvar as configurações.",
+    domainPlaceholder: "exemplo.com",
+  },
+  ja: {
+    savedMessage: "設定を保存しました。",
+    savingMessage: "保存中...",
+    addDomainLabel: "特定のホストでバッジを無効化",
+    addButtonLabel: "追加",
+    removeButtonLabel: "削除",
+    domainExistsMessage: "ホストは既にブロックされています。",
+    domainAddedMessage: "ホストを追加しました。",
+    domainRemovedMessage: "ホストを削除しました。",
+    saveErrorMessage: "設定を保存できませんでした。",
+    domainPlaceholder: "example.com",
+  },
+  zh: {
+    savedMessage: "设置已保存。",
+    savingMessage: "保存中...",
+    addDomainLabel: "禁用特定主机上的徽章",
+    addButtonLabel: "添加",
+    removeButtonLabel: "移除",
+    domainExistsMessage: "主机已被屏蔽。",
+    domainAddedMessage: "已添加主机。",
+    domainRemovedMessage: "已移除主机。",
+    saveErrorMessage: "无法保存设置。",
+    domainPlaceholder: "example.com",
+  },
 };
 
-const LOCAL_ENDPOINT_DEFAULT = "http://localhost:4000/api/detect";
-
 const DEFAULTS: ExtensionSettings = {
-  imagionApiKey: "",
-  imagionDetectionEndpoint: "http://localhost:3000/api/detect",
-  imagionBadgeEnabled: true,
-  imagionDisabledHosts: [],
-  imagionDetectionMode: "api",
-  imagionLocalEndpoint: LOCAL_ENDPOINT_DEFAULT,
-  imagionPlanTier: "free",
+  [STORAGE_KEYS.API_KEY]: "",
+  [STORAGE_KEYS.DETECTION_ENDPOINT]: DEFAULT_DETECTION_ENDPOINT,
+  [STORAGE_KEYS.BADGE_ENABLED]: true,
+  [STORAGE_KEYS.DISABLED_HOSTS]: [],
+  [STORAGE_KEYS.DETECTION_MODE]: "api",
+  [STORAGE_KEYS.LOCAL_ENDPOINT]: LOCAL_DETECTION_ENDPOINT_DEFAULT,
+  [STORAGE_KEYS.PLAN_TIER]: "free",
 };
 
 const form = document.getElementById("settings-form") as HTMLFormElement;
 const apiKeyInput = document.getElementById("api-key") as HTMLInputElement;
-const endpointInput = document.getElementById("detection-endpoint") as HTMLInputElement;
+const endpointInput = document.getElementById(
+  "detection-endpoint"
+) as HTMLInputElement;
 const badgeToggle = document.getElementById("badge-enabled") as HTMLInputElement;
 const statusNode = document.getElementById("status") as HTMLElement;
 const saveButton = document.getElementById("save-button") as HTMLButtonElement;
 const domainInput = document.getElementById("domain-input") as HTMLInputElement;
-const addDomainButton = document.getElementById("add-domain-btn") as HTMLButtonElement;
+const addDomainButton = document.getElementById(
+  "add-domain-btn"
+) as HTMLButtonElement;
 const domainList = document.getElementById("domain-list") as HTMLUListElement;
 const planSelect = document.getElementById("plan-tier") as HTMLSelectElement;
 const planBadge = document.getElementById("plan-badge") as HTMLElement;
-const planDescription = document.getElementById("plan-description") as HTMLElement;
-const detectionModeInputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="detection-mode"]'));
-const localEndpointField = document.getElementById("local-endpoint-field") as HTMLElement;
-const localEndpointInput = document.getElementById("local-endpoint") as HTMLInputElement;
+const planDescription = document.getElementById(
+  "plan-description"
+) as HTMLElement;
+const detectionModeInputs = Array.from(
+  document.querySelectorAll<HTMLInputElement>('input[name="detection-mode"]')
+);
+const localEndpointField = document.getElementById(
+  "local-endpoint-field"
+) as HTMLElement;
+const localEndpointInput = document.getElementById(
+  "local-endpoint"
+) as HTMLInputElement;
 
 const localeCode = navigator.language.split("-")[0];
 const strings = LOCALE_MAP[localeCode] ?? LOCALE_MAP.en;
@@ -89,22 +154,37 @@ function getStorage(): Promise<ExtensionSettings> {
   return new Promise((resolve) => {
     chrome.storage.local.get(DEFAULTS, (items) => {
       resolve({
-        imagionApiKey: typeof items.imagionApiKey === "string" ? items.imagionApiKey : "",
-        imagionDetectionEndpoint:
-          typeof items.imagionDetectionEndpoint === "string" && items.imagionDetectionEndpoint.trim().length > 0
-            ? items.imagionDetectionEndpoint.trim()
-            : DEFAULTS.imagionDetectionEndpoint,
-        imagionBadgeEnabled: items.imagionBadgeEnabled !== false,
-        imagionDisabledHosts: Array.isArray(items.imagionDisabledHosts)
-          ? items.imagionDisabledHosts.filter((host) => typeof host === "string")
+        [STORAGE_KEYS.API_KEY]:
+          typeof items[STORAGE_KEYS.API_KEY] === "string"
+            ? items[STORAGE_KEYS.API_KEY]
+            : "",
+        [STORAGE_KEYS.DETECTION_ENDPOINT]:
+          typeof items[STORAGE_KEYS.DETECTION_ENDPOINT] === "string" &&
+          items[STORAGE_KEYS.DETECTION_ENDPOINT].trim().length > 0
+            ? items[STORAGE_KEYS.DETECTION_ENDPOINT].trim()
+            : DEFAULTS[STORAGE_KEYS.DETECTION_ENDPOINT],
+        [STORAGE_KEYS.BADGE_ENABLED]:
+          items[STORAGE_KEYS.BADGE_ENABLED] !== false,
+        [STORAGE_KEYS.DISABLED_HOSTS]: Array.isArray(
+          items[STORAGE_KEYS.DISABLED_HOSTS]
+        )
+          ? items[STORAGE_KEYS.DISABLED_HOSTS].filter(
+              (host: unknown) => typeof host === "string"
+            )
           : [],
-        imagionDetectionMode:
-          items.imagionDetectionMode === "local" ? "local" : DEFAULTS.imagionDetectionMode,
-        imagionLocalEndpoint:
-          typeof items.imagionLocalEndpoint === "string" && items.imagionLocalEndpoint.trim().length > 0
-            ? items.imagionLocalEndpoint.trim()
-            : DEFAULTS.imagionLocalEndpoint,
-        imagionPlanTier: items.imagionPlanTier === "pro" ? "pro" : DEFAULTS.imagionPlanTier,
+        [STORAGE_KEYS.DETECTION_MODE]:
+          items[STORAGE_KEYS.DETECTION_MODE] === "local"
+            ? "local"
+            : DEFAULTS[STORAGE_KEYS.DETECTION_MODE],
+        [STORAGE_KEYS.LOCAL_ENDPOINT]:
+          typeof items[STORAGE_KEYS.LOCAL_ENDPOINT] === "string" &&
+          items[STORAGE_KEYS.LOCAL_ENDPOINT].trim().length > 0
+            ? items[STORAGE_KEYS.LOCAL_ENDPOINT].trim()
+            : DEFAULTS[STORAGE_KEYS.LOCAL_ENDPOINT],
+        [STORAGE_KEYS.PLAN_TIER]:
+          items[STORAGE_KEYS.PLAN_TIER] === "pro"
+            ? "pro"
+            : DEFAULTS[STORAGE_KEYS.PLAN_TIER],
       });
     });
   });
@@ -125,19 +205,6 @@ function clearStatus(delay = 3000) {
   setTimeout(() => {
     statusNode.textContent = "";
   }, delay);
-}
-
-function normalizeHost(input: string): string | null {
-  const trimmed = input.trim();
-  if (!trimmed) {
-    return null;
-  }
-  try {
-    const parsed = trimmed.includes("://") ? new URL(trimmed) : new URL(`https://${trimmed}`);
-    return parsed.hostname.toLowerCase();
-  } catch {
-    return trimmed.toLowerCase();
-  }
 }
 
 function renderDomainList() {
@@ -186,11 +253,16 @@ function updatePlanUi(planTier: PlanTier, desiredMode: DetectionMode) {
     planTier === "free"
       ? "Free tier can run the API or the bundled local model."
       : "Pro tier routes every detection through the Imagion API.";
-  const localRadio = detectionModeInputs.find((input) => input.value === "local");
+  const localRadio = detectionModeInputs.find(
+    (input) => input.value === "local"
+  );
   if (localRadio) {
     localRadio.disabled = !isLocalModeAllowed(planTier);
   }
-  const nextMode = !isLocalModeAllowed(planTier) && desiredMode === "local" ? "api" : desiredMode;
+  const nextMode =
+    !isLocalModeAllowed(planTier) && desiredMode === "local"
+      ? "api"
+      : desiredMode;
   setDetectionMode(nextMode);
 }
 
@@ -202,13 +274,18 @@ function updateLocalEndpointVisibility(mode: DetectionMode) {
 
 async function persistSettings(showFeedback = true) {
   const payload: ExtensionSettings = {
-    imagionApiKey: apiKeyInput.value.trim(),
-    imagionDetectionEndpoint: endpointInput.value.trim() || DEFAULTS.imagionDetectionEndpoint,
-    imagionBadgeEnabled: badgeToggle.checked,
-    imagionDetectionMode: getSelectedDetectionMode(),
-    imagionLocalEndpoint: localEndpointInput.value.trim() || endpointInput.value.trim() || LOCAL_ENDPOINT_DEFAULT,
-    imagionPlanTier: (planSelect.value as PlanTier) || DEFAULTS.imagionPlanTier,
-    imagionDisabledHosts: blockedHosts,
+    [STORAGE_KEYS.API_KEY]: apiKeyInput.value.trim(),
+    [STORAGE_KEYS.DETECTION_ENDPOINT]:
+      endpointInput.value.trim() || DEFAULTS[STORAGE_KEYS.DETECTION_ENDPOINT],
+    [STORAGE_KEYS.BADGE_ENABLED]: badgeToggle.checked,
+    [STORAGE_KEYS.DETECTION_MODE]: getSelectedDetectionMode(),
+    [STORAGE_KEYS.LOCAL_ENDPOINT]:
+      localEndpointInput.value.trim() ||
+      endpointInput.value.trim() ||
+      LOCAL_DETECTION_ENDPOINT_DEFAULT,
+    [STORAGE_KEYS.PLAN_TIER]:
+      (planSelect.value as PlanTier) || DEFAULTS[STORAGE_KEYS.PLAN_TIER],
+    [STORAGE_KEYS.DISABLED_HOSTS]: blockedHosts,
   };
   try {
     await setStorage(payload);
@@ -226,10 +303,10 @@ async function persistSettings(showFeedback = true) {
 
 async function populateForm() {
   const stored = await getStorage();
-  apiKeyInput.value = stored.imagionApiKey;
-  endpointInput.value = stored.imagionDetectionEndpoint;
-  badgeToggle.checked = stored.imagionBadgeEnabled;
-  blockedHosts = stored.imagionDisabledHosts;
+  apiKeyInput.value = stored[STORAGE_KEYS.API_KEY];
+  endpointInput.value = stored[STORAGE_KEYS.DETECTION_ENDPOINT];
+  badgeToggle.checked = stored[STORAGE_KEYS.BADGE_ENABLED];
+  blockedHosts = stored[STORAGE_KEYS.DISABLED_HOSTS];
   renderDomainList();
   domainInput.placeholder = strings.domainPlaceholder;
   const domainLabel = document.querySelector(".domain-blocker label");
@@ -237,9 +314,12 @@ async function populateForm() {
     domainLabel.textContent = strings.addDomainLabel;
   }
   addDomainButton.textContent = strings.addButtonLabel;
-  planSelect.value = stored.imagionPlanTier;
-  localEndpointInput.value = stored.imagionLocalEndpoint;
-  updatePlanUi(stored.imagionPlanTier, stored.imagionDetectionMode);
+  planSelect.value = stored[STORAGE_KEYS.PLAN_TIER];
+  localEndpointInput.value = stored[STORAGE_KEYS.LOCAL_ENDPOINT];
+  updatePlanUi(
+    stored[STORAGE_KEYS.PLAN_TIER],
+    stored[STORAGE_KEYS.DETECTION_MODE]
+  );
 }
 
 form.addEventListener("submit", async (event) => {
@@ -252,7 +332,7 @@ form.addEventListener("submit", async (event) => {
 });
 
 addDomainButton.addEventListener("click", async () => {
-  const normalized = normalizeHost(domainInput.value);
+  const normalized = normalizeHostname(domainInput.value);
   if (!normalized) {
     return;
   }
@@ -273,6 +353,7 @@ planSelect.addEventListener("change", () => {
   const nextPlan = (planSelect.value as PlanTier) || "free";
   updatePlanUi(nextPlan, getSelectedDetectionMode());
 });
+
 detectionModeInputs.forEach((input) => {
   input.addEventListener("change", () => {
     updateLocalEndpointVisibility(getSelectedDetectionMode());
