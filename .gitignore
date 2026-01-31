@@ -53,3 +53,5 @@ public/models/onnx
 # inference logs
 /logs
 nul
+
+internal-docs/MANUAL-DEPLOYMENT.md
