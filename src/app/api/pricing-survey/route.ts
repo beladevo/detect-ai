@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     let userId: string | null = null
     try {
       const { getCurrentUser } = await import("@/src/lib/auth")
-      const user = await getCurrentUser(request)
+      const user = await getCurrentUser()
       userId = user?.id || null
     } catch {
       // No authenticated user -- that is fine

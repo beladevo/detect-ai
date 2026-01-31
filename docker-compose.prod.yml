@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   app:
-    image: ghcr.io/beladevo/detect-ai:latest
+    image: imagion:latest
     container_name: imagion-app
     restart: unless-stopped
     depends_on:
@@ -39,7 +39,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
-      start-period: 60s
+      start_period: 60s
       retries: 3
 
   postgres:
@@ -114,14 +114,14 @@ services:
 
   # One-shot migration runner — use: docker compose -f docker-compose.prod.yml run --rm migrate
   migrate:
-    image: ghcr.io/beladevo/detect-ai:latest
+    image: imagion:latest
     container_name: imagion-migrate
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-    command: npx prisma migrate deploy
+    command: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
     networks:
       - internal
     restart: "no"

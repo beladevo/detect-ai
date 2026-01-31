@@ -6,6 +6,8 @@ import AdminNavButton from "@/src/components/AdminNavButton"
 import { ActivityFeed, SimpleChart, StatCard } from "@/src/components/admin"
 import { getAdminAnalyticsOverview } from "@/src/lib/admin/analytics"
 
+export const dynamic = "force-dynamic"
+
 export const metadata = {
   title: "Admin",
   description: "Operations hub for reviewing logs and tuning Imagion settings.",
