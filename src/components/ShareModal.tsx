@@ -19,7 +19,7 @@ export default function ShareModal({ isOpen, onClose, result }: ShareModalProps)
     const [copied, setCopied] = React.useState(false);
 
     const shareText = `I just analyzed an image on DetectAI and it's ${result.score}% likely to be ${result.verdict === 'ai' ? 'AI generated' : 'Real'}. Check it out! #DetectAI #GenerativeAI`;
-    const shareUrl = "https://detect-ai.vercel.app";
+    const shareUrl = "https://imagion.vercel.app";
 
     const handleCopy = () => {
         navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
