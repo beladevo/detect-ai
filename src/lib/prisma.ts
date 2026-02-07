@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client"
 import { Signer } from "@aws-sdk/rds-signer"
-import { awsCredentialsProvider } from "@vercel/oidc-aws-credentials-provider"
+import { awsCredentialsProvider } from "@vercel/functions/oidc"
 
 const trimValue = (value?: string) => value?.trim()
 
