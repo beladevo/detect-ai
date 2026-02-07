@@ -45,8 +45,8 @@ This repository bundles a Next.js-powered control plane, a high-fidelity image-d
 - **Admin controls** (`options.ts`) now show a plan tier selector, a detection-mode toggle (API vs. local LLM), and a local-endpoint override. The background worker reads `imagionDetectionMode`/`imagionLocalEndpoint` from storage to decide whether to call `/api/detect` or a user-specified local inference endpoint while maintaining caches/rate limits.
 
 ## Supporting infrastructure
-- **Database** – Prisma (connects via `DATABASE_URL` for Postgres, optional `MONGODB_URI` for server logging). Schemas cover `user`, `detection`, `processedImage`, `usageLog`, etc.
-- **Caching & rate limiting** – Redis via `REDIS_URL`; used by `rateLimit.ts` and `session.ts`.
+- **Database** – Prisma (connects via `DATABASE_URL` for Postgres, optional `MONGODB_URI` for server logging). The Docker stack now defaults to the AWS RDS cluster at `aws-apg-amber-kite.cluster-ck384kkgwqco.us-east-1.rds.amazonaws.com` and only launches the bundled Postgres container when you start the `local-db` profile. Schemas cover `user`, `detection`, `processedImage`, `usageLog`, etc.
+- **Caching & rate limiting** – Redis via `REDIS_URL`; in production this targets the managed RedisLabs instance (`redis-13378...`) and the compose `redis` service is only spun up when you opt into the `local-redis` profile. Used by `rateLimit.ts` and `session.ts`.
 - **Storage** – optional blob storage (Vercel Blob) or any CDN behind `NEXT_PUBLIC_BLOB_BASE_URL`.
 - **Billing** – Stripe & PayPal helpers under `src/lib/stripe.ts` and `src/lib/paypal.ts`. Pricing/tier logic is in the UI and `src/lib/features`.
 - **Scripts** – the `scripts/` folder holds motor tasks (`compare-detectors.cjs`, ONNX conversion/upload, `verify-api.cjs`, etc.). They are used to sanity-check the detector, manage models, and migrate raw assets.

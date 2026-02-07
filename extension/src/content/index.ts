@@ -1,15 +1,14 @@
+import browser from "webextension-polyfill";
+import { MESSAGE_TYPES } from "../types/messages";
+import {
+  MIN_IMAGE_DIMENSION,
+  MAX_TRACKED_IMAGES,
+  EXCLUDED_DOMAINS,
+} from "../constants";
+import { isHostBlocked, normalizeHostname } from "../utils";
+
 const LOG_PREFIX = "[Imagion Content]";
 const STYLE_ID = "imagion-badge-style";
-const MAX_TRACKED_IMAGES = 200;
-const MIN_IMAGE_SIZE = 50; // Minimum width/height to track
-
-// Skip extension on our own domains to prevent React hydration errors
-const EXCLUDED_DOMAINS = [
-  "localhost",
-  "127.0.0.1",
-  "imagion.ai",
-  "www.imagion.ai",
-];
 const trackedImages = new Map<HTMLImageElement, { badge: HTMLDivElement; wrapper: HTMLSpanElement }>();
 let badgeCounter = 0;
 let positionScheduled = false;
@@ -134,7 +133,6 @@ const badgeStyle = `
   color: #1a1a1a !important;
 }
 
-/* Hover Card Styles - MagicUI inspired */
 .imagion-hover-card {
   position: absolute !important;
   top: 100% !important;
@@ -255,7 +253,6 @@ function insertBadgeStyles() {
   style.id = STYLE_ID;
   style.textContent = badgeStyle;
   (document.head || document.documentElement).appendChild(style);
-  console.debug(LOG_PREFIX, "Badge styles injected");
 }
 
 function schedulePositionUpdate() {
@@ -292,7 +289,6 @@ function updateAllBadgePositions() {
 function removeBadgeAndWrapper(img: HTMLImageElement, meta: { badge: HTMLDivElement; wrapper: HTMLSpanElement }) {
   const { badge, wrapper } = meta;
   badge.remove();
-  // Restore image to its original position
   if (wrapper.parentNode) {
     wrapper.parentNode.insertBefore(img, wrapper);
     wrapper.remove();
@@ -310,15 +306,11 @@ function shouldSkipScanning() {
 
 function scanForImages() {
   if (shouldSkipScanning()) {
-    console.debug(LOG_PREFIX, "Scanning skipped (disabled or host blocked)");
     removeAllBadges();
     return;
   }
   const images = Array.from(document.images) as HTMLImageElement[];
   const newImages = images.filter((img) => shouldTrackImage(img));
-  if (newImages.length > 0) {
-    console.debug(LOG_PREFIX, `Found ${newImages.length} new images to track (total on page: ${images.length})`);
-  }
   for (const img of newImages) {
     attachBadge(img);
   }
@@ -334,16 +326,13 @@ function shouldTrackImage(img: HTMLImageElement) {
   if (!img.src) {
     return false;
   }
-  // Skip data URIs
   if (img.src.startsWith("data:")) {
     return false;
   }
-  // Skip tiny images (icons, avatars, etc.)
   const rect = img.getBoundingClientRect();
-  if (rect.width < MIN_IMAGE_SIZE || rect.height < MIN_IMAGE_SIZE) {
+  if (rect.width < MIN_IMAGE_DIMENSION || rect.height < MIN_IMAGE_DIMENSION) {
     return false;
   }
-  // Skip images that are not visible
   if (rect.width === 0 || rect.height === 0) {
     return false;
   }
@@ -361,11 +350,9 @@ function attachBadge(img: HTMLImageElement) {
   const badgeId = `imagion-${++badgeCounter}`;
   badge.dataset.requestId = badgeId;
 
-  // Wrap image in a container and insert badge as sibling
   const wrapper = document.createElement("span");
   wrapper.className = "imagion-wrapper";
 
-  // Match the image's z-index
   const computedStyle = window.getComputedStyle(img);
   const imgZIndex = computedStyle.zIndex;
   if (imgZIndex && imgZIndex !== "auto") {
@@ -387,7 +374,6 @@ function attachBadge(img: HTMLImageElement) {
 function requestDetection(img: HTMLImageElement, badge: HTMLDivElement, badgeId: string) {
   const imageUrl = img.currentSrc || img.src;
   if (!imageUrl || imageUrl.startsWith("data:")) {
-    console.debug(LOG_PREFIX, `Skipping data URI for ${badgeId}`);
     updateBadgeFromResponse(badge, {
       status: "error",
       message: "Unable to analyze data URI.",
@@ -396,18 +382,16 @@ function requestDetection(img: HTMLImageElement, badge: HTMLDivElement, badgeId:
     return;
   }
 
-  console.debug(LOG_PREFIX, `Requesting detection for ${badgeId}:`, imageUrl.substring(0, 100));
 
   const payload = {
-    type: "REQUEST_DETECTION" as const,
+    type: MESSAGE_TYPES.REQUEST_DETECTION,
     imageUrl,
     badgeId,
     pageUrl: window.location.href,
-  };
+  } as const;
 
   sendDetectionRequest(payload)
     .then((response) => {
-      console.debug(LOG_PREFIX, `Response for ${badgeId}:`, response.status, response.verdict || response.message);
       updateBadgeFromResponse(badge, response);
     })
     .catch((error) => {
@@ -426,20 +410,7 @@ function sendDetectionRequest(payload: {
   badgeId: string;
   pageUrl: string;
 }): Promise<BadgeResponse> {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage(payload, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error(LOG_PREFIX, "Runtime error:", chrome.runtime.lastError.message);
-        resolve({
-          status: "error",
-          message: chrome.runtime.lastError.message,
-          badgeId: payload.badgeId,
-        });
-        return;
-      }
-      resolve(response as BadgeResponse);
-    });
-  });
+  return browser.runtime.sendMessage(payload) as Promise<BadgeResponse>;
 }
 
 function updateBadgeFromResponse(badge: HTMLDivElement, response: BadgeResponse) {
@@ -464,18 +435,16 @@ function updateBadgeFromResponse(badge: HTMLDivElement, response: BadgeResponse)
     "imagion-badge--missing-key"
   );
 
-  // Remove existing hover card if any
   const existingCard = badge.querySelector(".imagion-hover-card");
   if (existingCard) {
     existingCard.remove();
   }
 
-  // Handle success: either explicit status="success" OR has a verdict (for cached responses without status)
   const isSuccess = (response.status === "success" || response.status === undefined) && response.verdict;
 
   if (isSuccess) {
     const verdict = response.verdict!.toLowerCase();
-    if (verdict === "ai" || verdict === "fake" || verdict === "ai_generated" || verdict === "likely_ai") {
+    if (["ai", "fake", "ai_generated", "likely_ai"].includes(verdict)) {
       badge.classList.add("imagion-badge--ai");
       label.textContent = localized.aiLabel;
       updateBadgeAria(badge, localized.aiLabel);
@@ -510,8 +479,7 @@ function updateBadgeFromResponse(badge: HTMLDivElement, response: BadgeResponse)
     badge.dataset.requestState = "error";
   }
 
-  // Add hover card with details
-  badge.title = ""; // Clear native tooltip
+  badge.title = "";
   const hoverCard = createHoverCard(response);
   badge.appendChild(hoverCard);
 }
@@ -525,13 +493,11 @@ function createHoverCard(response: BadgeResponse): HTMLDivElement {
   card.className = "imagion-hover-card";
 
   const verdict = response.verdict?.toLowerCase() || "";
-  const isAI = verdict === "ai" || verdict === "fake" || verdict === "ai_generated" || verdict === "likely_ai";
-  // Handle success: either explicit status="success" OR has a verdict (for cached responses without status)
+  const isAI = ["ai", "fake", "ai_generated", "likely_ai"].includes(verdict);
   const isSuccess = (response.status === "success" || response.status === undefined) && response.verdict;
 
   let html = "";
 
-  // Header with verdict
   if (isSuccess) {
     const verdictClass = isAI ? "imagion-hover-card__verdict--ai" : "imagion-hover-card__verdict--real";
     const verdictLabel = isAI ? "AI Generated" : "Real Image";
@@ -540,14 +506,14 @@ function createHoverCard(response: BadgeResponse): HTMLDivElement {
     </div>`;
   } else if (response.status === "error" || response.status === "rate-limit") {
     html += `<div class="imagion-hover-card__header">
-      <span class="imagion-hover-card__verdict imagion-hover-card__verdict--error">${response.status === "rate-limit" ? "Rate Limited" : "Error"}</span>
+      <span class="imagion-hover-card__verdict imagion-hover-card__verdict--error">${
+        response.status === "rate-limit" ? "Rate Limited" : "Error"
+      }</span>
     </div>`;
   }
 
-  // Score bar (only show for success)
   if (response.score != null && isSuccess) {
     const rawScore = Number(response.score);
-    // Handle both 0-1 range and 0-100 range
     const scorePercent = rawScore > 1 ? Math.round(rawScore) : Math.round(rawScore * 100);
     const barClass = isAI ? "imagion-hover-card__bar-fill--ai" : "imagion-hover-card__bar-fill--real";
     html += `<div class="imagion-hover-card__row">
@@ -559,10 +525,8 @@ function createHoverCard(response: BadgeResponse): HTMLDivElement {
     </div>`;
   }
 
-  // Confidence (only show for success)
   if (response.confidence != null && isSuccess) {
     const rawConfidence = Number(response.confidence);
-    // Handle both 0-1 range and 0-100 range
     const confidencePercent = rawConfidence > 1 ? Math.round(rawConfidence) : Math.round(rawConfidence * 100);
     html += `<div class="imagion-hover-card__row">
       <span class="imagion-hover-card__label">Confidence</span>
@@ -570,13 +534,11 @@ function createHoverCard(response: BadgeResponse): HTMLDivElement {
     </div>`;
   }
 
-  // Message (for errors) - always show for non-success states
   if (!isSuccess) {
     const errorMessage = response.message || "Detection failed. Please try again.";
     html += `<div class="imagion-hover-card__message">${escapeHtml(errorMessage)}</div>`;
   }
 
-  // Hash
   if (response.hash) {
     const shortHash = response.hash.substring(0, 16) + "..." + response.hash.substring(response.hash.length - 8);
     html += `<div class="imagion-hover-card__hash">
@@ -596,14 +558,10 @@ function escapeHtml(text: string): string {
 }
 
 function removeAllBadges() {
-  const count = trackedImages.size;
   for (const [img, meta] of trackedImages) {
     removeBadgeAndWrapper(img, meta);
   }
   trackedImages.clear();
-  if (count > 0) {
-    console.debug(LOG_PREFIX, `Removed ${count} badges`);
-  }
 }
 
 function updateDisabledHosts(items: Record<string, unknown>) {
@@ -612,22 +570,6 @@ function updateDisabledHosts(items: Record<string, unknown>) {
     .map((host) => normalizeHostname(host))
     .filter((value): value is string => Boolean(value));
   disabledHostsSet = new Set(normalized);
-  if (normalized.length > 0) {
-    console.info(LOG_PREFIX, "Disabled hosts:", normalized);
-  }
-}
-
-function normalizeHostname(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-  try {
-    const parsed = trimmed.includes("://") ? new URL(trimmed) : new URL(`https://${trimmed}`);
-    return parsed.hostname.toLowerCase();
-  } catch {
-    return trimmed.toLowerCase();
-  }
 }
 
 function isHostBlocked(host: string) {
@@ -641,42 +583,37 @@ function isHostBlocked(host: string) {
 
 let disabledHostsSet = new Set<string>();
 
-function syncSettings() {
-  chrome.storage.local.get(
-    { imagionBadgeEnabled: true, imagionDisabledHosts: [] },
-    (items) => {
-      const enabled = items.imagionBadgeEnabled !== false;
-      state.enabled = enabled;
-      updateDisabledHosts(items);
+async function syncSettings() {
+  const items = await browser.storage.local.get({
+    imagionBadgeEnabled: true,
+    imagionDisabledHosts: [],
+  });
+  const enabled = items.imagionBadgeEnabled !== false;
+  state.enabled = enabled;
+  updateDisabledHosts(items);
 
-      console.info(LOG_PREFIX, "Settings synced:", { enabled, hostBlocked: isHostBlocked(window.location.hostname) });
 
-      if (shouldSkipScanning()) {
-        removeAllBadges();
-        return;
-      }
-      if (state.enabled) {
-        scheduleScan();
-      } else {
-        removeAllBadges();
-      }
-    }
-  );
+  if (shouldSkipScanning()) {
+    removeAllBadges();
+    return;
+  }
+  if (state.enabled) {
+    scheduleScan();
+  } else {
+    removeAllBadges();
+  }
 }
 
 function init() {
-  console.info(LOG_PREFIX, "Initializing on", window.location.hostname);
+  // Initialization started
 
-  // Skip entirely on our own domains to prevent React hydration issues
   if (isExcludedDomain(window.location.hostname)) {
-    console.info(LOG_PREFIX, "Skipping on excluded domain:", window.location.hostname);
     return;
   }
 
   insertBadgeStyles();
-  syncSettings();
+  void syncSettings();
 
-  // Initial scan after a short delay to let images load
   setTimeout(() => {
     scanForImages();
     schedulePositionUpdate();
@@ -686,14 +623,12 @@ function init() {
   if (observerTarget) {
     const mutationObserver = new MutationObserver(() => scheduleScan());
     mutationObserver.observe(observerTarget, { childList: true, subtree: true });
-    console.debug(LOG_PREFIX, "MutationObserver attached");
   }
 
   window.addEventListener("scroll", schedulePositionUpdate, { passive: true });
   window.addEventListener("resize", schedulePositionUpdate);
-  chrome.storage.onChanged.addListener(syncSettings);
+  browser.storage.onChanged.addListener(syncSettings);
 
-  console.info(LOG_PREFIX, "Initialization complete");
 }
 
 if (document.readyState === "loading") {
@@ -701,5 +636,3 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
-
-export {};

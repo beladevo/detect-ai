@@ -1,3 +1,4 @@
+import browser from "webextension-polyfill";
 import type {
   DetectionMode,
   ImagionConfig,
@@ -11,8 +12,7 @@ import type {
   PendingResolver,
   PendingRequest,
   DetectionJob,
-} from "./shared/types";
-
+} from "../types";
 import {
   DEFAULT_DETECTION_ENDPOINT,
   LOCAL_DETECTION_ENDPOINT_DEFAULT,
@@ -31,11 +31,9 @@ import {
   ALARM_CACHE_SWEEP,
   ALARM_KEEPALIVE,
   AI_VERDICTS,
-} from "./shared/constants";
-
-import { STORAGE_KEYS } from "./shared/storageKeys";
-import { MESSAGE_TYPES } from "./shared/messages";
-
+} from "../constants";
+import { STORAGE_KEYS } from "../config/storageKeys";
+import { MESSAGE_TYPES } from "../types/messages";
 import {
   normalizeImageUrl,
   extractFileName,
@@ -46,19 +44,13 @@ import {
   isHashHistoryEntry,
   isRateLimitIndicator,
   hashBlobSHA256,
-} from "./shared/utils";
+} from "../utils";
 
 const LOG_PREFIX = "[Imagion Background]";
 
-console.info(LOG_PREFIX, "Service worker started");
-
-// ---------------------------------------------------------------------------
-// State
-// ---------------------------------------------------------------------------
-
 const cache = new Map<string, { timestamp: number; payload: DetectionResponsePayload }>();
 const pendingRequests = new Map<string, PendingRequest>();
-const detectionQueue: Array<DetectionJob> = [];
+const detectionQueue: DetectionJob[] = [];
 const telemetryEntries: TelemetryEntry[] = [];
 
 let runningDetections = 0;
@@ -66,68 +58,47 @@ let cachedConfig: ImagionConfig | null = null;
 let nextAllowedTimestamp = 0;
 let backoffTimer: ReturnType<typeof setTimeout> | null = null;
 let hashHistory: HashHistoryEntry[] = [];
-let rateLimitIndicator: RateLimitIndicator | null = null;
 
 const hashHistoryReady = loadHashHistory();
 loadRateLimitIndicator();
-
-// ---------------------------------------------------------------------------
-// Config
-// ---------------------------------------------------------------------------
 
 async function getConfig(): Promise<ImagionConfig> {
   if (cachedConfig) {
     return cachedConfig;
   }
 
-  const config = await new Promise<ImagionConfig>((resolve) => {
-    chrome.storage.local.get(
-      {
-        [STORAGE_KEYS.API_KEY]: "",
-        [STORAGE_KEYS.DETECTION_ENDPOINT]: DEFAULT_DETECTION_ENDPOINT,
-        [STORAGE_KEYS.DETECTION_MODE]: "api",
-        [STORAGE_KEYS.LOCAL_ENDPOINT]: LOCAL_DETECTION_ENDPOINT_DEFAULT,
-        [STORAGE_KEYS.PLAN_TIER]: "free",
-      },
-      (items) => {
-        resolve({
-          imagionApiKey:
-            typeof items[STORAGE_KEYS.API_KEY] === "string"
-              ? items[STORAGE_KEYS.API_KEY].trim()
-              : "",
-          imagionDetectionEndpoint:
-            typeof items[STORAGE_KEYS.DETECTION_ENDPOINT] === "string" &&
-            items[STORAGE_KEYS.DETECTION_ENDPOINT].trim().length > 0
-              ? items[STORAGE_KEYS.DETECTION_ENDPOINT].trim()
-              : DEFAULT_DETECTION_ENDPOINT,
-          detectionMode:
-            items[STORAGE_KEYS.DETECTION_MODE] === "local" ? "local" : "api",
-          localDetectionEndpoint:
-            typeof items[STORAGE_KEYS.LOCAL_ENDPOINT] === "string" &&
-            items[STORAGE_KEYS.LOCAL_ENDPOINT].trim().length > 0
-              ? items[STORAGE_KEYS.LOCAL_ENDPOINT].trim()
-              : LOCAL_DETECTION_ENDPOINT_DEFAULT,
-          planTier: items[STORAGE_KEYS.PLAN_TIER] === "pro" ? "pro" : "free",
-        });
-      }
-    );
+  const stored = await browser.storage.local.get({
+    [STORAGE_KEYS.API_KEY]: "",
+    [STORAGE_KEYS.DETECTION_ENDPOINT]: DEFAULT_DETECTION_ENDPOINT,
+    [STORAGE_KEYS.DETECTION_MODE]: "api",
+    [STORAGE_KEYS.LOCAL_ENDPOINT]: LOCAL_DETECTION_ENDPOINT_DEFAULT,
+    [STORAGE_KEYS.PLAN_TIER]: "free",
   });
 
+  const config: ImagionConfig = {
+    imagionApiKey:
+      typeof stored[STORAGE_KEYS.API_KEY] === "string"
+        ? stored[STORAGE_KEYS.API_KEY].trim()
+        : "",
+    imagionDetectionEndpoint:
+      typeof stored[STORAGE_KEYS.DETECTION_ENDPOINT] === "string" &&
+      stored[STORAGE_KEYS.DETECTION_ENDPOINT].trim().length > 0
+        ? stored[STORAGE_KEYS.DETECTION_ENDPOINT].trim()
+        : DEFAULT_DETECTION_ENDPOINT,
+    detectionMode: stored[STORAGE_KEYS.DETECTION_MODE] === "local" ? "local" : "api",
+    localDetectionEndpoint:
+      typeof stored[STORAGE_KEYS.LOCAL_ENDPOINT] === "string" &&
+      stored[STORAGE_KEYS.LOCAL_ENDPOINT].trim().length > 0
+        ? stored[STORAGE_KEYS.LOCAL_ENDPOINT].trim()
+        : LOCAL_DETECTION_ENDPOINT_DEFAULT,
+    planTier: stored[STORAGE_KEYS.PLAN_TIER] === "pro" ? "pro" : "free",
+  };
+
   cachedConfig = config;
-  console.info(LOG_PREFIX, "Config loaded:", {
-    hasApiKey: !!config.imagionApiKey,
-    endpoint: config.imagionDetectionEndpoint,
-    detectionMode: config.detectionMode,
-    planTier: config.planTier,
-  });
   return config;
 }
 
-// ---------------------------------------------------------------------------
-// Storage change listener
-// ---------------------------------------------------------------------------
-
-chrome.storage.onChanged.addListener((changes, areaName) => {
+browser.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== "local") {
     return;
   }
@@ -138,7 +109,6 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     changes[STORAGE_KEYS.LOCAL_ENDPOINT] ||
     changes[STORAGE_KEYS.PLAN_TIER];
   if (configKeys) {
-    console.info(LOG_PREFIX, "Config changed, clearing cache");
     cachedConfig = null;
     cache.clear();
     if (changes[STORAGE_KEYS.API_KEY] && !changes[STORAGE_KEYS.API_KEY].newValue) {
@@ -147,158 +117,109 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   }
 });
 
-// ---------------------------------------------------------------------------
-// chrome.runtime.onInstalled - context menu & alarms
-// ---------------------------------------------------------------------------
+browser.runtime.onInstalled.addListener(() => {
+  browser.contextMenus
+    .create({
+      id: CONTEXT_MENU_ID,
+      title: "Analyze with Imagion",
+      contexts: ["image"],
+    })
+    .catch(() => undefined);
 
-chrome.runtime.onInstalled.addListener((_details) => {
-  chrome.contextMenus.create({
-    id: CONTEXT_MENU_ID,
-    title: "Analyze with Imagion",
-    contexts: ["image"],
-  });
+  browser.alarms.create(ALARM_CACHE_SWEEP, { periodInMinutes: 5 });
+  browser.alarms.create(ALARM_KEEPALIVE, { periodInMinutes: 0.4 });
 
-  chrome.alarms.create(ALARM_CACHE_SWEEP, { periodInMinutes: 5 });
-  chrome.alarms.create(ALARM_KEEPALIVE, { periodInMinutes: 0.4 });
-
-  console.info(LOG_PREFIX, "Extension installed: context menu and alarms registered");
 });
 
-// ---------------------------------------------------------------------------
-// chrome.alarms.onAlarm
-// ---------------------------------------------------------------------------
-
-chrome.alarms.onAlarm.addListener((alarm) => {
+browser.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM_CACHE_SWEEP) {
     sweepExpiredCache();
   }
-  if (alarm.name === ALARM_KEEPALIVE) {
-    // No-op: keeps the service worker alive
-  }
 });
 
-// ---------------------------------------------------------------------------
-// chrome.contextMenus.onClicked
-// ---------------------------------------------------------------------------
-
-chrome.contextMenus.onClicked.addListener((info, tab) => {
+browser.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === CONTEXT_MENU_ID && info.srcUrl) {
     handleContextMenuDetection(info.srcUrl, tab);
   }
 });
 
-// ---------------------------------------------------------------------------
-// chrome.commands.onCommand - keyboard shortcuts
-// ---------------------------------------------------------------------------
-
-chrome.commands.onCommand.addListener((command) => {
+browser.commands.onCommand.addListener(async (command) => {
   if (command === "toggle-badges") {
-    chrome.storage.local.get({ [STORAGE_KEYS.BADGE_ENABLED]: true }, (items) => {
-      const current = items[STORAGE_KEYS.BADGE_ENABLED];
-      const next = !current;
-      chrome.storage.local.set({ [STORAGE_KEYS.BADGE_ENABLED]: next }, () => {
-        console.info(LOG_PREFIX, "Badge enabled toggled to:", next);
-      });
-    });
+    const items = await browser.storage.local.get({ [STORAGE_KEYS.BADGE_ENABLED]: true });
+    const current = items[STORAGE_KEYS.BADGE_ENABLED];
+    const next = !current;
+    await browser.storage.local.set({ [STORAGE_KEYS.BADGE_ENABLED]: next });
     return;
   }
 
   if (command === "scan-page") {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const activeTab = tabs[0];
-      if (activeTab?.id) {
-        chrome.tabs.sendMessage(activeTab.id, { type: "RESCAN_PAGE" }).catch((err) => {
-          console.warn(LOG_PREFIX, "Failed to send scan-page command to tab:", err);
-        });
+    const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (activeTab?.id) {
+      try {
+        await browser.tabs.sendMessage(activeTab.id, { type: "RESCAN_PAGE" });
+      } catch (error) {
+        console.warn(LOG_PREFIX, "Failed to send scan-page command to tab:", error);
       }
-    });
-    return;
+    }
   }
 });
 
-// ---------------------------------------------------------------------------
-// chrome.runtime.onStartup - service worker resilience
-// ---------------------------------------------------------------------------
+browser.runtime.onStartup.addListener(async () => {
+  await loadRateLimitIndicator();
+  await hashHistoryReady;
 
-chrome.runtime.onStartup.addListener(() => {
-  console.info(LOG_PREFIX, "Service worker startup - restoring state");
-  loadRateLimitIndicator();
-  void loadHashHistory();
-
-  chrome.alarms.get(ALARM_CACHE_SWEEP, (existing) => {
-    if (!existing) {
-      chrome.alarms.create(ALARM_CACHE_SWEEP, { periodInMinutes: 5 });
-    }
-  });
-  chrome.alarms.get(ALARM_KEEPALIVE, (existing) => {
-    if (!existing) {
-      chrome.alarms.create(ALARM_KEEPALIVE, { periodInMinutes: 0.4 });
-    }
-  });
+  const cacheAlarm = await browser.alarms.get(ALARM_CACHE_SWEEP);
+  if (!cacheAlarm) {
+    browser.alarms.create(ALARM_CACHE_SWEEP, { periodInMinutes: 5 });
+  }
+  const keepAliveAlarm = await browser.alarms.get(ALARM_KEEPALIVE);
+  if (!keepAliveAlarm) {
+    browser.alarms.create(ALARM_KEEPALIVE, { periodInMinutes: 0.4 });
+  }
 });
 
-// ---------------------------------------------------------------------------
-// Message router
-// ---------------------------------------------------------------------------
-
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+browser.runtime.onMessage.addListener(async (message) => {
   if (!message || typeof message.type !== "string") {
-    return false;
+    return;
   }
 
   if (message.type === MESSAGE_TYPES.REQUEST_DETECTION) {
-    console.debug(LOG_PREFIX, "Received detection request:", message.badgeId, message.imageUrl?.substring(0, 80));
-    void handleImageDetection(message, sendResponse);
-    return true;
+    return handleImageDetection(message);
   }
 
   if (message.type === MESSAGE_TYPES.REQUEST_USAGE_STATUS) {
-    void (async () => {
-      try {
-        const usage = await fetchUsageStatus();
-        sendResponse({ success: true, usage });
-      } catch (error) {
-        console.error(LOG_PREFIX, "Usage status failed:", error);
-        sendResponse({
-          success: false,
-          error: error instanceof Error ? error.message : "Failed to load usage status",
-        });
-      }
-    })();
-    return true;
+    try {
+      const usage = await fetchUsageStatus();
+      return { success: true, usage };
+    } catch (error) {
+      console.error(LOG_PREFIX, "Usage status failed:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to load usage status",
+      };
+    }
   }
 
   if (message.type === MESSAGE_TYPES.REQUEST_PAGE_SUMMARY) {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const activeTab = tabs[0];
-      if (!activeTab?.id) {
-        sendResponse({ success: false, error: "No active tab found" });
-        return;
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const activeTab = tabs[0];
+    if (!activeTab?.id) {
+      return { success: false, error: "No active tab found" };
+    }
+    try {
+      const response = await browser.tabs.sendMessage(activeTab.id, {
+        type: MESSAGE_TYPES.REQUEST_PAGE_SUMMARY,
+      });
+      if (!response?.summary) {
+        return { success: false, error: "Not available on this page" };
       }
-      chrome.tabs.sendMessage(
-        activeTab.id,
-        { type: MESSAGE_TYPES.REQUEST_PAGE_SUMMARY },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            sendResponse({
-              success: false,
-              error: chrome.runtime.lastError.message ?? "Failed to query content script",
-            });
-            return;
-          }
-          sendResponse({ success: true, ...response });
-        }
-      );
-    });
-    return true;
+      return { success: true, ...response };
+    } catch (error) {
+      console.warn(LOG_PREFIX, "Page summary error:", error);
+      return { success: false, error: "Failed to query content script" };
+    }
   }
-
-  return false;
 });
-
-// ---------------------------------------------------------------------------
-// Detection orchestration
-// ---------------------------------------------------------------------------
 
 async function handleImageDetection(
   message: {
@@ -306,57 +227,49 @@ async function handleImageDetection(
     imageUrl: string;
     badgeId: string;
     pageUrl: string;
-  },
-  sendResponse: (response: DetectionResponse) => void
-) {
+  }
+): Promise<DetectionResponse> {
   const normalizedUrl = normalizeImageUrl(message.imageUrl, message.pageUrl);
   if (!normalizedUrl) {
     console.warn(LOG_PREFIX, "Invalid URL:", message.imageUrl);
-    sendResponse({
+    return {
       status: "error",
       message: "Unable to resolve image URL.",
       badgeId: message.badgeId,
       imageUrl: message.imageUrl,
-    });
-    return;
+    };
   }
 
   const config = await getConfig();
   const requestKey = buildRequestKey(normalizedUrl, config.detectionMode);
   const cached = getCachedResult(requestKey);
   if (cached) {
-    console.debug(LOG_PREFIX, "Cache hit for:", message.badgeId);
-    sendResponse({ ...cached, badgeId: message.badgeId, imageUrl: normalizedUrl });
-    return;
+    return { ...cached, badgeId: message.badgeId, imageUrl: normalizedUrl };
   }
 
-  const existing = pendingRequests.get(requestKey);
-  if (existing) {
-    console.debug(LOG_PREFIX, "Joining existing request for:", message.badgeId);
-    existing.resolvers.push({ badgeId: message.badgeId, sendResponse });
-    return;
-  }
+  return new Promise<DetectionResponse>((resolve) => {
+    const resolver: PendingResolver = { badgeId: message.badgeId, resolve };
+    const existing = pendingRequests.get(requestKey);
+    if (existing) {
+      existing.resolvers.push(resolver);
+      return;
+    }
 
-  console.debug(LOG_PREFIX, "Queueing new request for:", message.badgeId);
-  pendingRequests.set(requestKey, { resolvers: [{ badgeId: message.badgeId, sendResponse }] });
-  detectionQueue.push({
-    imageUrl: normalizedUrl,
-    requestKey,
-    mode: config.detectionMode,
-    imagionApiKey: config.imagionApiKey,
-    imagionDetectionEndpoint: config.imagionDetectionEndpoint,
-    localEndpoint: config.localDetectionEndpoint,
+    pendingRequests.set(requestKey, { resolvers: [resolver] });
+    detectionQueue.push({
+      imageUrl: normalizedUrl,
+      requestKey,
+      mode: config.detectionMode,
+      imagionApiKey: config.imagionApiKey,
+      imagionDetectionEndpoint: config.imagionDetectionEndpoint,
+      localEndpoint: config.localDetectionEndpoint,
+    });
+    processQueue();
   });
-  processQueue();
 }
-
-// ---------------------------------------------------------------------------
-// Queue processing
-// ---------------------------------------------------------------------------
 
 function processQueue() {
   if (Date.now() < nextAllowedTimestamp) {
-    console.debug(LOG_PREFIX, "Rate limited, waiting...");
     return;
   }
 
@@ -366,15 +279,10 @@ function processQueue() {
       continue;
     }
     runningDetections += 1;
-    console.debug(
-      LOG_PREFIX,
-      `Processing queue (${runningDetections}/${MAX_CONCURRENT_DETECTIONS} running, ${detectionQueue.length} pending)`,
-      job.mode
-    );
 
     runDetection(job)
       .catch(() => {
-        // Individual errors are handled inside runDetection.
+        // Errors handled internally.
       })
       .finally(() => {
         runningDetections -= 1;
@@ -382,10 +290,6 @@ function processQueue() {
       });
   }
 }
-
-// ---------------------------------------------------------------------------
-// Core detection logic
-// ---------------------------------------------------------------------------
 
 async function runDetection(job: DetectionJob) {
   const {
@@ -413,9 +317,7 @@ async function runDetection(job: DetectionJob) {
 
   let blob: Blob;
   try {
-    console.debug(LOG_PREFIX, "Fetching image:", imageUrl.substring(0, 80));
     blob = await fetchImageBytes(imageUrl);
-    console.debug(LOG_PREFIX, "Image fetched, size:", blob.size, "bytes");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(LOG_PREFIX, "Failed to fetch image:", {
@@ -437,7 +339,6 @@ async function runDetection(job: DetectionJob) {
     return;
   }
 
-  // File size check
   if (blob.size > MAX_IMAGE_UPLOAD_BYTES) {
     const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);
     console.warn(LOG_PREFIX, "Image too large:", blob.size, "bytes");
@@ -498,14 +399,8 @@ async function runDetection(job: DetectionJob) {
   formData.append("file", file);
 
   const targetEndpoint =
-    mode === "local"
-      ? localEndpoint || imagionDetectionEndpoint
-      : imagionDetectionEndpoint;
+    mode === "local" ? localEndpoint || imagionDetectionEndpoint : imagionDetectionEndpoint;
   const isLocalMode = mode === "local";
-  if (isLocalMode && !localEndpoint) {
-    console.debug(LOG_PREFIX, "Local endpoint missing, falling back to API endpoint");
-  }
-
   const headers: Record<string, string> = {
     "x-detection-source": isLocalMode ? "extension-local" : "extension",
   };
@@ -515,13 +410,11 @@ async function runDetection(job: DetectionJob) {
 
   let response: Response;
   try {
-    console.debug(LOG_PREFIX, `Sending to ${isLocalMode ? "local" : "API"} endpoint:`, targetEndpoint, mode);
     response = await fetch(targetEndpoint, {
       method: "POST",
       headers,
       body: formData,
     });
-    console.debug(LOG_PREFIX, "Detection response status:", response.status, "mode:", mode);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(LOG_PREFIX, "Detection request failed:", {
@@ -547,7 +440,6 @@ async function runDetection(job: DetectionJob) {
   let payload: unknown;
   try {
     payload = await response.json();
-    console.debug(LOG_PREFIX, "Detection response payload:", payload, "mode:", mode);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(LOG_PREFIX, "Failed to parse detection response JSON:", {
@@ -669,7 +561,6 @@ async function runDetection(job: DetectionJob) {
     presentation: structuredPayload.presentation,
   };
 
-  console.info(LOG_PREFIX, "Detection success:", structuredPayload.verdict, "score:", structuredPayload.score, "mode:", mode);
   recordTelemetry({
     level: "info",
     message: "detection_success",
@@ -682,7 +573,6 @@ async function runDetection(job: DetectionJob) {
   }
   dispatchResponse(imageUrl, requestKey, successPayload, imageHash ?? undefined);
 
-  // Notify on high-confidence AI detections
   if (
     structuredPayload.verdict &&
     AI_VERDICTS.has(structuredPayload.verdict.toLowerCase()) &&
@@ -692,10 +582,6 @@ async function runDetection(job: DetectionJob) {
     sendHighConfidenceNotification(imageUrl, structuredPayload.verdict, structuredPayload.score);
   }
 }
-
-// ---------------------------------------------------------------------------
-// Image fetching
-// ---------------------------------------------------------------------------
 
 async function fetchImageBytes(url: string): Promise<Blob> {
   const response = await fetch(url, {
@@ -715,10 +601,6 @@ async function fetchImageBytes(url: string): Promise<Blob> {
   return blob;
 }
 
-// ---------------------------------------------------------------------------
-// Response dispatch
-// ---------------------------------------------------------------------------
-
 function dispatchResponse(
   imageUrl: string,
   requestKey: string,
@@ -729,16 +611,11 @@ function dispatchResponse(
   if (!entry) {
     return;
   }
-  console.debug(LOG_PREFIX, "Dispatching response to", entry.resolvers.length, "resolver(s)");
-  entry.resolvers.forEach(({ badgeId, sendResponse }) => {
-    sendResponse({ ...payload, badgeId, imageUrl, hash });
+  entry.resolvers.forEach(({ badgeId, resolve }) => {
+    resolve({ ...payload, badgeId, imageUrl, hash });
   });
   pendingRequests.delete(requestKey);
 }
-
-// ---------------------------------------------------------------------------
-// Cache management with size cap and LRU eviction
-// ---------------------------------------------------------------------------
 
 function getCachedResult(requestKey: string): DetectionResponsePayload | null {
   const entry = cache.get(requestKey);
@@ -749,14 +626,12 @@ function getCachedResult(requestKey: string): DetectionResponsePayload | null {
     cache.delete(requestKey);
     return null;
   }
-  // Move to end for LRU freshness on access
   cache.delete(requestKey);
   cache.set(requestKey, entry);
   return entry.payload;
 }
 
 function setCacheEntry(requestKey: string, payload: DetectionResponsePayload) {
-  // If already present, delete first so the re-insert moves it to the end (most recent)
   if (cache.has(requestKey)) {
     cache.delete(requestKey);
   }
@@ -781,37 +656,24 @@ function evictCacheIfNeeded() {
 
 function sweepExpiredCache() {
   const now = Date.now();
-  let swept = 0;
   for (const [key, entry] of cache) {
     if (now - entry.timestamp > REQUEST_TTL_MS) {
       cache.delete(key);
-      swept += 1;
     }
-  }
-  if (swept > 0) {
-    console.debug(LOG_PREFIX, `Cache sweep removed ${swept} expired entries, ${cache.size} remaining`);
   }
 }
 
-// ---------------------------------------------------------------------------
-// Hash history
-// ---------------------------------------------------------------------------
-
 async function loadHashHistory(): Promise<void> {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(STORAGE_KEYS.HASH_HISTORY, (items) => {
-      const stored = items[STORAGE_KEYS.HASH_HISTORY];
-      if (Array.isArray(stored)) {
-        hashHistory = stored.filter(isHashHistoryEntry);
-        if (hashHistory.length > MAX_HASH_HISTORY) {
-          hashHistory = hashHistory.slice(0, MAX_HASH_HISTORY);
-        }
-      } else {
-        hashHistory = [];
-      }
-      resolve();
-    });
-  });
+  const items = await browser.storage.local.get(STORAGE_KEYS.HASH_HISTORY);
+  const stored = items[STORAGE_KEYS.HASH_HISTORY];
+  if (Array.isArray(stored)) {
+    hashHistory = stored.filter(isHashHistoryEntry);
+    if (hashHistory.length > MAX_HASH_HISTORY) {
+      hashHistory = hashHistory.slice(0, MAX_HASH_HISTORY);
+    }
+  } else {
+    hashHistory = [];
+  }
 }
 
 async function ensureHashHistoryLoaded(): Promise<void> {
@@ -834,12 +696,8 @@ async function recordHashHistory(hash: string, payload: DetectionResponsePayload
 }
 
 function persistHashHistory() {
-  chrome.storage.local.set({ [STORAGE_KEYS.HASH_HISTORY]: hashHistory });
+  browser.storage.local.set({ [STORAGE_KEYS.HASH_HISTORY]: hashHistory });
 }
-
-// ---------------------------------------------------------------------------
-// Rate limit / backoff
-// ---------------------------------------------------------------------------
 
 function applyRateLimitBackoff(seconds: number, reason: RateLimitReason = "burst") {
   const waitMs = Math.min(Math.max(seconds * 1000, BACKOFF_MIN_MS), BACKOFF_MAX_MS);
@@ -865,58 +723,48 @@ function applyRateLimitBackoff(seconds: number, reason: RateLimitReason = "burst
 
 function applyLimitBadge(active: boolean) {
   if (active) {
-    chrome.action.setBadgeText({ text: RATE_LIMIT_BADGE_TEXT });
-    chrome.action.setBadgeBackgroundColor({ color: RATE_LIMIT_BADGE_COLOR });
+    browser.action.setBadgeText({ text: RATE_LIMIT_BADGE_TEXT });
+    browser.action.setBadgeBackgroundColor({ color: RATE_LIMIT_BADGE_COLOR });
   } else {
-    chrome.action.setBadgeText({ text: "" });
-    chrome.action.setBadgeBackgroundColor({ color: "#000000" });
+    browser.action.setBadgeText({ text: "" });
+    browser.action.setBadgeBackgroundColor({ color: "#000000" });
   }
 }
 
-function persistRateLimitIndicator(state: RateLimitIndicator | null) {
+async function persistRateLimitIndicator(state: RateLimitIndicator | null) {
   if (state) {
-    chrome.storage.local.set({ [STORAGE_KEYS.RATE_LIMIT_STATE]: state });
+    await browser.storage.local.set({ [STORAGE_KEYS.RATE_LIMIT_STATE]: state });
   } else {
-    chrome.storage.local.remove(STORAGE_KEYS.RATE_LIMIT_STATE);
+    await browser.storage.local.remove(STORAGE_KEYS.RATE_LIMIT_STATE);
   }
 }
 
 function setRateLimitIndicator(state: RateLimitIndicator | null) {
-  rateLimitIndicator = state;
   applyLimitBadge(Boolean(state));
-  persistRateLimitIndicator(state);
+  void persistRateLimitIndicator(state);
 }
 
-function loadRateLimitIndicator(): Promise<void> {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(STORAGE_KEYS.RATE_LIMIT_STATE, (items) => {
-      const stored = items[STORAGE_KEYS.RATE_LIMIT_STATE];
-      if (isRateLimitIndicator(stored) && stored.expiresAt > Date.now()) {
-        rateLimitIndicator = stored;
-        applyLimitBadge(true);
-        nextAllowedTimestamp = stored.expiresAt;
-        const waitMs = stored.expiresAt - Date.now();
-        if (waitMs > 0) {
-          backoffTimer = setTimeout(() => {
-            nextAllowedTimestamp = 0;
-            backoffTimer = null;
-            setRateLimitIndicator(null);
-            processQueue();
-          }, waitMs);
-        } else {
-          setRateLimitIndicator(null);
-        }
-      } else {
-        chrome.storage.local.remove(STORAGE_KEYS.RATE_LIMIT_STATE);
-      }
-      resolve();
-    });
-  });
+async function loadRateLimitIndicator(): Promise<void> {
+  const items = await browser.storage.local.get(STORAGE_KEYS.RATE_LIMIT_STATE);
+  const stored = items[STORAGE_KEYS.RATE_LIMIT_STATE];
+  if (isRateLimitIndicator(stored) && stored.expiresAt > Date.now()) {
+    applyLimitBadge(true);
+    nextAllowedTimestamp = stored.expiresAt;
+    const waitMs = stored.expiresAt - Date.now();
+    if (waitMs > 0) {
+      backoffTimer = setTimeout(() => {
+        nextAllowedTimestamp = 0;
+        backoffTimer = null;
+        setRateLimitIndicator(null);
+        processQueue();
+      }, waitMs);
+    } else {
+      setRateLimitIndicator(null);
+    }
+  } else {
+    await browser.storage.local.remove(STORAGE_KEYS.RATE_LIMIT_STATE);
+  }
 }
-
-// ---------------------------------------------------------------------------
-// Backend hash lookup
-// ---------------------------------------------------------------------------
 
 async function lookupBackendHash(
   hash: string,
@@ -945,10 +793,6 @@ async function lookupBackendHash(
   return null;
 }
 
-// ---------------------------------------------------------------------------
-// Usage status
-// ---------------------------------------------------------------------------
-
 async function fetchUsageStatus(): Promise<UsageStatusPayload> {
   const { imagionApiKey, imagionDetectionEndpoint } = await getConfig();
   if (!imagionApiKey) {
@@ -975,28 +819,20 @@ async function fetchUsageStatus(): Promise<UsageStatusPayload> {
   return payload.usage as UsageStatusPayload;
 }
 
-// ---------------------------------------------------------------------------
-// Telemetry
-// ---------------------------------------------------------------------------
-
 function recordTelemetry(entry: Omit<TelemetryEntry, "timestamp">) {
   telemetryEntries.push({ timestamp: Date.now(), ...entry });
   if (telemetryEntries.length > TELEMETRY_LIMIT) {
     telemetryEntries.shift();
   }
-  chrome.storage.local.set({ [STORAGE_KEYS.TELEMETRY]: telemetryEntries });
+  void browser.storage.local.set({ [STORAGE_KEYS.TELEMETRY]: telemetryEntries });
 }
 
-// ---------------------------------------------------------------------------
-// Context menu detection
-// ---------------------------------------------------------------------------
-
-function handleContextMenuDetection(srcUrl: string, tab: chrome.tabs.Tab | undefined) {
+async function handleContextMenuDetection(srcUrl: string, tab: browser.tabs.Tab | undefined) {
   const pageUrl = tab?.url ?? "";
   const normalizedUrl = normalizeImageUrl(srcUrl, pageUrl);
   if (!normalizedUrl) {
     console.warn(LOG_PREFIX, "Context menu: invalid image URL:", srcUrl);
-    chrome.notifications.create({
+    await browser.notifications.create({
       type: "basic",
       iconUrl: "icons/icon128.png",
       title: "Imagion",
@@ -1005,138 +841,130 @@ function handleContextMenuDetection(srcUrl: string, tab: chrome.tabs.Tab | undef
     return;
   }
 
-  console.info(LOG_PREFIX, "Context menu detection for:", normalizedUrl.substring(0, 80));
 
-  void (async () => {
+  try {
+    const config = await getConfig();
+    const mode = config.detectionMode;
+
+    let blob: Blob;
     try {
-      const config = await getConfig();
-      const mode = config.detectionMode;
-
-      let blob: Blob;
-      try {
-        blob = await fetchImageBytes(normalizedUrl);
-      } catch (fetchErr) {
-        const errMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
-        chrome.notifications.create({
-          type: "basic",
-          iconUrl: "icons/icon128.png",
-          title: "Imagion",
-          message: `Failed to fetch image: ${errMsg}`,
-        });
-        return;
-      }
-
-      if (blob.size > MAX_IMAGE_UPLOAD_BYTES) {
-        chrome.notifications.create({
-          type: "basic",
-          iconUrl: "icons/icon128.png",
-          title: "Imagion",
-          message: "Image too large. Maximum allowed size is 10 MB.",
-        });
-        return;
-      }
-
-      if (mode === "api" && !config.imagionApiKey) {
-        chrome.notifications.create({
-          type: "basic",
-          iconUrl: "icons/icon128.png",
-          title: "Imagion",
-          message: "Please provide an Imagion API key in the options page.",
-        });
-        return;
-      }
-
-      let imageHash: string | null = null;
-      try {
-        imageHash = await hashBlobSHA256(blob);
-      } catch {
-        // non-fatal
-      }
-
-      const formData = new FormData();
-      const fileName = extractFileName(normalizedUrl);
-      const file = new File([blob], fileName, { type: blob.type || "image/jpeg" });
-      formData.append("file", file);
-
-      const targetEndpoint =
-        mode === "local"
-          ? config.localDetectionEndpoint || config.imagionDetectionEndpoint
-          : config.imagionDetectionEndpoint;
-      const isLocalMode = mode === "local";
-
-      const headers: Record<string, string> = {
-        "x-detection-source": isLocalMode ? "extension-local" : "extension",
-      };
-      if (!isLocalMode) {
-        headers["x-api-key"] = config.imagionApiKey;
-      }
-
-      const response = await fetch(targetEndpoint, {
-        method: "POST",
-        headers,
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errBody = await response.json().catch(() => null);
-        const msg = (errBody as { message?: string })?.message || `Detection failed (${response.status})`;
-        chrome.notifications.create({
-          type: "basic",
-          iconUrl: "icons/icon128.png",
-          title: "Imagion",
-          message: msg,
-        });
-        return;
-      }
-
-      const result = await response.json();
-      const verdict = result.verdict ?? "Unknown";
-      const score = typeof result.score === "number" ? result.score : null;
-      const scoreText = score !== null ? ` (score: ${(score * 100).toFixed(0)}%)` : "";
-
-      chrome.notifications.create({
-        type: "basic",
-        iconUrl: "icons/icon128.png",
-        title: `Imagion: ${verdict}`,
-        message: `Verdict: ${verdict}${scoreText}`,
-      });
-
-      // Cache the result
-      if (result.verdict) {
-        const successPayload: DetectionResponsePayload = {
-          status: "success",
-          verdict: result.verdict,
-          score: result.score,
-          confidence: result.confidence,
-          presentation: result.presentation,
-        };
-        const requestKey = buildRequestKey(normalizedUrl, mode);
-        setCacheEntry(requestKey, successPayload);
-        if (imageHash) {
-          void recordHashHistory(imageHash, successPayload, mode);
-        }
-      }
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error);
-      console.error(LOG_PREFIX, "Context menu detection failed:", errMsg);
-      chrome.notifications.create({
+      blob = await fetchImageBytes(normalizedUrl);
+    } catch (fetchErr) {
+      const errMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+      await browser.notifications.create({
         type: "basic",
         iconUrl: "icons/icon128.png",
         title: "Imagion",
-        message: `Detection failed: ${errMsg}`,
+        message: `Failed to fetch image: ${errMsg}`,
       });
+      return;
     }
-  })();
-}
 
-// ---------------------------------------------------------------------------
-// High-confidence AI notification
-// ---------------------------------------------------------------------------
+    if (blob.size > MAX_IMAGE_UPLOAD_BYTES) {
+      await browser.notifications.create({
+        type: "basic",
+        iconUrl: "icons/icon128.png",
+        title: "Imagion",
+        message: "Image too large. Maximum allowed size is 10 MB.",
+      });
+      return;
+    }
+
+    if (mode === "api" && !config.imagionApiKey) {
+      await browser.notifications.create({
+        type: "basic",
+        iconUrl: "icons/icon128.png",
+        title: "Imagion",
+        message: "Please provide an Imagion API key in the options page.",
+      });
+      return;
+    }
+
+    let imageHash: string | null = null;
+    try {
+      imageHash = await hashBlobSHA256(blob);
+    } catch {
+      // non-fatal
+    }
+
+    const formData = new FormData();
+    const fileName = extractFileName(normalizedUrl);
+    const file = new File([blob], fileName, { type: blob.type || "image/jpeg" });
+    formData.append("file", file);
+
+    const targetEndpoint =
+      mode === "local"
+        ? config.localDetectionEndpoint || config.imagionDetectionEndpoint
+        : config.imagionDetectionEndpoint;
+    const isLocalMode = mode === "local";
+
+    const headers: Record<string, string> = {
+      "x-detection-source": isLocalMode ? "extension-local" : "extension",
+    };
+    if (!isLocalMode) {
+      headers["x-api-key"] = config.imagionApiKey;
+    }
+
+    const response = await fetch(targetEndpoint, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errBody = await response.json().catch(() => null);
+      const msg = (errBody as { message?: string })?.message || `Detection failed (${response.status})`;
+      await browser.notifications.create({
+        type: "basic",
+        iconUrl: "icons/icon128.png",
+        title: "Imagion",
+        message: msg,
+      });
+      return;
+    }
+
+    const result = await response.json();
+    const verdict = result.verdict ?? "Unknown";
+    const score = typeof result.score === "number" ? result.score : null;
+    const scoreText = score !== null ? ` (score: ${(score * 100).toFixed(0)}%)` : "";
+
+    await browser.notifications.create({
+      type: "basic",
+      iconUrl: "icons/icon128.png",
+      title: `Imagion: ${verdict}`,
+      message: `Verdict: ${verdict}${scoreText}`,
+    });
+
+    if (result.verdict) {
+      const successPayload: DetectionResponsePayload = {
+        status: "success",
+        verdict: result.verdict,
+        score: result.score,
+        confidence: result.confidence,
+        presentation: result.presentation,
+      };
+      const requestKey = buildRequestKey(normalizedUrl, mode);
+      setCacheEntry(requestKey, successPayload);
+      if (imageHash) {
+        void recordHashHistory(imageHash, successPayload, mode);
+      }
+    }
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error(LOG_PREFIX, "Context menu detection failed:", errMsg);
+    await browser.notifications.create({
+      type: "basic",
+      iconUrl: "icons/icon128.png",
+      title: "Imagion",
+      message: `Detection failed: ${errMsg}`,
+    });
+  }
+}
 
 function sendHighConfidenceNotification(imageUrl: string, verdict: string, score: number) {
   const scorePercent = (score * 100).toFixed(0);
-  const truncatedUrl = imageUrl.length > 60 ? imageUrl.substring(0, 57) + "..." : imageUrl;
-  chrome.notifications.create({
+  const truncatedUrl = imageUrl.length > 60 ? `${imageUrl.substring(0, 57)}...` : imageUrl;
+  void browser.notifications.create({
     type: "basic",
     iconUrl: "icons/icon128.png",
     title: "AI Image Detected",

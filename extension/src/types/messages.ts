@@ -2,7 +2,7 @@ import type {
   DetectionResponse,
   UsageStatusPayload,
   PageSummary,
-} from "./types";
+} from "./index";
 
 export type RequestDetectionMessage = {
   type: "REQUEST_DETECTION";

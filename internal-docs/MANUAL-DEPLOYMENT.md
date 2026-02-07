@@ -1,63 +1,75 @@
 # Manual Deployment Guide
 
-Quick reference for deploying Imagion to your server without using CI/CD. This assumes you have SSH access to the server.
+Quick reference for deploying Imagion to your home server without CI/CD.
+
+## Your SSH Connection
+
+```powershell
+ssh -i id_ed25519 boomelite@home-server
+```
 
 ## Prerequisites
 
-- Ubuntu server with Docker and Docker Compose installed
-- SSH access to the server
-- ONNX models downloaded locally (9 files, ~1.5 GB total)
+**Local machine (Windows):**
+- Git Bash or PowerShell
+- SSH key (`id_ed25519`)
 
-## Step 1: Package the project
+**Server (Ubuntu):**
+- Docker and Docker Compose installed
+- SSH access configured
 
-On your local machine (Windows):
+## Quick Start (Copy-Paste Ready)
 
-```powershell
-cd F:\repos\ai-detector\ai-detector
+### Step 1: Package the project (local machine)
 
-# Create tarball excluding heavy files
-tar -czf imagion-deploy.tar.gz `
-  --exclude=node_modules `
-  --exclude=.next `
-  --exclude=.git `
-  --exclude=extension `
-  --exclude=benchmark/test-assets `
-  --exclude=benchmark/results `
-  --exclude=public/models/onnx `
+Open Git Bash in `F:\repos\ai-detector\ai-detector`:
+
+```bash
+cd /f/repos/ai-detector/ai-detector
+
+# Create tarball
+tar -czf imagion-deploy.tar.gz \
+  --exclude=node_modules \
+  --exclude=.next \
+  --exclude=.git \
+  --exclude=extension \
+  --exclude=benchmark/test-assets \
+  --exclude=benchmark/results \
+  --exclude=public/models/onnx \
+  --exclude=wasm \
+  --exclude=logs \
   .
 ```
 
-## Step 2: Transfer files to server
+### Step 2: Transfer files to server (local machine)
 
-```powershell
-# Transfer source code
-scp imagion-deploy.tar.gz YOUR_USER@YOUR_SERVER_IP:/tmp/
+```bash
+# Create models directory on server first
+ssh -i ~/.ssh/id_ed25519 boomelite@home-server "mkdir -p /tmp/imagion-models"
 
-# Transfer ONNX models (separate, large files)
-scp -r public\models\onnx\* YOUR_USER@YOUR_SERVER_IP:/tmp/imagion-models/
+# Transfer source code (~5 MB)
+scp -i ~/.ssh/id_ed25519 imagion-deploy.tar.gz boomelite@home-server:/tmp/
+
+# Transfer ONNX models (~1.5 GB) - this takes a while
+scp -i ~/.ssh/id_ed25519 -r public/models/onnx/* boomelite@home-server:/tmp/imagion-models/
 
 # Transfer environment file
-scp .env.production YOUR_USER@YOUR_SERVER_IP:/tmp/
+scp -i ~/.ssh/id_ed25519 .env.production boomelite@home-server:/tmp/
 ```
 
-## Step 3: Set up on server
-
-SSH into your server:
+### Step 3: SSH into server
 
 ```bash
-ssh YOUR_USER@YOUR_SERVER_IP
+ssh -i ~/.ssh/id_ed25519 boomelite@home-server
 ```
 
-Create directory structure:
+### Step 4: Set up directories (on server)
 
 ```bash
+# Create directory structure
 sudo mkdir -p /opt/imagion/{src,models}
 sudo chown -R $USER:$USER /opt/imagion
-```
 
-Extract and organize files:
-
-```bash
 # Extract source
 cd /opt/imagion/src
 tar -xzf /tmp/imagion-deploy.tar.gz
@@ -65,26 +77,22 @@ tar -xzf /tmp/imagion-deploy.tar.gz
 # Move models
 mv /tmp/imagion-models/* /opt/imagion/models/
 
-# Move environment file
+# Move config files
 mv /tmp/.env.production /opt/imagion/
-
-# Copy Docker Compose to working directory
 cp /opt/imagion/src/docker-compose.prod.yml /opt/imagion/
-```
 
-Verify models are present:
-
-```bash
+# Verify models
 ls -lh /opt/imagion/models/
-# Should show: model.onnx, model.onnx.data, model_q4.onnx, nyuad.onnx, etc.
 ```
 
-## Step 4: Build Docker image
+Before you build the image, double-check `/opt/imagion/.env.production` so `DATABASE_URL` points at the AWS RDS host (replace `<YOUR_DB_PASSWORD>` with the secret you were given) and the AWS/PG variables match that cluster. The `POSTGRES_*` entries at the bottom are only read when you explicitly launch the `local-db` profile.
+
+### Step 5: Build Docker image (on server)
 
 ```bash
 cd /opt/imagion/src
 
-docker build -t ghcr.io/beladevo/detect-ai:latest \
+docker build -t imagion:latest \
   --build-arg NEXT_PUBLIC_BASE_URL=http://localhost:3000 \
   --build-arg NEXT_PUBLIC_MODEL_NAME=model.onnx \
   --build-arg NEXT_PUBLIC_USE_API_ONLY=false \
@@ -99,222 +107,270 @@ docker build -t ghcr.io/beladevo/detect-ai:latest \
   .
 ```
 
-**Note:** First build takes 10-15 minutes (installs deps, compiles native modules).
+**Note:** First build takes 10-15 minutes.
 
-## Step 5: Start services
+### Step 6: Update docker-compose to use local image
 
 ```bash
 cd /opt/imagion
 
-# Start database and Redis
-docker compose -f docker-compose.prod.yml up -d postgres redis
-
-# Wait for healthy status (30-60 seconds)
-watch -n 2 'docker compose -f docker-compose.prod.yml ps'
-# Press Ctrl+C when both show "healthy"
+# Edit compose file to use local image name
+sed -i 's|ghcr.io/beladevo/detect-ai:latest|imagion:latest|g' docker-compose.prod.yml
 ```
 
-## Step 6: Run database migrations
+### Step 7: Start services (on server)
 
 ```bash
+cd /opt/imagion
+
+# The managed Redis endpoint (provided via REDIS_URL in .env.production)
+# replaces the compose-owned Redis container. If you still need a local
+# Redis instance for debugging, enable it explicitly:
+#   docker compose -f docker-compose.prod.yml --profile local-redis up -d redis
+
+# Optional: start the bundled Postgres container for local diagnostics
+docker compose -f docker-compose.prod.yml --profile local-db up -d postgres
+
+# Wait for (the optional) Postgres to be healthy
+docker compose -f docker-compose.prod.yml ps
+
+# Run database migrations
 docker compose -f docker-compose.prod.yml --profile migration run --rm migrate
-```
 
-Expected output:
-```
-Prisma Migrate applied successfully
-```
-
-## Step 7: Start the application
-
-```bash
+# Start the app
 docker compose -f docker-compose.prod.yml up -d app
 ```
 
-## Step 8: Verify deployment
-
-Check container status:
+### Step 8: Verify (on server)
 
 ```bash
+# Check all containers
 docker compose -f docker-compose.prod.yml ps
+
+# Check app logs
+docker logs imagion-app --tail 30
+
+# Test health endpoint
+curl http://localhost:3000/api/health
+# Expected: {"status":"ok"}
 ```
 
-Expected output (all services should show "Up" and app should be "healthy"):
-```
-NAME                IMAGE                              STATUS
-imagion-app         ghcr.io/beladevo/detect-ai:latest  Up (healthy)
-imagion-postgres    postgres:16-alpine                 Up (healthy)
-imagion-redis       redis:7-alpine                     Up (healthy)
-```
+### Step 9: Access from your PC
 
-Check logs:
+Open a new terminal on your local machine:
 
 ```bash
-docker logs imagion-app --tail 50
+# SSH tunnel to access the app
+ssh -i ~/.ssh/id_ed25519 -L 3000:localhost:3000 boomelite@home-server
 ```
 
-Expected: No errors, should show:
-```
-▲ Next.js 16.1.1
-- Local:        http://localhost:3000
-- Network:      http://0.0.0.0:3000
+Keep this terminal open, then browse to: **http://localhost:3000**
 
-✓ Ready in 2.3s
-```
+---
 
-Test health endpoint:
+## All-in-One Commands
+
+### Local machine (Git Bash)
 
 ```bash
+# Package and transfer everything
+cd /f/repos/ai-detector/ai-detector
+
+tar -czf imagion-deploy.tar.gz \
+  --exclude=node_modules \
+  --exclude=.next \
+  --exclude=.git \
+  --exclude=extension \
+  --exclude=benchmark/test-assets \
+  --exclude=benchmark/results \
+  --exclude=public/models/onnx \
+  .
+
+ssh -i ~/.ssh/id_ed25519 boomelite@home-server "mkdir -p /tmp/imagion-models"
+scp -i ~/.ssh/id_ed25519 imagion-deploy.tar.gz boomelite@home-server:/tmp/
+scp -i ~/.ssh/id_ed25519 -r public/models/onnx/* boomelite@home-server:/tmp/imagion-models/
+scp -i ~/.ssh/id_ed25519 .env.production boomelite@home-server:/tmp/
+
+ssh -i ~/.ssh/id_ed25519 boomelite@home-server
+```
+
+### Server (after SSH)
+
+```bash
+# Setup
+sudo mkdir -p /opt/imagion/{src,models}
+sudo chown -R $USER:$USER /opt/imagion
+cd /opt/imagion/src && tar -xzf /tmp/imagion-deploy.tar.gz
+mv /tmp/imagion-models/* /opt/imagion/models/
+mv /tmp/.env.production /opt/imagion/
+cp /opt/imagion/src/docker-compose.prod.yml /opt/imagion/
+
+# Build
+cd /opt/imagion/src
+docker build -t imagion:latest \
+  --build-arg NEXT_PUBLIC_BASE_URL=http://localhost:3000 \
+  --build-arg NEXT_PUBLIC_MODEL_NAME=model.onnx \
+  --build-arg NEXT_PUBLIC_USE_API_ONLY=false \
+  --build-arg NEXT_PUBLIC_PREMIUM_FEATURES_ENABLED=true \
+  --build-arg NEXT_PUBLIC_PIPELINE_ML_ENABLED=true \
+  --build-arg NEXT_PUBLIC_PIPELINE_VISUAL_ENABLED=false \
+  --build-arg NEXT_PUBLIC_PIPELINE_METADATA_ENABLED=false \
+  --build-arg NEXT_PUBLIC_PIPELINE_PHYSICS_ENABLED=false \
+  --build-arg NEXT_PUBLIC_PIPELINE_FREQUENCY_ENABLED=false \
+  --build-arg NEXT_PUBLIC_PIPELINE_PROVENANCE_ENABLED=false \
+  --build-arg NEXT_PUBLIC_HOTJAR_SITE_ID=6622003 \
+  .
+
+# Deploy
+cd /opt/imagion
+sed -i 's|ghcr.io/beladevo/detect-ai:latest|imagion:latest|g' docker-compose.prod.yml
+# Redis is supplied by the managed `REDIS_URL` entry in `.env.production`.
+# Start the compose-managed Redis only if you need the local fallback:
+#   docker compose -f docker-compose.prod.yml --profile local-redis up -d redis
+# Optional: start the bundled Postgres container for local diagnostics
+docker compose -f docker-compose.prod.yml --profile local-db up -d postgres
+sleep 30  # Wait for Redis (and the optional Postgres instance)
+docker compose -f docker-compose.prod.yml --profile migration run --rm migrate
+docker compose -f docker-compose.prod.yml up -d app
+
+# Verify
+docker compose -f docker-compose.prod.yml ps
 curl http://localhost:3000/api/health
 ```
 
-Expected: `{"status":"ok"}`
+---
 
-## Step 9: Access the application
-
-### From the server itself
-
-```bash
-curl http://localhost:3000
-```
-
-### From your local machine (via SSH tunnel)
-
-On your local machine:
-
-```bash
-ssh -L 3000:localhost:3000 YOUR_USER@YOUR_SERVER_IP
-```
-
-Then open your browser to: `http://localhost:3000`
-
-## Optional: Start Cloudflare Tunnel
-
-If you have a custom domain and configured the tunnel token:
-
-```bash
-cd /opt/imagion
-docker compose -f docker-compose.prod.yml --profile tunnel up -d cloudflared
-```
-
-## Updating the application
+## Updating the Application
 
 When you have code changes:
 
-1. **Package new version** on local machine (same as Step 1)
-2. **Transfer** to server (same as Step 2)
-3. **Extract** new code:
-   ```bash
-   cd /opt/imagion/src
-   rm -rf *
-   tar -xzf /tmp/imagion-deploy.tar.gz
-   ```
-4. **Rebuild** Docker image (same as Step 4)
-5. **Run migrations** (if schema changed):
-   ```bash
-   cd /opt/imagion
-   docker compose -f docker-compose.prod.yml --profile migration run --rm migrate
-   ```
-6. **Restart app**:
-   ```bash
-   docker compose -f docker-compose.prod.yml up -d --no-deps app
-   ```
-7. **Verify** (same as Step 8)
+### On local machine:
+
+```bash
+cd /f/repos/ai-detector/ai-detector
+
+# Repackage
+tar -czf imagion-deploy.tar.gz \
+  --exclude=node_modules \
+  --exclude=.next \
+  --exclude=.git \
+  --exclude=extension \
+  --exclude=benchmark/test-assets \
+  --exclude=benchmark/results \
+  --exclude=public/models/onnx \
+  .
+
+# Transfer
+scp -i ~/.ssh/id_ed25519 imagion-deploy.tar.gz boomelite@home-server:/tmp/
+
+# SSH in
+ssh -i ~/.ssh/id_ed25519 boomelite@home-server
+```
+
+### On server:
+
+```bash
+cd /opt/imagion/src
+rm -rf *
+tar -xzf /tmp/imagion-deploy.tar.gz
+
+# Rebuild image
+docker build -t imagion:latest \
+  --build-arg NEXT_PUBLIC_BASE_URL=http://localhost:3000 \
+  --build-arg NEXT_PUBLIC_MODEL_NAME=model.onnx \
+  --build-arg NEXT_PUBLIC_USE_API_ONLY=false \
+  --build-arg NEXT_PUBLIC_PREMIUM_FEATURES_ENABLED=true \
+  --build-arg NEXT_PUBLIC_PIPELINE_ML_ENABLED=true \
+  --build-arg NEXT_PUBLIC_PIPELINE_VISUAL_ENABLED=false \
+  --build-arg NEXT_PUBLIC_PIPELINE_METADATA_ENABLED=false \
+  --build-arg NEXT_PUBLIC_PIPELINE_PHYSICS_ENABLED=false \
+  --build-arg NEXT_PUBLIC_PIPELINE_FREQUENCY_ENABLED=false \
+  --build-arg NEXT_PUBLIC_PIPELINE_PROVENANCE_ENABLED=false \
+  --build-arg NEXT_PUBLIC_HOTJAR_SITE_ID=6622003 \
+  .
+
+# Run migrations (if schema changed)
+cd /opt/imagion
+docker compose -f docker-compose.prod.yml --profile migration run --rm migrate
+
+# Restart app
+docker compose -f docker-compose.prod.yml up -d --no-deps app
+
+# Verify
+docker logs imagion-app --tail 20
+curl http://localhost:3000/api/health
+```
+
+---
 
 ## Troubleshooting
 
-### App won't start
+### Check logs
 
 ```bash
-# Check logs
 docker logs imagion-app --tail 100
-
-# Common issues:
-# - Missing env vars: check /opt/imagion/.env.production
-# - Database not ready: ensure postgres is healthy
-# - Missing models: check /opt/imagion/models/ has .onnx files
+docker logs imagion-redis --tail 50
+# Optional (only if you started the local-db profile)
+docker logs imagion-postgres --tail 50
 ```
 
-### Database migration fails
+### Restart everything
 
 ```bash
-# Check postgres logs
-docker logs imagion-postgres --tail 50
+cd /opt/imagion
+docker compose -f docker-compose.prod.yml restart
+```
 
-# Check migration status
-docker compose -f docker-compose.prod.yml --profile migration run --rm migrate
+### Full reset (deletes all data!)
+
+```bash
+cd /opt/imagion
+docker compose -f docker-compose.prod.yml down -v
+docker system prune -a
+# Then redo from Step 7
 ```
 
 ### Can't connect from outside
 
-The app binds to `127.0.0.1:3000` only. Use SSH tunnel or Cloudflare Tunnel for external access.
-
-### Reset everything
+The app only listens on `127.0.0.1`. You must use SSH tunnel:
 
 ```bash
-cd /opt/imagion
-docker compose -f docker-compose.prod.yml down -v  # WARNING: deletes all data
-docker system prune -a  # Clean up images
-# Then restart from Step 5
+ssh -i ~/.ssh/id_ed25519 -L 3000:localhost:3000 boomelite@home-server
 ```
 
-## Environment Variables
-
-The `.env.production` file must contain at minimum:
-
-```bash
-# Required (already generated)
-POSTGRES_PASSWORD=<random>
-REDIS_PASSWORD=<random>
-JWT_SECRET=<random>
-MODELS_PATH=/opt/imagion/models
-
-# Required for runtime
-NEXT_PUBLIC_BASE_URL=http://localhost:3000
-NEXT_PUBLIC_MODEL_NAME=model.onnx
-```
-
-Optional services (fill in if you want them to work):
-- Stripe (billing): 11 variables
-- PayPal (payments): 3 variables
-- SMTP (email verification): 5 variables
-- Hotjar (analytics): 1 variable
-
-See `.env.production.example` for all options.
+---
 
 ## File Structure
 
-After deployment:
-
 ```
 /opt/imagion/
-├── src/                          # Extracted source code
+├── src/                      # Source code
 │   ├── Dockerfile
-│   ├── docker-compose.prod.yml
 │   ├── package.json
 │   ├── prisma/
 │   └── src/
-├── models/                       # ONNX models (volume-mounted)
+├── models/                   # ONNX models (volume-mounted)
 │   ├── model.onnx
 │   ├── model.onnx.data
 │   ├── model_q4.onnx
+│   ├── nyuad.onnx
 │   └── ...
-├── docker-compose.prod.yml       # Active compose file
-└── .env.production              # Production secrets
+├── docker-compose.prod.yml   # Active compose file
+└── .env.production           # Secrets
 ```
 
-## Security Notes
+---
 
-- Database and Redis have no exposed ports (internal Docker network only)
-- App binds to `127.0.0.1` only (not `0.0.0.0`)
-- All secrets are in `.env.production` (gitignored)
-- Models are mounted read-only (`:ro`)
-- Containers run as non-root user (UID 1001)
+## Environment Variables
 
-## Next Steps
+Your `.env.production` already has:
+- ✅ `POSTGRES_PASSWORD` — generated
+- ✅ `REDIS_PASSWORD` — generated
+- ✅ `JWT_SECRET` — generated
+- ✅ `MODELS_PATH=/opt/imagion/models`
 
-- Set up Tailscale for secure remote access
-- Configure Cloudflare Tunnel when you buy a domain
-- Set up automated CI/CD (see `.github/workflows/deploy.yml`)
-- Enable billing by filling in Stripe/PayPal credentials
-- Enable email verification by filling in SMTP credentials
+Optional (fill in later if needed):
+- Stripe (billing)
+- PayPal (payments)
+- SMTP (email)
+- Cloudflare Tunnel (custom domain)

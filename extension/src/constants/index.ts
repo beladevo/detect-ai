@@ -9,7 +9,6 @@ export const BACKOFF_MIN_MS = 15_000;
 export const BACKOFF_MAX_MS = 60_000;
 export const MAX_HASH_HISTORY = 250;
 export const MAX_CACHE_SIZE = 500;
-export const CACHE_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
 export const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 export const MIN_IMAGE_DIMENSION = 50;
@@ -20,26 +19,16 @@ export const INITIAL_SCAN_DELAY_MS = 500;
 export const RATE_LIMIT_BADGE_TEXT = "!";
 export const RATE_LIMIT_BADGE_COLOR = "#ff4d67";
 
-export const EXCLUDED_DOMAINS: ReadonlyArray<string> = [
+export const EXCLUDED_DOMAINS: readonly string[] = [
   "localhost",
   "127.0.0.1",
   "imagion.ai",
   "www.imagion.ai",
 ];
 
-export const AI_VERDICTS = new Set([
-  "ai",
-  "fake",
-  "ai_generated",
-  "likely_ai",
-]);
-
+export const AI_VERDICTS = new Set(["ai", "fake", "ai_generated", "likely_ai"]);
 export const UNCERTAIN_VERDICTS = new Set(["uncertain"]);
-
-export const REAL_VERDICTS = new Set([
-  "real",
-  "likely_real",
-]);
+export const REAL_VERDICTS = new Set(["real", "likely_real"]);
 
 export const HIGH_CONFIDENCE_AI_THRESHOLD = 0.85;
 

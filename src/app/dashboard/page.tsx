@@ -20,6 +20,7 @@ import {
   RotateCcw,
   ShieldCheck,
   ShieldOff,
+  ArrowLeft,
 } from 'lucide-react'
 import { hasFeatureSync } from '@/src/lib/features'
 import { TIER_RATE_LIMITS, type UserTier } from '@/src/lib/tierConfig'
@@ -294,6 +295,17 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 p-8">
       <div className="mx-auto max-w-6xl space-y-8">
+        <div className="flex justify-start">
+          <GlowButton
+            variant="ghost"
+            size="sm"
+            className="border border-white/20 text-white hover:bg-white/10"
+            onClick={() => router.push('/')}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back to site</span>
+          </GlowButton>
+        </div>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

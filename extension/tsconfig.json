@@ -7,6 +7,7 @@
     "strict": true,
     "esModuleInterop": true,
     "moduleResolution": "bundler",
+    "jsx": "react-jsx",
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
@@ -16,7 +17,7 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "types": ["chrome", "jest", "node"]
+    "types": ["chrome", "webextension-polyfill", "jest", "node"]
   },
   "include": ["src/**/*", "scripts/**/*", "*.config.ts", "*.setup.ts"],
   "exclude": ["node_modules", "dist"]

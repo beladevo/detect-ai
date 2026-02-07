@@ -5,15 +5,10 @@ services:
     image: imagion:latest
     container_name: imagion-app
     restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}}
+      - REDIS_URL=${REDIS_URL:-redis://:${REDIS_PASSWORD}@redis:6379}
       - PORT=3000
     env_file:
       - .env.production
@@ -46,6 +41,8 @@ services:
     image: postgres:16-alpine
     container_name: imagion-postgres
     restart: unless-stopped
+    profiles:
+      - local-db
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -69,6 +66,8 @@ services:
     image: redis:7-alpine
     container_name: imagion-redis
     restart: unless-stopped
+    profiles:
+      - local-redis
     command: >
       redis-server
         --appendonly yes
@@ -116,11 +115,8 @@ services:
   migrate:
     image: imagion:latest
     container_name: imagion-migrate
-    depends_on:
-      postgres:
-        condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}}
     command: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
     networks:
       - internal

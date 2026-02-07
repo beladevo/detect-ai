@@ -1,4 +1,4 @@
-import type { HashHistoryEntry, RateLimitIndicator } from "./types";
+import type { HashHistoryEntry, RateLimitIndicator } from "../types";
 
 export function normalizeImageUrl(imageUrl: string, pageUrl: string): string | null {
   if (!imageUrl) {
@@ -42,20 +42,8 @@ export function isHostBlocked(host: string, blockedSet: Set<string>): boolean {
   if (!normalized) {
     return false;
   }
-  const candidate = normalized.startsWith("www.")
-    ? normalized.slice(4)
-    : normalized;
+  const candidate = normalized.startsWith("www.") ? normalized.slice(4) : normalized;
   return blockedSet.has(normalized) || blockedSet.has(candidate);
-}
-
-export function isExcludedDomain(
-  hostname: string,
-  excludedDomains: ReadonlyArray<string>
-): boolean {
-  const normalized = hostname.toLowerCase();
-  return excludedDomains.some(
-    (domain) => normalized === domain || normalized.endsWith(`.${domain}`)
-  );
 }
 
 export function getCacheLookupEndpoint(endpoint: string): string {
@@ -77,10 +65,7 @@ export function getUsageStatusEndpoint(endpoint: string): string {
   try {
     const url = new URL(endpoint);
     if (url.pathname.endsWith("/api/detect")) {
-      url.pathname = url.pathname.replace(
-        /\/api\/detect$/,
-        "/api/usage/status"
-      );
+      url.pathname = url.pathname.replace("/api/detect", "/api/usage/status");
     } else {
       url.pathname = `${url.pathname.replace(/\/$/, "")}/api/usage/status`;
     }
@@ -91,10 +76,7 @@ export function getUsageStatusEndpoint(endpoint: string): string {
   }
 }
 
-export function parseRetryAfter(
-  header: string | null,
-  fallbackMs: number
-): number {
+export function parseRetryAfter(header: string | null, fallbackMs: number): number {
   if (!header) {
     return fallbackMs / 1000;
   }
@@ -105,10 +87,7 @@ export function parseRetryAfter(
   return fallbackMs / 1000;
 }
 
-export function buildRequestKey(
-  imageUrl: string,
-  mode: string
-): string {
+export function buildRequestKey(imageUrl: string, mode: string): string {
   return `${mode}:${imageUrl}`;
 }
 
@@ -128,9 +107,7 @@ export function isHashHistoryEntry(value: unknown): value is HashHistoryEntry {
   );
 }
 
-export function isRateLimitIndicator(
-  value: unknown
-): value is RateLimitIndicator {
+export function isRateLimitIndicator(value: unknown): value is RateLimitIndicator {
   if (!value || typeof value !== "object") {
     return false;
   }

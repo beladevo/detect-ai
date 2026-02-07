@@ -29,9 +29,8 @@ export default function Navbar({ onActionClick = () => {} }: NavbarProps) {
   const navLinks = [
     { href: "#upload", label: "Detection" },
     { href: "#features", label: "Capabilities" },
-    { href: "/api-docs", label: "API Docs" },
+    { href: "/get-extension", label: "Get Extension" },
     { href: "/pricing", label: "Pricing", isExternal: false },
-    { href: "/privacy", label: "Privacy" },
   ];
   const hasPremiumAccess = Boolean(user && user.tier !== "FREE");
   const showUpgradeButton = !loading && !hasPremiumAccess;

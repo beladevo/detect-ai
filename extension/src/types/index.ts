@@ -22,64 +22,19 @@ export type DetectionResponsePayload = {
   retryAfterSeconds?: number;
 };
 
-export type HashHistoryEntry = {
-  hash: string;
-  payload: DetectionResponsePayload;
-  createdAt: number;
-  mode: DetectionMode;
-};
-
 export type DetectionResponse = DetectionResponsePayload & {
   badgeId: string;
   imageUrl: string;
   hash?: string;
 };
 
-export type TelemetryEntry = {
-  timestamp: number;
-  level: "info" | "warning" | "error";
-  message: string;
-  details?: Record<string, unknown>;
-};
-
-export type RateLimitReason = "burst" | "daily" | "plan";
-
-export type RateLimitIndicator = {
-  reason: RateLimitReason;
-  expiresAt: number;
-};
-
-export type UsageStatusPayload = {
-  tier: string;
-  dailyUsed: number;
-  monthlyUsed: number;
-  dailyLimit: number | null;
-  monthlyLimit: number | null;
-  totalDetections: number;
-  monthlyResetAt: string;
-  dailyResetAt: string;
-};
-
-export type ImagionConfig = {
-  imagionApiKey: string;
-  imagionDetectionEndpoint: string;
-  detectionMode: DetectionMode;
-  localDetectionEndpoint: string;
-  planTier: PlanTier;
-};
-
-export type BadgeResponse = {
-  status?: DetectionStatus;
-  verdict?: string;
-  score?: number;
-  confidence?: number;
-  presentation?: string;
-  message?: string;
-  badgeId: string;
-  imageUrl?: string;
-  retryAfterSeconds?: number;
-  badgeLabel?: string;
-  hash?: string;
+export type PageSummary = {
+  ai: number;
+  real: number;
+  uncertain: number;
+  pending: number;
+  error: number;
+  total: number;
 };
 
 export type StorageData = {
@@ -124,9 +79,38 @@ export type ExtensionSettings = {
   imagionPlanTier: PlanTier;
 };
 
+export type HashHistoryEntry = {
+  hash: string;
+  payload: DetectionResponsePayload;
+  createdAt: number;
+  mode: DetectionMode;
+};
+
+export type TelemetryEntry = {
+  timestamp: number;
+  level: "info" | "warning" | "error";
+  message: string;
+  details?: Record<string, unknown>;
+};
+
+export type RateLimitReason = "burst" | "daily" | "plan";
+
+export type RateLimitIndicator = {
+  reason: RateLimitReason;
+  expiresAt: number;
+};
+
+export type ImagionConfig = {
+  imagionApiKey: string;
+  imagionDetectionEndpoint: string;
+  detectionMode: DetectionMode;
+  localDetectionEndpoint: string;
+  planTier: PlanTier;
+};
+
 export type PendingResolver = {
   badgeId: string;
-  sendResponse: (response: DetectionResponse) => void;
+  resolve: (response: DetectionResponse) => void;
 };
 
 export type PendingRequest = {
@@ -140,13 +124,4 @@ export type DetectionJob = {
   imagionApiKey: string;
   imagionDetectionEndpoint: string;
   localEndpoint: string;
-};
-
-export type PageSummary = {
-  ai: number;
-  real: number;
-  uncertain: number;
-  pending: number;
-  error: number;
-  total: number;
 };
