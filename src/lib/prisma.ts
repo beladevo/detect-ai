@@ -4,10 +4,10 @@ import { Signer } from "@aws-sdk/rds-signer"
 const trimValue = (value?: string) => value?.trim()
 
 /**
- * Detect if running on Vercel production environment
+ * Detect if running on Vercel (any environment: production, preview, or development)
  */
-const isVercelProduction = () => {
-  return process.env.VERCEL === "1" && process.env.VERCEL_ENV === "production"
+const isVercel = () => {
+  return process.env.VERCEL === "1"
 }
 
 /**
@@ -117,7 +117,7 @@ const resolveAwsIamUrl = async () => {
 /**
  * Resolve the database URL based on the environment:
  *
- * Priority for Vercel Production (with OIDC):
+ * Priority for Vercel (production, preview, development):
  *   1. AWS IAM authentication (if credentials available)
  *   2. Explicit DATABASE_URL (fallback)
  *   3. Built from PG environment variables
@@ -127,9 +127,9 @@ const resolveAwsIamUrl = async () => {
  *   2. Built from POSTGRES or PG environment variables
  */
 const resolveDatabaseUrl = async () => {
-  // On Vercel production with IAM credentials, always use IAM auth
+  // On Vercel with IAM credentials, always use IAM auth
   // This ensures we use OIDC tokens instead of static passwords
-  if (isVercelProduction() && hasAwsIamCredentials()) {
+  if (isVercel() && hasAwsIamCredentials()) {
     const iamUrl = await resolveAwsIamUrl()
     if (iamUrl) {
       return iamUrl
