@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run db:generate && next build",
+    "build": "npm run db:generate && next build && npm run db:migrate:prod",
     "start": "next start",
     "lint": "eslint",
     "compare:local": "node scripts/compare-detectors.cjs",
