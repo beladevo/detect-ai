@@ -5,7 +5,13 @@
       "Bash(npm run lint)",
       "Bash(npx tsx:*)",
       "Bash(tree:*)",
-      "Bash(npx tsc --noEmit --skipLibCheck)"
+      "Bash(npx tsc --noEmit --skipLibCheck)",
+      "Bash(python3:*)",
+      "Bash(openssl rand:*)",
+      "Bash(powershell -Command \"[Convert]::ToBase64String\\(\\(1..32 | ForEach-Object { Get-Random -Maximum 256 }\\) -as [byte[]]\\)\")",
+      "Bash(powershell -Command \"[Convert]::ToBase64String\\(\\(1..48 | ForEach-Object { Get-Random -Maximum 256 }\\) -as [byte[]]\\)\")",
+      "Bash(dir \"f:\\\\repos\\\\ai-detector\\\\ai-detector\\\\public\\\\models\\\\onnx\")",
+      "Bash(npx prisma migrate:*)"
     ],
     "additionalDirectories": [
       "f:\\repos\\ai-detector\\ai-detector\\src\\app\\admin\\users",

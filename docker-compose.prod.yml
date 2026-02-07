@@ -2,18 +2,13 @@ version: "3.9"
 
 services:
   app:
-    image: ghcr.io/beladevo/detect-ai:latest
+    image: imagion:latest
     container_name: imagion-app
     restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}}
+      - REDIS_URL=${REDIS_URL:-redis://:${REDIS_PASSWORD}@redis:6379}
       - PORT=3000
     env_file:
       - .env.production
@@ -39,13 +34,15 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
-      start-period: 60s
+      start_period: 60s
       retries: 3
 
   postgres:
     image: postgres:16-alpine
     container_name: imagion-postgres
     restart: unless-stopped
+    profiles:
+      - local-db
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -69,6 +66,8 @@ services:
     image: redis:7-alpine
     container_name: imagion-redis
     restart: unless-stopped
+    profiles:
+      - local-redis
     command: >
       redis-server
         --appendonly yes
@@ -114,14 +113,11 @@ services:
 
   # One-shot migration runner — use: docker compose -f docker-compose.prod.yml run --rm migrate
   migrate:
-    image: ghcr.io/beladevo/detect-ai:latest
+    image: imagion:latest
     container_name: imagion-migrate
-    depends_on:
-      postgres:
-        condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-    command: npx prisma migrate deploy
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}}
+    command: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
     networks:
       - internal
     restart: "no"

@@ -22,6 +22,11 @@ FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 
+# Prisma needs OpenSSL during build for query engine
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openssl \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
@@ -86,6 +91,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libstdc++6 \
     ca-certificates \
     curl \
+    openssl \
     && rm -rf /var/lib/apt/lists/*
 
 # Non-root user
@@ -119,8 +125,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/public/onnxruntime ./public/onnxr
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
 # Copy native modules that Next.js standalone doesn't bundle
+# Copy all prisma packages (CLI + client + engines + internal deps)
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/onnxruntime-node ./node_modules/onnxruntime-node
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/onnxruntime-common ./node_modules/onnxruntime-common
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/sharp ./node_modules/sharp

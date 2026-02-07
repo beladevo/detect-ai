@@ -1,0 +1,85 @@
+.history-shell {
+  width: 460px;
+  min-height: 400px;
+  padding: 24px;
+  background: #0b1220;
+  color: #f8fafc;
+  font-family: "Inter", system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.history-shell header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.history-shell h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.history-shell button {
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6366f1, #818cf8);
+  color: white;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.empty {
+  text-align: center;
+  color: rgba(248, 250, 252, 0.7);
+}
+
+.history-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.history-card {
+  background: rgba(15, 23, 42, 0.9);
+  border-radius: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.history-card h2 {
+  margin-top: 0;
+  text-transform: capitalize;
+}
+
+.history-card ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.history-card li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.95rem;
+}
+
+.history-card li small {
+  display: block;
+  color: rgba(248, 250, 252, 0.5);
+  font-size: 0.75rem;
+}
+
+.history-card li button {
+  border: none;
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.25);
+  color: #e2e8f0;
+  padding: 4px 8px;
+  cursor: pointer;
+}

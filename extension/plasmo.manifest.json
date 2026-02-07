@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Imagion Image Detector",
+  "description": "Annotates images with Imagion's AI detection verdict while you browse.",
+  "version": "0.1.0",
+  "icons": {
+    "48": "icons/icon-48.svg",
+    "128": "icons/icon-128.svg"
+  },
+  "action": {
+    "default_title": "Imagion AI detection"
+  },
+  "options_ui": {
+    "page": "options/index.html",
+    "open_in_tab": true
+  },
+  "permissions": [
+    "storage",
+    "scripting",
+    "activeTab",
+    "contextMenus",
+    "notifications",
+    "alarms"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "commands": {
+    "toggle-badges": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+I",
+        "mac": "Command+Shift+I"
+      },
+      "description": "Toggle badge overlays on/off"
+    },
+    "scan-page": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+R",
+        "mac": "Command+Shift+R"
+      },
+      "description": "Re-scan current page for images"
+    }
+  }
+}

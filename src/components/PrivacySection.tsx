@@ -1,23 +1,27 @@
 "use client";
 
+import Link from "next/link";
 import React from "react";
-import { Lock, ServerOff, ShieldCheck } from "lucide-react";
+import { Lock, ShieldCheck, ServerOff } from "lucide-react";
 
 const highlights = [
   {
     icon: ServerOff,
-    title: "No uploads",
-    description: "Images never leave your device while detection runs locally.",
+    title: "Local-first detection",
+    description:
+      "Browser-based detection keeps files on your device. Only derived scores, hashes, and metadata are sent when the cloud API is needed.",
   },
   {
     icon: ShieldCheck,
     title: "Clear history anytime",
-    description: "Stored results live in your browser and can be wiped instantly.",
+    description:
+      "Result summaries live in your browser. Undo them via the history list or sign out to clear session-bound data.",
   },
   {
     icon: Lock,
-    title: "Private by design",
-    description: "No tracking pixels, no hidden logging, no file retention.",
+    title: "Data-savvy by design",
+    description:
+      "We cache only non-image payloads and avoid tracking pixels or commercial telemetry.",
   },
 ];
 
@@ -31,15 +35,25 @@ export default function PrivacySection() {
               Privacy
             </p>
             <h2 className="font-display text-3xl font-semibold text-foreground sm:text-4xl">
-              Your images stay yours.
+              Your images stay under your control.
             </h2>
             <p className="mt-4 text-sm text-foreground/60">
-              AI-human detector runs a{" "}
-              <strong className="font-semibold text-foreground">
-                local AI detection model
-              </strong>{" "}
-              so sensitive files never hit a server. We do not store uploads or
-              sell any data.
+              We default to local detection inside your browser. When the UI
+              transparently falls back to the cloud API or you call it directly,
+              we upload the file, compute a SHA-256 digest, and keep only the
+              derived verdict metadata. The raw pixels never persist, and we
+              never sell or trade your images.
+            </p>
+            <p className="mt-2 text-xs text-foreground/50">
+              Learn how API logging, caching, and the extension&apos;s detection modes
+              work on the{" "}
+              <Link
+                href="/privacy"
+                className="font-semibold text-brand-cyan underline decoration-brand-cyan/60"
+              >
+                privacy page
+              </Link>
+              .
             </p>
           </div>
           <div className="grid gap-4 text-sm text-foreground/60">

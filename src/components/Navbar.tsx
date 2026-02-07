@@ -10,10 +10,10 @@ import { useAuth } from "@/src/context/AuthContext";
 import { ThemeToggle } from "./ThemeToggle";
 
 type NavbarProps = {
-  onActionClick: () => void;
+  onActionClick?: () => void;
 };
 
-export default function Navbar({ onActionClick }: NavbarProps) {
+export default function Navbar({ onActionClick = () => {} }: NavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, loading } = useAuth();
@@ -29,6 +29,7 @@ export default function Navbar({ onActionClick }: NavbarProps) {
   const navLinks = [
     { href: "#upload", label: "Detection" },
     { href: "#features", label: "Capabilities" },
+    { href: "/get-extension", label: "Get Extension" },
     { href: "/pricing", label: "Pricing", isExternal: false },
   ];
   const hasPremiumAccess = Boolean(user && user.tier !== "FREE");

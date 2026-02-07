@@ -1,12 +1,27 @@
 "use client"
 
+import Link from 'next/link'
 import { useAuth } from '@/src/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import GlowButton from '@/src/components/ui/GlowButton'
 import Modal from '@/src/components/ui/Modal'
 import { PremiumBadge } from '@/src/components/ui/PremiumBadge'
-import { LogOut, Crown, Activity, Image as ImageIcon, BarChart3, Clock, Trash2 } from 'lucide-react'
+import { useToast } from '@/src/context/ToastContext'
+import {
+  LogOut,
+  Crown,
+  Activity,
+  Image as ImageIcon,
+  BarChart3,
+  Clock,
+  Trash2,
+  Copy,
+  RotateCcw,
+  ShieldCheck,
+  ShieldOff,
+  ArrowLeft,
+} from 'lucide-react'
 import { hasFeatureSync } from '@/src/lib/features'
 import { TIER_RATE_LIMITS, type UserTier } from '@/src/lib/tierConfig'
 
@@ -46,8 +61,11 @@ export default function DashboardPage() {
   const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [portalError, setPortalError] = useState<string | null>(null)
+  const { toast } = useToast()
+  const [apiActionLoading, setApiActionLoading] = useState<null | 'regenerate' | 'toggle'>(null)
   const canViewAnalytics = hasFeatureSync(user?.tier ?? null, 'advanced_analytics')
   const isPremium = user?.tier === 'PREMIUM' || user?.tier === 'ENTERPRISE'
+  const hasApiAccess = hasFeatureSync(user?.tier ?? null, 'api_access')
 
   useEffect(() => {
     if (!loading && !user) {
@@ -162,6 +180,82 @@ export default function DashboardPage() {
     }
   }
 
+  async function handleGenerateApiKey() {
+    if (!hasApiAccess) return
+
+    setApiActionLoading('regenerate')
+    try {
+      const response = await fetch('/api/users/me/api-key', { method: 'POST' })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to generate API key')
+      }
+      if (!data?.apiKey) {
+        throw new Error('API key was not returned')
+      }
+      toast({
+        title: 'API key refreshed',
+        description: 'Your new key is ready. Copy it before navigating away.',
+        variant: 'success',
+      })
+      await refreshUser().catch(() => {})
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to generate API key'
+      console.error('API key generation failed:', message)
+      toast({ title: 'API key error', description: message, variant: 'error' })
+    } finally {
+      setApiActionLoading(null)
+    }
+  }
+
+  async function handleToggleApiAccess() {
+    if (!user) return
+
+    setApiActionLoading('toggle')
+    try {
+      const desired = !user.apiKeyEnabled
+      const response = await fetch('/api/users/me/api-key', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: desired }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to update API access')
+      }
+      toast({
+        title: 'API access updated',
+        description: `Access ${desired ? 'enabled' : 'disabled'} successfully.`,
+        variant: 'success',
+      })
+      await refreshUser().catch(() => {})
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to update API access'
+      console.error('API access toggle failed:', message)
+      toast({ title: 'API access error', description: message, variant: 'error' })
+    } finally {
+      setApiActionLoading(null)
+    }
+  }
+
+  async function handleCopyApiKey() {
+    if (!user?.apiKey) return
+
+    try {
+      await navigator.clipboard.writeText(user.apiKey)
+      toast({ title: 'Copied', description: 'API key copied to clipboard.', variant: 'success' })
+    } catch (error) {
+      console.error('Copy API key failed:', error)
+      toast({
+        title: 'Clipboard error',
+        description: 'Unable to copy the API key. Try again.',
+        variant: 'error',
+      })
+    }
+  }
+
   const userTier = (user.tier ?? 'FREE') as UserTier
   const tierLimits = TIER_RATE_LIMITS[userTier]
 
@@ -201,6 +295,17 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 p-8">
       <div className="mx-auto max-w-6xl space-y-8">
+        <div className="flex justify-start">
+          <GlowButton
+            variant="ghost"
+            size="sm"
+            className="border border-white/20 text-white hover:bg-white/10"
+            onClick={() => router.push('/')}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back to site</span>
+          </GlowButton>
+        </div>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -458,6 +563,107 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-gray-400">
+                <ShieldCheck className="h-4 w-4 text-emerald-300" />
+                <span>API Access</span>
+              </div>
+              <h2 className="text-xl font-semibold text-white">Detection API</h2>
+              <p className="text-sm text-gray-400">
+                Generate and manage the key that powers `/api/detect` calls and unlocks usage analytics.
+              </p>
+            </div>
+            <Link
+              href="/api-docs"
+              className="text-sm font-semibold text-purple-300 transition hover:text-white"
+            >
+              View API docs →
+            </Link>
+          </div>
+          {hasApiAccess ? (
+            <>
+              <div className="mt-4 space-y-2 text-sm text-gray-300">
+                <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                  <span>Current status</span>
+                  <span className="font-semibold text-white">
+                    {user.apiKeyEnabled ? 'Active' : 'Disabled'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                  <span>API key</span>
+                  <span className="font-mono text-xs text-white">
+                    {user.apiKey
+                      ? `${user.apiKey.slice(0, 8)}…${user.apiKey.slice(-4)}`
+                      : 'Not generated yet'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                  <span>Rate limit</span>
+                  <span className="font-semibold text-white">
+                    {tierLimits.perMinute.toLocaleString()} / minute burst
+                  </span>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-gray-400">
+                Include `x-api-key` in every request header. Read the docs for accepted payloads,
+                rate-limit headers, and error codes.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <GlowButton
+                  variant="ghost"
+                  onClick={handleCopyApiKey}
+                  disabled={!user.apiKey}
+                  className="border-white/10 text-white"
+                >
+                  <Copy className="h-4 w-4" />
+                  <span>Copy key</span>
+                </GlowButton>
+                <GlowButton
+                  variant="secondary"
+                  onClick={handleGenerateApiKey}
+                  disabled={apiActionLoading === 'regenerate'}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  <span>{user.apiKey ? 'Rotate API key' : 'Generate API key'}</span>
+                </GlowButton>
+                <GlowButton
+                  variant="ghost"
+                  onClick={handleToggleApiAccess}
+                  disabled={apiActionLoading === 'toggle'}
+                  className="border-white/10 text-white"
+                >
+                  {user.apiKeyEnabled ? (
+                    <>
+                      <ShieldOff className="h-4 w-4" />
+                      <span>Disable access</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>Enable access</span>
+                    </>
+                  )}
+                </GlowButton>
+              </div>
+            </>
+          ) : (
+            <div className="mt-4 rounded-xl border border-purple-500/30 bg-purple-500/10 p-4 text-sm text-purple-200">
+              <p>
+                API access is reserved for Premium and Enterprise plans. Upgrade to unlock
+                programmable access, usage dashboards, and the extension.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <GlowButton variant="secondary" onClick={() => router.push('/pricing')}>
+                  <Crown className="h-4 w-4" />
+                  <span>View plans</span>
+                </GlowButton>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Quick Actions */}
