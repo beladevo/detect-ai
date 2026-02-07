@@ -1,0 +1,128 @@
+.popup-shell {
+  width: 360px;
+  padding: 16px;
+  background: radial-gradient(circle at top, #111827 0%, #0f172a 70%);
+  color: #f8fafc;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.popup-shell h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  letter-spacing: 0.04em;
+}
+
+.popup-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.card {
+  background: rgba(15, 23, 42, 0.9);
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.card strong {
+  display: block;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.6);
+}
+
+.card span {
+  font-size: 1.3rem;
+  display: block;
+  margin-top: 6px;
+}
+
+.popup-shell button {
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: #fff;
+  transition: transform 0.15s ease;
+}
+
+.popup-shell button:hover {
+  transform: translateY(-1px);
+}
+
+.status {
+  font-size: 0.85rem;
+  color: #fb7185;
+  margin: 0;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-header button {
+  width: auto;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  background: rgba(59, 130, 246, 0.3);
+}
+
+.summary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.summary-list li {
+  font-size: 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  color: rgba(248, 250, 252, 0.75);
+}
+
+.history-cta {
+  display: flex;
+  gap: 8px;
+}
+
+.history-cta button {
+  flex: 1;
+  background: rgba(148, 163, 184, 0.2);
+  color: #e0f2fe;
+}
+
+.onboarding,
+.login-view {
+  background: rgba(15, 23, 42, 0.9);
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+}
+
+.login-view form {
+  display: grid;
+  gap: 10px;
+}
+
+.login-view input {
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  padding: 8px 10px;
+  background: rgba(15, 23, 42, 0.8);
+  color: #f8fafc;
+}

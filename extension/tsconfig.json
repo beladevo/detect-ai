@@ -2,7 +2,11 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
-    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ES2022"
+    ],
     "outDir": "dist",
     "strict": true,
     "esModuleInterop": true,
@@ -15,10 +19,26 @@
     "noEmit": true,
     "declaration": false,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     },
-    "types": ["chrome", "webextension-polyfill", "jest", "node"]
+    "types": [
+      "chrome",
+      "webextension-polyfill",
+      "jest",
+      "node"
+    ]
   },
-  "include": ["src/**/*", "scripts/**/*", "*.config.ts", "*.setup.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    ".plasmo/index.d.ts",
+    "src/**/*",
+    "scripts/**/*",
+    "*.config.ts",
+    "*.setup.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

@@ -5,6 +5,7 @@ import { MESSAGE_TYPES } from "../types/messages";
 import { formatLimit, maskApiKey } from "../utils";
 import { DEFAULT_DETECTION_ENDPOINT, AUTH_ENDPOINT_PATH } from "../constants";
 import type { UsageStatusPayload, PageSummary } from "../types";
+import "./styles.css";
 
 type StorageSnapshot = {
   imagionApiKey: string;
@@ -304,31 +305,38 @@ const Popup = () => {
     );
   }
 
+  const historyUrl = browser.runtime.getURL("history/index.html");
+
   return (
     <div className="popup-shell">
-      <header>
-        <h1>Imagion</h1>
-        <p>{storage.imagionUserEmail || "Signed in"}</p>
-      </header>
-      <section>
+      <div className="section-header">
         <div>
+          <h1>Imagion</h1>
+          <small>{storage.imagionUserEmail || "Imagion badge system"}</small>
+        </div>
+        <button type="button" onClick={toggleAdvanced}>
+          {advancedOpen ? "Hide advanced" : "Advanced settings"}
+        </button>
+      </div>
+      <div className="popup-row">
+        <div className="card">
           <strong>Tier</strong>
           <span>{storage.imagionUserTier || "FREE"}</span>
         </div>
-        <div>
+        <div className="card">
           <strong>Monthly</strong>
           <span>
             {storage.imagionMonthlyDetections} / {formatLimit(storage.imagionMonthlyLimit)}
           </span>
         </div>
-        <div>
+        <div className="card">
           <strong>Daily</strong>
           <span>
             {storage.imagionDailyDetections} / {formatLimit(storage.imagionDailyLimit)}
           </span>
         </div>
-      </section>
-      <section>
+      </div>
+      <section className="card">
         <label>
           <input
             type="checkbox"
@@ -338,74 +346,88 @@ const Popup = () => {
           Enable badges
         </label>
       </section>
-      <section>
-        <h2>Usage</h2>
-        <button type="button" onClick={() => void refreshUsageStatus()}>
-          Refresh usage
-        </button>
+      <section className="card">
+        <div className="section-header">
+          <h2>Usage</h2>
+          <button type="button" onClick={() => void refreshUsageStatus()}>
+            Refresh
+          </button>
+        </div>
         {usage ? (
-          <ul>
-            <li>Tier: {usage.tier}</li>
-            <li>Monthly used: {usage.monthlyUsed}</li>
-            <li>Daily used: {usage.dailyUsed}</li>
+          <ul className="summary-list">
+            <li>
+              Tier <span>{usage.tier}</span>
+            </li>
+            <li>
+              Monthly <span>{usage.monthlyUsed}</span>
+            </li>
+            <li>
+              Daily <span>{usage.dailyUsed}</span>
+            </li>
           </ul>
         ) : (
-          <p>No usage data</p>
+          <p>No usage yet</p>
         )}
       </section>
-      <section>
-        <h2>Page summary</h2>
-        <button type="button" onClick={handlePageSummaryRefresh}>
-          Refresh summary
-        </button>
+      <section className="card">
+        <div className="section-header">
+          <h2>Page summary</h2>
+          <button type="button" onClick={handlePageSummaryRefresh}>
+            Refresh
+          </button>
+        </div>
         {pageSummary ? (
-          <ul>
-            <li>AI: {pageSummary.ai}</li>
-            <li>Real: {pageSummary.real}</li>
-            <li>Uncertain: {pageSummary.uncertain}</li>
-            <li>Pending: {pageSummary.pending}</li>
+          <ul className="summary-list">
+            <li>
+              AI <span>{pageSummary.ai}</span>
+            </li>
+            <li>
+              Real <span>{pageSummary.real}</span>
+            </li>
+            <li>
+              Uncertain <span>{pageSummary.uncertain}</span>
+            </li>
+            <li>
+              Pending <span>{pageSummary.pending}</span>
+            </li>
           </ul>
         ) : (
           <p>No summary available</p>
         )}
       </section>
-      <section>
-        <div>
-          <strong>API key</strong>
-          <p>{maskApiKey(storage.imagionApiKey)}</p>
+      <section className="card">
+        <strong>API key</strong>
+        <p>{maskApiKey(storage.imagionApiKey)}</p>
+        <div className="popup-row">
           <button type="button" onClick={handleCopyApiKey}>
             Copy key
           </button>
+          <button type="button" onClick={handleLogout}>
+            Log out
+          </button>
         </div>
       </section>
-      <section>
-        <button type="button" onClick={() => openLink("/register")}>
-          Register
+      <section className="card history-cta">
+        <button type="button" onClick={() => openLink("/dashboard")}>
+          Open dashboard
         </button>
-        <button type="button" onClick={() => openLink("/forgot-password")}>
-          Forgot password
-        </button>
-        <button type="button" onClick={handleLogout}>
-          Log out
+        <button type="button" onClick={() => void browser.tabs.create({ url: historyUrl })}>
+          View history
         </button>
       </section>
-      <section>
-        <button type="button" onClick={toggleAdvanced}>
-          {advancedOpen ? "Hide advanced" : "Advanced settings"}
-        </button>
-        {advancedOpen && (
-          <div>
-            <label>
-              Custom endpoint
-              <input
-                type="text"
-                value={endpointInput}
-                onChange={(event) => setEndpointInput(event.target.value)}
-              />
-            </label>
-          </div>
-        )}
-      </section>
+      {advancedOpen && (
+        <section className="card">
+          <label>
+            Custom endpoint
+            <input
+              type="text"
+              value={endpointInput}
+              onChange={(event) => setEndpointInput(event.target.value)}
+              placeholder={DEFAULT_DETECTION_ENDPOINT.replace("/api/detect", "")}
+            />
+          </label>
+        </section>
+      )}
     </div>
   );
 };
