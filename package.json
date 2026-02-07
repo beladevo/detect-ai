@@ -18,6 +18,7 @@
     "docker:up": "docker compose up -d"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.985.0",
     "@aws-sdk/rds-signer": "^3.985.0",
     "@hotjar/browser": "^1.0.9",
     "@prisma/client": "^5.22.0",
