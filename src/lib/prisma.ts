@@ -1,8 +1,26 @@
 import { PrismaClient } from "@prisma/client"
 import { Signer } from "@aws-sdk/rds-signer"
-import { awsCredentialsProvider } from "@vercel/functions/oidc"
 
 const trimValue = (value?: string) => value?.trim()
+
+/**
+ * Detect if running on Vercel production environment
+ */
+const isVercelProduction = () => {
+  return process.env.VERCEL === "1" && process.env.VERCEL_ENV === "production"
+}
+
+/**
+ * Check if AWS IAM credentials are available for OIDC-based authentication
+ */
+const hasAwsIamCredentials = () => {
+  return Boolean(
+    trimValue(process.env.AWS_REGION) &&
+    trimValue(process.env.AWS_ROLE_ARN) &&
+    trimValue(process.env.PGHOST) &&
+    trimValue(process.env.PGUSER)
+  )
+}
 
 type UrlParts = {
   user: string
@@ -52,34 +70,15 @@ const buildFromEnvParts = () => {
   return buildPostgresUrl({ user, password, host, port, database, sslMode })
 }
 
-const shouldUseAwsIam = () => {
-  if (process.env.NODE_ENV !== "production") {
-    return false
-  }
-  return Boolean(
-    trimValue(process.env.AWS_REGION) &&
-      trimValue(process.env.AWS_ROLE_ARN) &&
-      trimValue(process.env.PGHOST) &&
-      trimValue(process.env.PGPORT) &&
-      trimValue(process.env.PGUSER)
-  )
-}
-
+/**
+ * Generate a database URL using AWS IAM authentication via Vercel OIDC
+ * This is used when deployed to Vercel with AWS Aurora PostgreSQL integration
+ */
 const resolveAwsIamUrl = async () => {
-  if (!shouldUseAwsIam()) {
-    return undefined
-  }
-
-  const host =
-    trimValue(process.env.PGHOST) ||
-    trimValue(process.env.POSTGRES_HOST) ||
-    trimValue(process.env.DATABASE_HOST)
+  const host = trimValue(process.env.PGHOST)
   const port = trimValue(process.env.PGPORT) || "5432"
-  const user = trimValue(process.env.PGUSER) || trimValue(process.env.POSTGRES_USER)
-  const database =
-    trimValue(process.env.PGDATABASE) ||
-    trimValue(process.env.POSTGRES_DB) ||
-    "postgres"
+  const user = trimValue(process.env.PGUSER)
+  const database = trimValue(process.env.PGDATABASE) || "postgres"
   const region = trimValue(process.env.AWS_REGION)
   const roleArn = trimValue(process.env.AWS_ROLE_ARN)
   const sslMode = trimValue(process.env.PGSSLMODE) || "require"
@@ -87,6 +86,10 @@ const resolveAwsIamUrl = async () => {
   if (!host || !user || !region || !roleArn) {
     return undefined
   }
+
+  // Dynamically import @vercel/functions/oidc only when needed (Vercel environment)
+  // This avoids errors in local development where the module may not work
+  const { awsCredentialsProvider } = await import("@vercel/functions/oidc")
 
   const signer = new Signer({
     hostname: host,
@@ -100,7 +103,7 @@ const resolveAwsIamUrl = async () => {
   })
 
   const token = await signer.getAuthToken()
-  console.info("Prisma: resolved DATABASE_URL via AWS IAM credentials.")
+  console.info("[Prisma] Using AWS IAM authentication via Vercel OIDC")
   return buildPostgresUrl({
     user,
     password: token,
@@ -111,25 +114,46 @@ const resolveAwsIamUrl = async () => {
   })
 }
 
+/**
+ * Resolve the database URL based on the environment:
+ *
+ * Priority for Vercel Production (with OIDC):
+ *   1. AWS IAM authentication (if credentials available)
+ *   2. Explicit DATABASE_URL (fallback)
+ *   3. Built from PG environment variables
+ *
+ * Priority for Local Development:
+ *   1. Explicit DATABASE_URL
+ *   2. Built from POSTGRES or PG environment variables
+ */
 const resolveDatabaseUrl = async () => {
+  // On Vercel production with IAM credentials, always use IAM auth
+  // This ensures we use OIDC tokens instead of static passwords
+  if (isVercelProduction() && hasAwsIamCredentials()) {
+    const iamUrl = await resolveAwsIamUrl()
+    if (iamUrl) {
+      return iamUrl
+    }
+    // If IAM auth fails, log warning but continue to fallbacks
+    console.warn("[Prisma] AWS IAM auth failed, falling back to other methods")
+  }
+
+  // For local development or non-IAM environments, use DATABASE_URL first
   const explicit = trimValue(process.env.DATABASE_URL)
   if (explicit) {
+    console.info("[Prisma] Using explicit DATABASE_URL")
     return explicit
   }
 
-  const iamUrl = await resolveAwsIamUrl()
-  if (iamUrl) {
-    return iamUrl
-  }
-
+  // Try to build from environment parts (POSTGRES_*/PG* variables)
   const derived = buildFromEnvParts()
   if (derived) {
-    console.info("Prisma: resolved DATABASE_URL from POSTGRES_/PG* environment variables.")
+    console.info("[Prisma] Built DATABASE_URL from environment variables")
     return derived
   }
 
   throw new Error(
-    "Prisma requires a DATABASE_URL (or POSTGRES_/PG* variables) to connect to Postgres."
+    "Prisma: Cannot resolve database connection. Set DATABASE_URL or POSTGRES_*/PG* variables."
   )
 }
 
